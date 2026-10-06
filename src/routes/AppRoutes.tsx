@@ -1,32 +1,12 @@
-import { Routes, Route } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 
-function Home() {
-  return <h1>Home</h1>;
-}
-
-function Login() {
-  return <h1>Login</h1>;
-}
-
-function Register() {
-  return <h1>Cadastro</h1>;
-}
-
-function TypingTest() {
-  return <h1>Teste de Digitação</h1>;
-}
-
-function Profile() {
-  return <h1>Perfil</h1>;
-}
-
-function Ranking() {
-  return <h1>Ranking</h1>;
-}
-
-function Battle() {
-  return <h1>Battle</h1>;
-}
+import { Home } from "../pages/Home/Home";
+import { Login } from "../pages/Login/Login";
+import { Register } from "../pages/Register/Register";
+import { TypingTest } from "../pages/TypingTest/TypingTest";
+import { Profile } from "../pages/Profile/Profile";
+import { Ranking } from "../pages/Ranking/Ranking";
+import { Battle } from "../pages/Battle/Battle";
 
 export function AppRoutes() {
   return (
