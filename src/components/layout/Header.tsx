@@ -1,7 +1,20 @@
 import { AppBar, Box, Button, Toolbar, Typography } from "@mui/material";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+
+import { useAuth } from "../../contexts/AuthContext";
 
 export function Header() {
+  const navigate = useNavigate();
+
+  const { user, isAuthenticated, logout } = useAuth();
+
+  function handleLogout() {
+    logout();
+
+    // Volta para a página inicial após sair
+    navigate("/");
+  }
+
   return (
     <AppBar
       position="static"
@@ -20,6 +33,7 @@ export function Header() {
           px: { xs: 2, md: 3 },
         }}
       >
+        {/* Logo */}
         <Typography
           component={Link}
           to="/"
@@ -34,7 +48,14 @@ export function Header() {
           TypeBattle
         </Typography>
 
-        <Box sx={{ display: "flex", gap: 1 }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+          }}
+        >
+          {/* Links disponíveis para todos */}
           <Button component={Link} to="/typing" color="inherit">
             Digitar
           </Button>
@@ -43,14 +64,44 @@ export function Header() {
             Ranking
           </Button>
 
-          <Button
-            component={Link}
-            to="/login"
-            variant="contained"
-            color="primary"
-          >
-            Entrar
-          </Button>
+          {isAuthenticated && user ? (
+            <>
+              {/* Área do usuário logado */}
+              <Button
+                component={Link}
+                to="/profile"
+                color="inherit"
+                sx={{
+                  display: {
+                    xs: "none",
+                    sm: "inline-flex",
+                  },
+                }}
+              >
+                {user.name}
+              </Button>
+
+              <Button onClick={handleLogout} variant="outlined" color="inherit">
+                Sair
+              </Button>
+            </>
+          ) : (
+            <>
+              {/* Área do visitante */}
+              <Button component={Link} to="/login" color="inherit">
+                Entrar
+              </Button>
+
+              <Button
+                component={Link}
+                to="/register"
+                variant="contained"
+                color="primary"
+              >
+                Criar conta
+              </Button>
+            </>
+          )}
         </Box>
       </Toolbar>
     </AppBar>

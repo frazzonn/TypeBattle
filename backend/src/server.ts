@@ -1,6 +1,7 @@
 import cors from "cors";
 import express from "express";
 
+import { authMiddleware } from "./middleware/authMiddleware.js";
 import { db } from "./prisma/db.js";
 import { userRoutes } from "./routes/userRoutes.js";
 import { authRoutes } from "./routes/authRoutes.js";
@@ -41,6 +42,12 @@ app.get("/api/db-test", async (_request, response) => {
   }
 });
 
+app.get("/api/auth/me", authMiddleware, (request, response) => {
+  response.json({
+    message: "Token válido!",
+    user: request.user,
+  });
+});
 // Rotas de usuários
 app.use("/api/users", userRoutes);
 

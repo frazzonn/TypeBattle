@@ -7,17 +7,28 @@ import { TypingTest } from "../pages/TypingTest/TypingTest";
 import { Profile } from "../pages/Profile/Profile";
 import { Ranking } from "../pages/Ranking/Ranking";
 import { Battle } from "../pages/Battle/Battle";
+import { ProtectedRoute } from "./ProtectedRoute";
 
 export function AppRoutes() {
   return (
     <Routes>
+      {/* Rotas públicas */}
       <Route path="/" element={<Home />} />
+
       <Route path="/login" element={<Login />} />
+
       <Route path="/register" element={<Register />} />
+
       <Route path="/typing" element={<TypingTest />} />
-      <Route path="/profile" element={<Profile />} />
+
       <Route path="/ranking" element={<Ranking />} />
-      <Route path="/battle" element={<Battle />} />
+
+      {/* Rotas protegidas */}
+      <Route element={<ProtectedRoute />}>
+        <Route path="/profile" element={<Profile />} />
+
+        <Route path="/battle" element={<Battle />} />
+      </Route>
     </Routes>
   );
 }

@@ -1,4 +1,5 @@
 import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 import type { Request, Response } from "express";
 
 import { db } from "../prisma/db.js";
@@ -35,9 +36,33 @@ export async function login(request: Request, response: Response) {
       });
     }
 
+    const jwtSecret = process.env["JWT_SECRET"];
+
+    // Verifica se a chave do JWT foi configurada
+    if (!jwtSecret) {
+      console.error("JWT_SECRET não configurado.");
+
+      return response.status(500).json({
+        message: "Configuração de autenticação ausente.",
+      });
+    }
+
+    // Cria o token contendo a identificação do usuário
+    const token = jwt.sign(
+      {
+        userId: user.id,
+        email: user.email,
+      },
+      jwtSecret,
+      {
+        expiresIn: "7d",
+      },
+    );
+
     // Login válido
     return response.status(200).json({
       message: "Login realizado com sucesso.",
+      token,
       user: {
         id: user.id,
         name: user.name,
