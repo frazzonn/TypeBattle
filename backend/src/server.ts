@@ -1,6 +1,8 @@
 import cors from "cors";
 import express from "express";
 
+import { db } from "./prisma/db.js";
+
 const app = express();
 
 // Permite requisições do frontend
@@ -15,6 +17,26 @@ app.get("/api/health", (_request, response) => {
     status: "ok",
     message: "TypeBattle API funcionando!",
   });
+});
+
+// Rota para testar a conexão com o banco
+app.get("/api/db-test", async (_request, response) => {
+  try {
+    // Consulta simples usando o ORM do Prisma 8
+    await db.orm.public.User.all();
+
+    response.json({
+      status: "ok",
+      message: "Conexão com PostgreSQL funcionando!",
+    });
+  } catch (error) {
+    console.error(error);
+
+    response.status(500).json({
+      status: "error",
+      message: "Erro ao conectar com PostgreSQL.",
+    });
+  }
 });
 
 const PORT = 3000;

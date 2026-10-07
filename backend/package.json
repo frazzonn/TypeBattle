@@ -12,7 +12,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "dependencies": {
     "@prisma/orm-postgres": "^8.0.0-rc.14",
     "cors": "^2.8.6",
