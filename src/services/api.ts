@@ -86,3 +86,21 @@ export async function saveTypingResult(data: TypingResultData, token: string) {
 
   return result;
 }
+
+// Busca o histórico de testes do usuário autenticado
+export async function getTypingResults(token: string) {
+  const response = await fetch(`${API_URL}/typing-results`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.message || "Erro ao buscar resultados.");
+  }
+
+  return result;
+}

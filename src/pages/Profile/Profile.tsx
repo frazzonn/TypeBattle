@@ -1,191 +1,228 @@
+import { useEffect, useState } from "react";
+
 import {
+  Alert,
   Avatar,
   Box,
   Button,
-  Chip,
+  CircularProgress,
   Paper,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   Typography,
 } from "@mui/material";
-import { Logout } from "@mui/icons-material";
-import { useNavigate } from "react-router-dom";
 
 import { useAuth } from "../../contexts/AuthContext";
+import { getTypingResults } from "../../services/api";
+
+interface TypingResult {
+  id: number;
+  ppm: number;
+  accuracy: number;
+  errors: number;
+  characters: number;
+  duration: number;
+  createdAt: string;
+  userId: number;
+}
 
 export function Profile() {
-  const navigate = useNavigate();
+  const { user, token, logout } = useAuth();
 
-  const { user, logout } = useAuth();
+  const [results, setResults] = useState<TypingResult[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  function handleLogout() {
-    logout();
+  useEffect(() => {
+    if (!token) {
+      setIsLoading(false);
+      return;
+    }
 
-    // Volta para a página inicial após sair
-    navigate("/");
-  }
+    // Depois da verificação, o token é uma string.
+    const authToken = token;
 
-  // Segurança: perfil só deve existir para usuários autenticados
-  if (!user) {
-    return null;
-  }
+    async function loadResults() {
+      try {
+        setError("");
+
+        const response = await getTypingResults(authToken);
+
+        setResults(response.results);
+      } catch (error) {
+        console.error(error);
+
+        setError("Não foi possível carregar o histórico de testes.");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadResults();
+  }, [token]);
 
   return (
     <Box
       sx={{
-        minHeight: "calc(100vh - 64px)",
-        display: "flex",
-        justifyContent: "center",
+        maxWidth: 1100,
+        mx: "auto",
         px: 2,
         py: 6,
       }}
     >
-      <Box
-        sx={{
-          width: "100%",
-          maxWidth: 700,
-        }}
-      >
-        <Stack spacing={3}>
-          {/* Título */}
-          <Box>
-            <Typography
-              variant="h4"
+      <Stack spacing={4}>
+        {/* Informações do usuário */}
+        <Paper
+          elevation={0}
+          sx={{
+            p: 4,
+            border: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          <Stack spacing={2}>
+            {/* Foto de perfil */}
+            <Avatar
               sx={{
-                fontWeight: 700,
+                width: 100,
+                height: 100,
+                fontSize: 36,
+                bgcolor: "primary.main",
               }}
             >
-              Meu perfil
+              {user?.name?.charAt(0).toUpperCase()}
+            </Avatar>
+
+            <Typography variant="h4" sx={{ fontWeight: 700 }}>
+              Meu Perfil
             </Typography>
 
-            <Typography
-              variant="body1"
-              color="text.secondary"
+            <Typography>
+              <strong>Nome:</strong> {user?.name}
+            </Typography>
+
+            <Typography>
+              <strong>E-mail:</strong> {user?.email}
+            </Typography>
+
+            <Typography>
+              <strong>ID:</strong> {user?.id}
+            </Typography>
+
+            <Button
+              variant="outlined"
+              color="error"
+              onClick={logout}
               sx={{
-                mt: 0.5,
+                alignSelf: "flex-start",
               }}
             >
-              Gerencie suas informações no TypeBattle.
-            </Typography>
-          </Box>
+              Sair da conta
+            </Button>
+          </Stack>
+        </Paper>
 
-          {/* Card principal */}
-          <Paper
-            elevation={0}
+        {/* Histórico de testes */}
+        <Box>
+          <Typography
+            variant="h5"
             sx={{
-              p: { xs: 3, sm: 4 },
-              border: "1px solid",
-              borderColor: "divider",
-              backgroundColor: "background.paper",
+              fontWeight: 700,
+              mb: 2,
             }}
           >
-            <Stack spacing={3}>
-              {/* Avatar e nome */}
-              <Stack
-                direction={{
-                  xs: "column",
-                  sm: "row",
-                }}
-                spacing={2}
-                sx={{
-                  alignItems: {
-                    xs: "center",
-                    sm: "flex-start",
-                  },
-                }}
-              >
-                <Avatar
-                  sx={{
-                    width: 72,
-                    height: 72,
-                    bgcolor: "primary.main",
-                    fontSize: "1.8rem",
-                    fontWeight: 700,
-                  }}
-                >
-                  {user.name.charAt(0).toUpperCase()}
-                </Avatar>
+            Histórico de testes
+          </Typography>
 
-                <Box
-                  sx={{
-                    textAlign: {
-                      xs: "center",
-                      sm: "left",
-                    },
-                  }}
-                >
-                  <Typography
-                    variant="h5"
-                    sx={{
-                      fontWeight: 700,
-                    }}
-                  >
-                    {user.name}
-                  </Typography>
+          {/* Carregando */}
+          {isLoading && (
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                py: 5,
+              }}
+            >
+              <CircularProgress />
+            </Box>
+          )}
 
-                  <Typography variant="body2" color="text.secondary">
-                    {user.email}
-                  </Typography>
-                </Box>
-              </Stack>
+          {/* Erro */}
+          {error && <Alert severity="error">{error}</Alert>}
 
-              {/* Informações */}
-              <Box
-                sx={{
-                  borderTop: "1px solid",
-                  borderColor: "divider",
-                  pt: 3,
-                }}
-              >
-                <Stack spacing={2}>
-                  <Box>
-                    <Typography variant="caption" color="text.secondary">
-                      ID da conta
-                    </Typography>
+          {/* Nenhum resultado */}
+          {!isLoading && !error && results.length === 0 && (
+            <Paper
+              elevation={0}
+              sx={{
+                p: 4,
+                textAlign: "center",
+                border: "1px solid",
+                borderColor: "divider",
+              }}
+            >
+              <Typography color="text.secondary">
+                Você ainda não realizou nenhum teste.
+              </Typography>
+            </Paper>
+          )}
 
-                    <Typography variant="body1">#{user.id}</Typography>
-                  </Box>
+          {/* Tabela de resultados */}
+          {!isLoading && !error && results.length > 0 && (
+            <TableContainer
+              component={Paper}
+              elevation={0}
+              sx={{
+                border: "1px solid",
+                borderColor: "divider",
+              }}
+            >
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Data</TableCell>
 
-                  <Box>
-                    <Typography variant="caption" color="text.secondary">
-                      Email
-                    </Typography>
+                    <TableCell>PPM</TableCell>
 
-                    <Typography variant="body1">{user.email}</Typography>
-                  </Box>
+                    <TableCell>Precisão</TableCell>
 
-                  <Box>
-                    <Typography variant="caption" color="text.secondary">
-                      Status
-                    </Typography>
+                    <TableCell>Erros</TableCell>
 
-                    <Box sx={{ mt: 0.5 }}>
-                      <Chip label="Conta ativa" color="success" size="small" />
-                    </Box>
-                  </Box>
-                </Stack>
-              </Box>
+                    <TableCell>Caracteres</TableCell>
 
-              {/* Botão de logout */}
-              <Box
-                sx={{
-                  borderTop: "1px solid",
-                  borderColor: "divider",
-                  pt: 3,
-                }}
-              >
-                <Button
-                  variant="outlined"
-                  color="error"
-                  startIcon={<Logout />}
-                  onClick={handleLogout}
-                >
-                  Sair da conta
-                </Button>
-              </Box>
-            </Stack>
-          </Paper>
-        </Stack>
-      </Box>
+                    <TableCell>Tempo</TableCell>
+                  </TableRow>
+                </TableHead>
+
+                <TableBody>
+                  {results.map((result) => (
+                    <TableRow key={result.id}>
+                      <TableCell>
+                        {new Date(result.createdAt).toLocaleString("pt-BR")}
+                      </TableCell>
+
+                      <TableCell>{result.ppm}</TableCell>
+
+                      <TableCell>{result.accuracy}%</TableCell>
+
+                      <TableCell>{result.errors}</TableCell>
+
+                      <TableCell>{result.characters}</TableCell>
+
+                      <TableCell>{result.duration}s</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </Box>
+      </Stack>
     </Box>
   );
 }
