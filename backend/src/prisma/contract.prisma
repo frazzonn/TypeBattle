@@ -1,9 +1,30 @@
 // use prisma-8
 
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  password  String
-  createdAt DateTime @default(now())
+  id            Int            @id @default(autoincrement())
+  name          String
+  email         String         @unique
+  password      String
+  createdAt     DateTime       @default(now())
+
+  // Resultados dos testes de digitação
+  typingResults TypingResult[]
+}
+
+model TypingResult {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  ppm        Int
+  accuracy   Int
+  errors     Int
+  characters Int
+  duration   Int
+  createdAt  DateTime @default(now())
+
+  // Relaciona o resultado ao usuário
+  user User @relation(
+    fields: [userId],
+    references: [id],
+    onDelete: Cascade
+  )
 }

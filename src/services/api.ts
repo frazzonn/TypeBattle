@@ -1,4 +1,3 @@
-// URL base da API do TypeBattle
 const API_URL = "http://localhost:3000/api";
 
 interface RegisterData {
@@ -24,7 +23,14 @@ interface AuthResponse {
   user: User;
 }
 
-// Realiza o cadastro de um novo usuário
+interface TypingResultData {
+  ppm: number;
+  accuracy: number;
+  errors: number;
+  characters: number;
+  duration: number;
+}
+
 export async function registerUser(data: RegisterData) {
   const response = await fetch(`${API_URL}/users`, {
     method: "POST",
@@ -43,7 +49,6 @@ export async function registerUser(data: RegisterData) {
   return result;
 }
 
-// Realiza o login do usuário
 export async function loginUser(data: LoginData): Promise<AuthResponse> {
   const response = await fetch(`${API_URL}/auth/login`, {
     method: "POST",
@@ -57,6 +62,26 @@ export async function loginUser(data: LoginData): Promise<AuthResponse> {
 
   if (!response.ok) {
     throw new Error(result.message || "Erro ao realizar login.");
+  }
+
+  return result;
+}
+
+// Salva o resultado do teste de digitação
+export async function saveTypingResult(data: TypingResultData, token: string) {
+  const response = await fetch(`${API_URL}/typing-results`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.message || "Erro ao salvar resultado.");
   }
 
   return result;

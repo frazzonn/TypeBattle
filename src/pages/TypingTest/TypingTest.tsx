@@ -1,4 +1,6 @@
+import { useEffect, useRef } from "react";
 import type { ChangeEvent } from "react";
+
 import {
   Box,
   Container,
@@ -10,6 +12,7 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
+
 import ReplayIcon from "@mui/icons-material/Replay";
 
 import { TIME_OPTIONS, useTypingTest } from "../../hooks/useTypingTest";
@@ -17,7 +20,15 @@ import { TIME_OPTIONS, useTypingTest } from "../../hooks/useTypingTest";
 import { TypingText } from "../../components/typing/TypingText";
 import { TypingStats } from "../../components/typing/TypingStats";
 
+import { saveTypingResult } from "../../services/api";
+import { useAuth } from "../../contexts/AuthContext";
+
 export function TypingTest() {
+  const { token } = useAuth();
+
+  // Evita salvar o mesmo resultado mais de uma vez.
+  const resultSavedRef = useRef(false);
+
   const {
     selectedTime,
     timeLeft,
@@ -37,6 +48,56 @@ export function TypingTest() {
 
   function handleInput(event: ChangeEvent<HTMLInputElement>) {
     handleInputChange(event.target.value);
+  }
+
+  // Salva o resultado quando o teste termina.
+  useEffect(() => {
+    if (!isFinished || !token || resultSavedRef.current) {
+      return;
+    }
+
+    resultSavedRef.current = true;
+
+    // Neste ponto o token já foi validado.
+    const authToken = token;
+
+    async function saveResult() {
+      try {
+        await saveTypingResult(
+          {
+            ppm,
+            accuracy,
+            errors: totalErrors,
+            characters: totalCharacters,
+            duration: selectedTime,
+          },
+          authToken,
+        );
+
+        console.log("Resultado salvo com sucesso!");
+      } catch (error) {
+        console.error("Erro ao salvar resultado:", error);
+
+        // Permite tentar novamente caso a requisição falhe.
+        resultSavedRef.current = false;
+      }
+    }
+
+    saveResult();
+  }, [
+    isFinished,
+    token,
+    ppm,
+    accuracy,
+    totalErrors,
+    totalCharacters,
+    selectedTime,
+  ]);
+
+  // Reinicia o teste e permite salvar o próximo resultado.
+  function handleReset() {
+    resultSavedRef.current = false;
+    resetTest();
   }
 
   return (
@@ -114,7 +175,7 @@ export function TypingTest() {
         >
           <TypingText text={targetText} input={input} />
 
-          {/* Campo invisível visualmente integrado à interface */}
+          {/* Campo de digitação */}
           <Box sx={{ mt: 4 }}>
             <input
               ref={inputRef}
@@ -170,7 +231,7 @@ export function TypingTest() {
           </Paper>
         )}
 
-        {/* Ícone para repetir o teste */}
+        {/* Botão para repetir o teste */}
         <Box
           sx={{
             display: "flex",
@@ -179,7 +240,7 @@ export function TypingTest() {
         >
           <Tooltip title="Repetir teste">
             <IconButton
-              onClick={resetTest}
+              onClick={handleReset}
               size="large"
               aria-label="Repetir teste"
               sx={{
