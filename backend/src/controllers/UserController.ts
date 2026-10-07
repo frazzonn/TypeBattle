@@ -1,3 +1,4 @@
+import bcrypt from "bcrypt";
 import type { Request, Response } from "express";
 
 import { db } from "../prisma/db.js";
@@ -25,14 +26,17 @@ export async function createUser(request: Request, response: Response) {
       });
     }
 
-    // Cria o usuário diretamente com os campos
+    // Gera um hash seguro para a senha
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // Salva o usuário com o hash, nunca a senha original
     const user = await db.orm.public.User.create({
       name,
       email,
-      password,
+      password: passwordHash,
     });
 
-    // Não retorna a senha
+    // Nunca retorna a senha ou o hash
     return response.status(201).json({
       id: user.id,
       name: user.name,

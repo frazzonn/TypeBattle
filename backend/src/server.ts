@@ -3,6 +3,7 @@ import express from "express";
 
 import { db } from "./prisma/db.js";
 import { userRoutes } from "./routes/userRoutes.js";
+import { authRoutes } from "./routes/authRoutes.js";
 
 const app = express();
 
@@ -42,6 +43,9 @@ app.get("/api/db-test", async (_request, response) => {
 
 // Rotas de usuários
 app.use("/api/users", userRoutes);
+
+// Rotas de autenticação
+app.use("/api/auth", authRoutes);
 
 const PORT = 3000;
 
