@@ -2,6 +2,7 @@ import cors from "cors";
 import express from "express";
 
 import { db } from "./prisma/db.js";
+import { userRoutes } from "./routes/userRoutes.js";
 
 const app = express();
 
@@ -22,7 +23,7 @@ app.get("/api/health", (_request, response) => {
 // Rota para testar a conexão com o banco
 app.get("/api/db-test", async (_request, response) => {
   try {
-    // Consulta simples usando o ORM do Prisma 8
+    // Consulta o model User através do Prisma 8
     await db.orm.public.User.all();
 
     response.json({
@@ -38,6 +39,9 @@ app.get("/api/db-test", async (_request, response) => {
     });
   }
 });
+
+// Rotas de usuários
+app.use("/api/users", userRoutes);
 
 const PORT = 3000;
 
