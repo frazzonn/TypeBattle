@@ -104,3 +104,22 @@ export async function getTypingResults(token: string) {
 
   return result;
 }
+export async function getRanking(token: string, duration: number) {
+  const response = await fetch(
+    `${API_URL}/typing-results/ranking?duration=${duration}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
+
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.message || "Erro ao buscar ranking.");
+  }
+
+  return result;
+}

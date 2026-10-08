@@ -35,7 +35,9 @@ export function Profile() {
   const { user, token, logout } = useAuth();
 
   const [results, setResults] = useState<TypingResult[]>([]);
+
   const [isLoading, setIsLoading] = useState(true);
+
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -65,10 +67,20 @@ export function Profile() {
     loadResults();
   }, [token]);
 
-  // Calcula as estatísticas usando os resultados já carregados.
+  // Melhor PPM registrado pelo usuário.
   const bestPpm =
     results.length > 0 ? Math.max(...results.map((result) => result.ppm)) : 0;
 
+  // Média de PPM de todos os testes.
+  const averagePpm =
+    results.length > 0
+      ? Math.round(
+          results.reduce((total, result) => total + result.ppm, 0) /
+            results.length,
+        )
+      : 0;
+
+  // Média de precisão dos testes.
   const averageAccuracy =
     results.length > 0
       ? Math.round(
@@ -77,7 +89,20 @@ export function Profile() {
         )
       : 0;
 
+  // Melhor precisão registrada.
+  const bestAccuracy =
+    results.length > 0
+      ? Math.max(...results.map((result) => result.accuracy))
+      : 0;
+
+  // Quantidade total de testes.
   const totalTests = results.length;
+
+  // Soma todos os caracteres digitados.
+  const totalCharacters = results.reduce(
+    (total, result) => total + result.characters,
+    0,
+  );
 
   // Soma a duração de todos os testes em segundos.
   const totalTypingSeconds = results.reduce(
@@ -85,10 +110,12 @@ export function Profile() {
     0,
   );
 
-  // Converte os segundos para uma representação mais amigável.
+  // Converte segundos para uma representação amigável.
   function formatTypingTime(seconds: number) {
     const hours = Math.floor(seconds / 3600);
+
     const minutes = Math.floor((seconds % 3600) / 60);
+
     const remainingSeconds = seconds % 60;
 
     if (hours > 0) {
@@ -103,6 +130,38 @@ export function Profile() {
   }
 
   const totalTypingTime = formatTypingTime(totalTypingSeconds);
+
+  // Calcula estatísticas para uma duração específica.
+  function getDurationStats(duration: number) {
+    const durationResults = results.filter(
+      (result) => result.duration === duration,
+    );
+
+    if (durationResults.length === 0) {
+      return {
+        tests: 0,
+        bestPpm: 0,
+        averagePpm: 0,
+      };
+    }
+
+    const bestPpm = Math.max(...durationResults.map((result) => result.ppm));
+
+    const averagePpm = Math.round(
+      durationResults.reduce((total, result) => total + result.ppm, 0) /
+        durationResults.length,
+    );
+
+    return {
+      tests: durationResults.length,
+      bestPpm,
+      averagePpm,
+    };
+  }
+
+  const stats15 = getDurationStats(15);
+  const stats30 = getDurationStats(30);
+  const stats60 = getDurationStats(60);
 
   return (
     <Box
@@ -208,7 +267,12 @@ export function Profile() {
                   {bestPpm}
                 </Typography>
 
-                <Typography color="text.secondary" sx={{ fontWeight: 600 }}>
+                <Typography
+                  color="text.secondary"
+                  sx={{
+                    fontWeight: 600,
+                  }}
+                >
                   Melhor PPM
                 </Typography>
               </Paper>
@@ -233,7 +297,12 @@ export function Profile() {
                   {averageAccuracy}%
                 </Typography>
 
-                <Typography color="text.secondary" sx={{ fontWeight: 600 }}>
+                <Typography
+                  color="text.secondary"
+                  sx={{
+                    fontWeight: 600,
+                  }}
+                >
                   Precisão média
                 </Typography>
               </Paper>
@@ -257,12 +326,17 @@ export function Profile() {
                   {totalTests}
                 </Typography>
 
-                <Typography color="text.secondary" sx={{ fontWeight: 600 }}>
+                <Typography
+                  color="text.secondary"
+                  sx={{
+                    fontWeight: 600,
+                  }}
+                >
                   Testes realizados
                 </Typography>
               </Paper>
 
-              {/* Tempo total digitando */}
+              {/* Tempo total */}
               <Paper
                 elevation={0}
                 sx={{
@@ -281,10 +355,205 @@ export function Profile() {
                   {totalTypingTime}
                 </Typography>
 
-                <Typography color="text.secondary" sx={{ fontWeight: 600 }}>
+                <Typography
+                  color="text.secondary"
+                  sx={{
+                    fontWeight: 600,
+                  }}
+                >
                   Tempo digitando
                 </Typography>
               </Paper>
+            </Box>
+          </Box>
+        )}
+
+        {/* Estatísticas adicionais */}
+        {!isLoading && !error && results.length > 0 && (
+          <Box>
+            <Typography
+              variant="h5"
+              sx={{
+                fontWeight: 700,
+                mb: 2,
+              }}
+            >
+              Estatísticas
+            </Typography>
+
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  sm: "repeat(3, 1fr)",
+                },
+                gap: 2,
+              }}
+            >
+              {/* PPM médio */}
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 3,
+                  border: "1px solid",
+                  borderColor: "divider",
+                }}
+              >
+                <Typography
+                  color="text.secondary"
+                  sx={{
+                    fontWeight: 600,
+                    mb: 1,
+                  }}
+                >
+                  PPM médio
+                </Typography>
+
+                <Typography
+                  variant="h4"
+                  sx={{
+                    fontWeight: 700,
+                  }}
+                >
+                  {averagePpm}
+                </Typography>
+              </Paper>
+
+              {/* Melhor precisão */}
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 3,
+                  border: "1px solid",
+                  borderColor: "divider",
+                }}
+              >
+                <Typography
+                  color="text.secondary"
+                  sx={{
+                    fontWeight: 600,
+                    mb: 1,
+                  }}
+                >
+                  Melhor precisão
+                </Typography>
+
+                <Typography
+                  variant="h4"
+                  sx={{
+                    fontWeight: 700,
+                  }}
+                >
+                  {bestAccuracy}%
+                </Typography>
+              </Paper>
+
+              {/* Caracteres */}
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 3,
+                  border: "1px solid",
+                  borderColor: "divider",
+                }}
+              >
+                <Typography
+                  color="text.secondary"
+                  sx={{
+                    fontWeight: 600,
+                    mb: 1,
+                  }}
+                >
+                  Caracteres digitados
+                </Typography>
+
+                <Typography
+                  variant="h4"
+                  sx={{
+                    fontWeight: 700,
+                  }}
+                >
+                  {totalCharacters}
+                </Typography>
+              </Paper>
+            </Box>
+          </Box>
+        )}
+
+        {/* Desempenho por duração */}
+        {!isLoading && !error && results.length > 0 && (
+          <Box>
+            <Typography
+              variant="h5"
+              sx={{
+                fontWeight: 700,
+                mb: 2,
+              }}
+            >
+              Desempenho por duração
+            </Typography>
+
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  md: "repeat(3, 1fr)",
+                },
+                gap: 2,
+              }}
+            >
+              {[
+                {
+                  label: "15 segundos",
+                  stats: stats15,
+                },
+                {
+                  label: "30 segundos",
+                  stats: stats30,
+                },
+                {
+                  label: "1 minuto",
+                  stats: stats60,
+                },
+              ].map((item) => (
+                <Paper
+                  key={item.label}
+                  elevation={0}
+                  sx={{
+                    p: 3,
+                    border: "1px solid",
+                    borderColor: "divider",
+                  }}
+                >
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontWeight: 700,
+                      mb: 2,
+                    }}
+                  >
+                    {item.label}
+                  </Typography>
+
+                  <Stack spacing={1}>
+                    <Typography>
+                      <strong>Melhor PPM:</strong>{" "}
+                      {item.stats.tests > 0 ? item.stats.bestPpm : "-"}
+                    </Typography>
+
+                    <Typography>
+                      <strong>PPM médio:</strong>{" "}
+                      {item.stats.tests > 0 ? item.stats.averagePpm : "-"}
+                    </Typography>
+
+                    <Typography>
+                      <strong>Testes:</strong> {item.stats.tests}
+                    </Typography>
+                  </Stack>
+                </Paper>
+              ))}
             </Box>
           </Box>
         )}
@@ -344,10 +613,15 @@ export function Profile() {
                 <TableHead>
                   <TableRow>
                     <TableCell>Data</TableCell>
+
                     <TableCell>PPM</TableCell>
+
                     <TableCell>Precisão</TableCell>
+
                     <TableCell>Erros</TableCell>
+
                     <TableCell>Caracteres</TableCell>
+
                     <TableCell>Tempo</TableCell>
                   </TableRow>
                 </TableHead>
