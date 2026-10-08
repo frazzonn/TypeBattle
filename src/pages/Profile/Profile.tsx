@@ -66,6 +66,22 @@ export function Profile() {
     loadResults();
   }, [token]);
 
+  // Calcula o melhor PPM entre todos os testes.
+  const bestPpm =
+    results.length > 0 ? Math.max(...results.map((result) => result.ppm)) : 0;
+
+  // Calcula a precisão média.
+  const averageAccuracy =
+    results.length > 0
+      ? Math.round(
+          results.reduce((total, result) => total + result.accuracy, 0) /
+            results.length,
+        )
+      : 0;
+
+  // Quantidade total de testes realizados.
+  const totalTests = results.length;
+
   return (
     <Box
       sx={{
@@ -86,7 +102,7 @@ export function Profile() {
           }}
         >
           <Stack spacing={2}>
-            {/* Foto de perfil */}
+            {/* Foto/avatar */}
             <Avatar
               sx={{
                 width: 100,
@@ -126,6 +142,88 @@ export function Profile() {
             </Button>
           </Stack>
         </Paper>
+
+        {/* Estatísticas do jogador */}
+        {!isLoading && !error && (
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                sm: "repeat(3, 1fr)",
+              },
+              gap: 2,
+            }}
+          >
+            {/* Melhor PPM */}
+            <Paper
+              elevation={0}
+              sx={{
+                p: 3,
+                textAlign: "center",
+                border: "1px solid",
+                borderColor: "divider",
+              }}
+            >
+              <Typography
+                variant="h3"
+                sx={{
+                  fontWeight: 700,
+                  color: "primary.main",
+                }}
+              >
+                {bestPpm}
+              </Typography>
+
+              <Typography color="text.secondary">Melhor PPM</Typography>
+            </Paper>
+
+            {/* Precisão média */}
+            <Paper
+              elevation={0}
+              sx={{
+                p: 3,
+                textAlign: "center",
+                border: "1px solid",
+                borderColor: "divider",
+              }}
+            >
+              <Typography
+                variant="h3"
+                sx={{
+                  fontWeight: 700,
+                  color: "secondary.main",
+                }}
+              >
+                {averageAccuracy}%
+              </Typography>
+
+              <Typography color="text.secondary">Precisão média</Typography>
+            </Paper>
+
+            {/* Total de testes */}
+            <Paper
+              elevation={0}
+              sx={{
+                p: 3,
+                textAlign: "center",
+                border: "1px solid",
+                borderColor: "divider",
+              }}
+            >
+              <Typography
+                variant="h3"
+                sx={{
+                  fontWeight: 700,
+                }}
+              >
+                {totalTests}
+              </Typography>
+
+              <Typography color="text.secondary">Testes realizados</Typography>
+            </Paper>
+          </Box>
+        )}
 
         {/* Histórico de testes */}
         <Box>
@@ -180,6 +278,7 @@ export function Profile() {
               sx={{
                 border: "1px solid",
                 borderColor: "divider",
+                overflowX: "auto",
               }}
             >
               <Table>
