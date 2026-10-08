@@ -44,7 +44,6 @@ export function Profile() {
       return;
     }
 
-    // Depois da verificação, o token é uma string.
     const authToken = token;
 
     async function loadResults() {
@@ -66,11 +65,10 @@ export function Profile() {
     loadResults();
   }, [token]);
 
-  // Calcula o melhor PPM entre todos os testes.
+  // Calcula as estatísticas usando os resultados já carregados.
   const bestPpm =
     results.length > 0 ? Math.max(...results.map((result) => result.ppm)) : 0;
 
-  // Calcula a precisão média.
   const averageAccuracy =
     results.length > 0
       ? Math.round(
@@ -79,8 +77,32 @@ export function Profile() {
         )
       : 0;
 
-  // Quantidade total de testes realizados.
   const totalTests = results.length;
+
+  // Soma a duração de todos os testes em segundos.
+  const totalTypingSeconds = results.reduce(
+    (total, result) => total + result.duration,
+    0,
+  );
+
+  // Converte os segundos para uma representação mais amigável.
+  function formatTypingTime(seconds: number) {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const remainingSeconds = seconds % 60;
+
+    if (hours > 0) {
+      return `${hours}h ${minutes}min`;
+    }
+
+    if (minutes > 0) {
+      return `${minutes}min ${remainingSeconds}s`;
+    }
+
+    return `${remainingSeconds}s`;
+  }
+
+  const totalTypingTime = formatTypingTime(totalTypingSeconds);
 
   return (
     <Box
@@ -102,7 +124,6 @@ export function Profile() {
           }}
         >
           <Stack spacing={2}>
-            {/* Foto/avatar */}
             <Avatar
               sx={{
                 width: 100,
@@ -143,85 +164,128 @@ export function Profile() {
           </Stack>
         </Paper>
 
-        {/* Estatísticas do jogador */}
-        {!isLoading && !error && (
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: {
-                xs: "1fr",
-                sm: "repeat(3, 1fr)",
-              },
-              gap: 2,
-            }}
-          >
-            {/* Melhor PPM */}
-            <Paper
-              elevation={0}
+        {/* Resumo do desempenho */}
+        {!isLoading && !error && results.length > 0 && (
+          <Box>
+            <Typography
+              variant="h5"
               sx={{
-                p: 3,
-                textAlign: "center",
-                border: "1px solid",
-                borderColor: "divider",
+                fontWeight: 700,
+                mb: 2,
               }}
             >
-              <Typography
-                variant="h3"
-                sx={{
-                  fontWeight: 700,
-                  color: "primary.main",
-                }}
-              >
-                {bestPpm}
-              </Typography>
+              Meu desempenho
+            </Typography>
 
-              <Typography color="text.secondary">Melhor PPM</Typography>
-            </Paper>
-
-            {/* Precisão média */}
-            <Paper
-              elevation={0}
+            <Box
               sx={{
-                p: 3,
-                textAlign: "center",
-                border: "1px solid",
-                borderColor: "divider",
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  sm: "repeat(2, 1fr)",
+                  md: "repeat(4, 1fr)",
+                },
+                gap: 2,
               }}
             >
-              <Typography
-                variant="h3"
+              {/* Melhor PPM */}
+              <Paper
+                elevation={0}
                 sx={{
-                  fontWeight: 700,
-                  color: "secondary.main",
+                  p: 3,
+                  textAlign: "center",
+                  border: "1px solid",
+                  borderColor: "divider",
                 }}
               >
-                {averageAccuracy}%
-              </Typography>
+                <Typography
+                  variant="h3"
+                  sx={{
+                    fontWeight: 700,
+                    color: "primary.main",
+                  }}
+                >
+                  {bestPpm}
+                </Typography>
 
-              <Typography color="text.secondary">Precisão média</Typography>
-            </Paper>
+                <Typography color="text.secondary" sx={{ fontWeight: 600 }}>
+                  Melhor PPM
+                </Typography>
+              </Paper>
 
-            {/* Total de testes */}
-            <Paper
-              elevation={0}
-              sx={{
-                p: 3,
-                textAlign: "center",
-                border: "1px solid",
-                borderColor: "divider",
-              }}
-            >
-              <Typography
-                variant="h3"
+              {/* Precisão média */}
+              <Paper
+                elevation={0}
                 sx={{
-                  fontWeight: 700,
+                  p: 3,
+                  textAlign: "center",
+                  border: "1px solid",
+                  borderColor: "divider",
                 }}
               >
-                {totalTests}
-              </Typography>
+                <Typography
+                  variant="h3"
+                  sx={{
+                    fontWeight: 700,
+                    color: "secondary.main",
+                  }}
+                >
+                  {averageAccuracy}%
+                </Typography>
 
-              <Typography color="text.secondary">Testes realizados</Typography>
-            </Paper>
+                <Typography color="text.secondary" sx={{ fontWeight: 600 }}>
+                  Precisão média
+                </Typography>
+              </Paper>
+
+              {/* Total de testes */}
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 3,
+                  textAlign: "center",
+                  border: "1px solid",
+                  borderColor: "divider",
+                }}
+              >
+                <Typography
+                  variant="h3"
+                  sx={{
+                    fontWeight: 700,
+                  }}
+                >
+                  {totalTests}
+                </Typography>
+
+                <Typography color="text.secondary" sx={{ fontWeight: 600 }}>
+                  Testes realizados
+                </Typography>
+              </Paper>
+
+              {/* Tempo total digitando */}
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 3,
+                  textAlign: "center",
+                  border: "1px solid",
+                  borderColor: "divider",
+                }}
+              >
+                <Typography
+                  variant="h3"
+                  sx={{
+                    fontWeight: 700,
+                  }}
+                >
+                  {totalTypingTime}
+                </Typography>
+
+                <Typography color="text.secondary" sx={{ fontWeight: 600 }}>
+                  Tempo digitando
+                </Typography>
+              </Paper>
+            </Box>
           </Box>
         )}
 
@@ -237,7 +301,6 @@ export function Profile() {
             Histórico de testes
           </Typography>
 
-          {/* Carregando */}
           {isLoading && (
             <Box
               sx={{
@@ -250,10 +313,8 @@ export function Profile() {
             </Box>
           )}
 
-          {/* Erro */}
           {error && <Alert severity="error">{error}</Alert>}
 
-          {/* Nenhum resultado */}
           {!isLoading && !error && results.length === 0 && (
             <Paper
               elevation={0}
@@ -270,7 +331,6 @@ export function Profile() {
             </Paper>
           )}
 
-          {/* Tabela de resultados */}
           {!isLoading && !error && results.length > 0 && (
             <TableContainer
               component={Paper}
@@ -278,22 +338,16 @@ export function Profile() {
               sx={{
                 border: "1px solid",
                 borderColor: "divider",
-                overflowX: "auto",
               }}
             >
               <Table>
                 <TableHead>
                   <TableRow>
                     <TableCell>Data</TableCell>
-
                     <TableCell>PPM</TableCell>
-
                     <TableCell>Precisão</TableCell>
-
                     <TableCell>Erros</TableCell>
-
                     <TableCell>Caracteres</TableCell>
-
                     <TableCell>Tempo</TableCell>
                   </TableRow>
                 </TableHead>
