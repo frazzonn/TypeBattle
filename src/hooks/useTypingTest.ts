@@ -1,47 +1,42 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-
-const TEXTS = [
-  "A prática constante ajuda a melhorar a velocidade e a precisão na digitação.",
-  "A tecnologia está presente em diferentes áreas e facilita muitas tarefas do dia a dia.",
-  "Aprender programação exige prática, paciência e vontade de resolver problemas.",
-  "O desenvolvimento de software envolve planejamento, criatividade, testes e trabalho em equipe.",
-  "Quanto mais você pratica, mais natural e rápida fica a sua digitação.",
-  "A engenharia de software busca criar soluções eficientes, organizadas e fáceis de manter.",
-  "Estudar todos os dias, mesmo por pouco tempo, pode trazer grandes resultados no futuro.",
-  "Um bom programador não precisa saber tudo, mas precisa saber pesquisar e aprender.",
-  "Resolver problemas é uma das principais habilidades de quem trabalha com tecnologia.",
-  "Pequenas melhorias feitas todos os dias podem gerar grandes resultados ao longo do tempo.",
-];
+import { generateText } from "../utils/textGenerator";
 
 export const TIME_OPTIONS = [15, 30, 60];
+
+// Gera um texto novo usando o gerador que criamos.
+function createTypingText() {
+  return generateText({
+    difficulty: "normal",
+    wordCount: 80,
+    useAccents: false,
+    useUppercase: false,
+    usePunctuation: false,
+  });
+}
 
 export function useTypingTest() {
   const [selectedTime, setSelectedTime] = useState(30);
   const [timeLeft, setTimeLeft] = useState(30);
 
   const [input, setInput] = useState("");
-  const [textIndex, setTextIndex] = useState(0);
+  const [targetText, setTargetText] = useState(createTypingText);
 
   const [isStarted, setIsStarted] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
 
-  // Dados acumulados durante todo o teste.
+  // Estatísticas acumuladas durante o teste inteiro.
   const [totalCharacters, setTotalCharacters] = useState(0);
-
   const [totalCorrectCharacters, setTotalCorrectCharacters] = useState(0);
-
   const [totalErrors, setTotalErrors] = useState(0);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const targetText = TEXTS[textIndex];
-
-  // Troca para o próximo texto.
+  // Gera outro texto quando o atual termina.
   function changeText() {
-    setTextIndex((previous) => (previous + 1) % TEXTS.length);
+    setTargetText(createTypingText());
   }
 
-  // Reinicia o teste.
+  // Limpa as estatísticas e prepara uma nova tentativa.
   function resetTest() {
     setInput("");
     setTimeLeft(selectedTime);
@@ -55,12 +50,13 @@ export function useTypingTest() {
 
     changeText();
 
+    // Deixa o campo pronto para começar novamente.
     setTimeout(() => {
       inputRef.current?.focus();
     }, 0);
   }
 
-  // Permite escolher o tempo antes de iniciar.
+  // Permite escolher a duração antes de iniciar.
   function changeTime(newTime: number | null) {
     if (newTime === null || isStarted) {
       return;
@@ -75,9 +71,11 @@ export function useTypingTest() {
     setTotalCharacters(0);
     setTotalCorrectCharacters(0);
     setTotalErrors(0);
+
+    changeText();
   }
 
-  // Controla o cronômetro.
+  // Controla o cronômetro do teste.
   useEffect(() => {
     if (!isStarted || isFinished) {
       return;
@@ -88,7 +86,6 @@ export function useTypingTest() {
         if (previous <= 1) {
           setIsStarted(false);
           setIsFinished(true);
-
           return 0;
         }
 
@@ -99,66 +96,67 @@ export function useTypingTest() {
     return () => clearInterval(interval);
   }, [isStarted, isFinished]);
 
-  // Registra cada caractere digitado.
   function handleInputChange(value: string) {
     if (isFinished) {
       return;
     }
 
+    // O cronômetro começa no primeiro caractere digitado.
     if (!isStarted && value.length > 0) {
       setIsStarted(true);
     }
 
     const previousLength = input.length;
 
-    // Considera somente os caracteres novos.
+    // Conta somente os caracteres adicionados nesta alteração.
     const newCharacters = value.slice(previousLength);
 
     if (newCharacters.length > 0) {
       let correct = 0;
       let errors = 0;
 
-      for (let i = 0; i < newCharacters.length; i++) {
+      for (let i = 0; i < newCharacters.length; i += 1) {
         const targetIndex = previousLength + i;
+        const typedCharacter = newCharacters[i];
+        const expectedCharacter = targetText[targetIndex];
 
-        if (newCharacters[i] === targetText[targetIndex]) {
-          correct++;
+        if (typedCharacter === expectedCharacter) {
+          correct += 1;
         } else {
-          errors++;
+          errors += 1;
         }
       }
 
       setTotalCharacters((previous) => previous + newCharacters.length);
-
       setTotalCorrectCharacters((previous) => previous + correct);
-
       setTotalErrors((previous) => previous + errors);
     }
 
-    // Quando termina um texto, passa automaticamente para outro.
+    // Ao completar o texto, prepara palavras aleatórias novas.
     if (value.length >= targetText.length) {
       setInput("");
       changeText();
       return;
     }
 
+    // Também permite apagar caracteres para corrigir a digitação.
     setInput(value);
   }
 
   const elapsedSeconds = selectedTime - timeLeft;
 
-  // Calcula a velocidade média do teste inteiro.
+  // PPM médio: cinco caracteres equivalem a uma palavra.
   const ppm = useMemo(() => {
     if (elapsedSeconds <= 0) {
       return 0;
     }
 
-    const minutes = elapsedSeconds / 60;
+    const elapsedMinutes = elapsedSeconds / 60;
 
-    return Math.round(totalCharacters / 5 / minutes);
+    return Math.round(totalCharacters / 5 / elapsedMinutes);
   }, [totalCharacters, elapsedSeconds]);
 
-  // Calcula a precisão total.
+  // Precisão baseada nos caracteres corretos digitados.
   const accuracy = useMemo(() => {
     if (totalCharacters === 0) {
       return 100;

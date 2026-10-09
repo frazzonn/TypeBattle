@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-
 import {
   Alert,
   Avatar,
@@ -19,6 +18,7 @@ import {
 
 import { useAuth } from "../../contexts/AuthContext";
 import { getTypingResults } from "../../services/api";
+import PerformanceEvolution from "../../components/profile/PerformanceEvolution";
 
 interface TypingResult {
   id: number;
@@ -35,9 +35,7 @@ export function Profile() {
   const { user, token, logout } = useAuth();
 
   const [results, setResults] = useState<TypingResult[]>([]);
-
   const [isLoading, setIsLoading] = useState(true);
-
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -194,7 +192,12 @@ export function Profile() {
               {user?.name?.charAt(0).toUpperCase()}
             </Avatar>
 
-            <Typography variant="h4" sx={{ fontWeight: 700 }}>
+            <Typography
+              variant="h4"
+              sx={{
+                fontWeight: 700,
+              }}
+            >
               Meu Perfil
             </Typography>
 
@@ -514,7 +517,7 @@ export function Profile() {
                   stats: stats30,
                 },
                 {
-                  label: "1 minuto",
+                  label: "60s",
                   stats: stats60,
                 },
               ].map((item) => (
@@ -556,6 +559,11 @@ export function Profile() {
               ))}
             </Box>
           </Box>
+        )}
+
+        {/* Evolução de desempenho */}
+        {!isLoading && !error && results.length > 0 && (
+          <PerformanceEvolution results={results} />
         )}
 
         {/* Histórico de testes */}
@@ -613,15 +621,10 @@ export function Profile() {
                 <TableHead>
                   <TableRow>
                     <TableCell>Data</TableCell>
-
                     <TableCell>PPM</TableCell>
-
                     <TableCell>Precisão</TableCell>
-
                     <TableCell>Erros</TableCell>
-
                     <TableCell>Caracteres</TableCell>
-
                     <TableCell>Tempo</TableCell>
                   </TableRow>
                 </TableHead>
