@@ -20,13 +20,18 @@ const configuredOrigins = (process.env.FRONTEND_URL ?? "")
 const allowedOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
-  ...configuredOrigins,
+  "https://type-battle-wpqb.vercel.app",
 ];
 
-app.use(cors({ origin: allowedOrigins }));
+// Permite requisições do frontend local e do site publicado.
+app.use(
+  cors({
+    origin: allowedOrigins,
+  }),
+);
+
 app.use(express.json());
 
-// O Socket.IO utiliza as mesmas origens permitidas pela API.
 const io = new Server(httpServer, {
   cors: {
     origin: allowedOrigins,
