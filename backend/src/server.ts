@@ -12,9 +12,10 @@ const app = express();
 const httpServer = createServer(app);
 
 // Mantém o acesso local e permite cadastrar a URL do frontend hospedado.
+// Origens permitidas para acessar a API
 const configuredOrigins = (process.env.FRONTEND_URL ?? "")
   .split(",")
-  .map((origin) => origin.trim().replace(/\/$/, ""))
+  .map((origin) => origin.trim().replace(/\/+$/, ""))
   .filter(Boolean);
 
 const allowedOrigins = [
@@ -24,13 +25,24 @@ const allowedOrigins = [
   ...configuredOrigins,
 ];
 
-// Permite o frontend local e os domínios configurados na hospedagem.
-app.use(
-  cors({
-    origin: allowedOrigins,
-  }),
-);
+const corsOptions = {
+  origin: (
+    origin: string | undefined,
+    callback: (error: Error | null, allow?: boolean) => void,
+  ) => {
+    // Permite requisições sem Origin e origens explicitamente autorizadas
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`Origem não permitida pelo CORS: ${origin}`));
+    }
+  },
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
 
+// O CORS precisa vir antes das rotas da API
+app.use(cors(corsOptions));
 app.use(express.json());
 
 const io = new Server(httpServer, {
