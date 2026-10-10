@@ -14,20 +14,18 @@ export function AppRoutes() {
     <Routes>
       {/* Rotas públicas */}
       <Route path="/" element={<Home />} />
-
       <Route path="/login" element={<Login />} />
-
       <Route path="/register" element={<Register />} />
-
       <Route path="/typing" element={<TypingTest />} />
-
       <Route path="/ranking" element={<Ranking />} />
+      <Route path="/battle" element={<Battle />} />
 
-      {/* Rotas protegidas */}
+      {/* Batalhas públicas: não exigem conta */}
+      <Route path="/battle" element={<Battle />} />
+
+      {/* Rotas que exigem autenticação */}
       <Route element={<ProtectedRoute />}>
         <Route path="/profile" element={<Profile />} />
-
-        <Route path="/battle" element={<Battle />} />
       </Route>
     </Routes>
   );

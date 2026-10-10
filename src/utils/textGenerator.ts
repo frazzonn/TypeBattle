@@ -10,45 +10,62 @@ export interface TextGeneratorOptions {
   usePunctuation?: boolean;
 }
 
-// Escolhe uma palavra aleatória da lista.
-function getRandomWord(words: string[]) {
-  const index = Math.floor(Math.random() * words.length);
+// Variantes acentuadas de palavras usadas nos textos.
+const ACCENTED_WORDS: Record<string, string> = {
+  agua: "água",
+  musica: "música",
+  cafe: "café",
+  codigo: "código",
+  usuario: "usuário",
+  experiencia: "experiência",
+  informacao: "informação",
+  funcao: "função",
+  aplicacao: "aplicação",
+  programacao: "programação",
+  solucao: "solução",
+  precisao: "precisão",
+  organizacao: "organização",
+  comunicacao: "comunicação",
+  seguranca: "segurança",
+  inovacao: "inovação",
+  implementacao: "implementação",
+  configuracao: "configuração",
+  autenticacao: "autenticação",
+  autorizacao: "autorização",
+  complexidade: "complexidade",
+  documentacao: "documentação",
+  funcionalidade: "funcionalidade",
+  sincronizacao: "sincronização",
+  concorrencia: "concorrência",
+  abstracao: "abstração",
+  reutilizacao: "reutilização",
+  otimizacao: "otimização",
+  extraordinario: "extraordinário",
+  estrategicamente: "estrategicamente",
+};
 
-  return words[index];
+// Escolhe uma palavra aleatória.
+function getRandomWord(words: string[]) {
+  return words[Math.floor(Math.random() * words.length)] ?? "palavra";
 }
 
-// Coloca uma letra maiúscula no início da palavra.
 function capitalize(word: string) {
-  if (!word) {
-    return word;
-  }
-
   return word.charAt(0).toUpperCase() + word.slice(1);
 }
 
-// Adiciona pontuação de forma aleatória.
-function addPunctuation(word: string, index: number) {
-  // Evita colocar pontuação em todas as palavras.
-  if (index % 7 !== 0) {
-    return word;
-  }
-
+function addPunctuation(word: string) {
   const punctuation = [".", ",", "!", "?", ";"];
-
-  const randomIndex = Math.floor(Math.random() * punctuation.length);
-
-  return `${word}${punctuation[randomIndex]}`;
+  return (
+    word + (punctuation[Math.floor(Math.random() * punctuation.length)] ?? ".")
+  );
 }
 
 function getWordList(difficulty: TextDifficulty) {
   switch (difficulty) {
     case "easy":
       return EASY_WORDS;
-
     case "hard":
       return HARD_WORDS;
-
-    case "normal":
     default:
       return NORMAL_WORDS;
   }
@@ -64,34 +81,26 @@ export function generateText(options: TextGeneratorOptions = {}) {
   } = options;
 
   const words = getWordList(difficulty);
-
   const generatedWords: string[] = [];
 
   for (let i = 0; i < wordCount; i += 1) {
     let word = getRandomWord(words);
 
-    // A lista inicial não possui acentos.
-    // Os acentos serão tratados posteriormente
-    // quando criarmos um dicionário específico para isso.
-    if (!useAccents) {
-      word = removeAccents(word);
+    if (useAccents) {
+      word = ACCENTED_WORDS[word] ?? word;
     }
 
+    // O modo fácil mantém o texto simples por padrão.
     if (useUppercase && i % 10 === 0) {
       word = capitalize(word);
     }
 
-    if (usePunctuation) {
-      word = addPunctuation(word, i);
+    if (usePunctuation && i % 7 === 6) {
+      word = addPunctuation(word);
     }
 
     generatedWords.push(word);
   }
 
   return generatedWords.join(" ");
-}
-
-// Remove acentos para o modo sem acentuação.
-function removeAccents(text: string) {
-  return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }

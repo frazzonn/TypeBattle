@@ -1,16 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { generateText } from "../utils/textGenerator";
+import { generateText, type TextDifficulty } from "../utils/textGenerator";
 
 export const TIME_OPTIONS = [15, 30, 60];
 
-// Gera um texto novo usando o gerador que criamos.
-function createTypingText() {
+function createTypingText(
+  difficulty: TextDifficulty,
+  useAccents: boolean,
+  useUppercase: boolean,
+  usePunctuation: boolean,
+) {
   return generateText({
-    difficulty: "normal",
+    difficulty,
     wordCount: 80,
-    useAccents: false,
-    useUppercase: false,
-    usePunctuation: false,
+    useAccents,
+    useUppercase,
+    usePunctuation,
   });
 }
 
@@ -18,29 +22,75 @@ export function useTypingTest() {
   const [selectedTime, setSelectedTime] = useState(30);
   const [timeLeft, setTimeLeft] = useState(30);
 
+  const [difficulty, setDifficulty] = useState<TextDifficulty>("normal");
+  const [useAccents, setUseAccents] = useState(false);
+  const [useUppercase, setUseUppercase] = useState(false);
+  const [usePunctuation, setUsePunctuation] = useState(false);
+
   const [input, setInput] = useState("");
-  const [targetText, setTargetText] = useState(createTypingText);
+  const [targetText, setTargetText] = useState(() =>
+    createTypingText("normal", false, false, false),
+  );
 
   const [isStarted, setIsStarted] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
 
-  // Estatísticas acumuladas durante o teste inteiro.
   const [totalCharacters, setTotalCharacters] = useState(0);
   const [totalCorrectCharacters, setTotalCorrectCharacters] = useState(0);
   const [totalErrors, setTotalErrors] = useState(0);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Gera outro texto quando o atual termina.
-  function changeText() {
-    setTargetText(createTypingText());
+  function generateConfiguredText(
+    nextDifficulty = difficulty,
+    nextAccents = useAccents,
+    nextUppercase = useUppercase,
+    nextPunctuation = usePunctuation,
+  ) {
+    setTargetText(
+      createTypingText(
+        nextDifficulty,
+        nextAccents,
+        nextUppercase,
+        nextPunctuation,
+      ),
+    );
   }
 
-  // Limpa as estatísticas e prepara uma nova tentativa.
+  function changeDifficulty(value: TextDifficulty) {
+    if (isStarted) return;
+
+    setDifficulty(value);
+    generateConfiguredText(value);
+  }
+
+  function changeAccents(value: boolean) {
+    if (isStarted) return;
+
+    setUseAccents(value);
+    generateConfiguredText(difficulty, value);
+  }
+
+  function changeUppercase(value: boolean) {
+    if (isStarted) return;
+
+    setUseUppercase(value);
+    generateConfiguredText(difficulty, useAccents, value);
+  }
+
+  function changePunctuation(value: boolean) {
+    if (isStarted) return;
+
+    setUsePunctuation(value);
+    generateConfiguredText(difficulty, useAccents, useUppercase, value);
+  }
+
   function resetTest() {
     setInput("");
+    setTargetText(
+      createTypingText(difficulty, useAccents, useUppercase, usePunctuation),
+    );
     setTimeLeft(selectedTime);
-
     setIsStarted(false);
     setIsFinished(false);
 
@@ -48,23 +98,14 @@ export function useTypingTest() {
     setTotalCorrectCharacters(0);
     setTotalErrors(0);
 
-    changeText();
-
-    // Deixa o campo pronto para começar novamente.
-    setTimeout(() => {
-      inputRef.current?.focus();
-    }, 0);
+    setTimeout(() => inputRef.current?.focus(), 0);
   }
 
-  // Permite escolher a duração antes de iniciar.
   function changeTime(newTime: number | null) {
-    if (newTime === null || isStarted) {
-      return;
-    }
+    if (newTime === null || isStarted) return;
 
     setSelectedTime(newTime);
     setTimeLeft(newTime);
-
     setInput("");
     setIsFinished(false);
 
@@ -72,14 +113,11 @@ export function useTypingTest() {
     setTotalCorrectCharacters(0);
     setTotalErrors(0);
 
-    changeText();
+    generateConfiguredText();
   }
 
-  // Controla o cronômetro do teste.
   useEffect(() => {
-    if (!isStarted || isFinished) {
-      return;
-    }
+    if (!isStarted || isFinished) return;
 
     const interval = setInterval(() => {
       setTimeLeft((previous) => {
@@ -97,18 +135,13 @@ export function useTypingTest() {
   }, [isStarted, isFinished]);
 
   function handleInputChange(value: string) {
-    if (isFinished) {
-      return;
-    }
+    if (isFinished) return;
 
-    // O cronômetro começa no primeiro caractere digitado.
     if (!isStarted && value.length > 0) {
       setIsStarted(true);
     }
 
     const previousLength = input.length;
-
-    // Conta somente os caracteres adicionados nesta alteração.
     const newCharacters = value.slice(previousLength);
 
     if (newCharacters.length > 0) {
@@ -116,11 +149,7 @@ export function useTypingTest() {
       let errors = 0;
 
       for (let i = 0; i < newCharacters.length; i += 1) {
-        const targetIndex = previousLength + i;
-        const typedCharacter = newCharacters[i];
-        const expectedCharacter = targetText[targetIndex];
-
-        if (typedCharacter === expectedCharacter) {
+        if (newCharacters[i] === targetText[previousLength + i]) {
           correct += 1;
         } else {
           errors += 1;
@@ -132,36 +161,31 @@ export function useTypingTest() {
       setTotalErrors((previous) => previous + errors);
     }
 
-    // Ao completar o texto, prepara palavras aleatórias novas.
-    if (value.length >= targetText.length) {
-      setInput("");
-      changeText();
-      return;
+    // Acrescenta palavras no final sem substituir o texto atual.
+    if (targetText.length - value.length < 300) {
+      setTargetText(
+        (previous) =>
+          `${previous} ${createTypingText(
+            difficulty,
+            useAccents,
+            useUppercase,
+            usePunctuation,
+          )}`,
+      );
     }
 
-    // Também permite apagar caracteres para corrigir a digitação.
     setInput(value);
   }
 
   const elapsedSeconds = selectedTime - timeLeft;
 
-  // PPM médio: cinco caracteres equivalem a uma palavra.
   const ppm = useMemo(() => {
-    if (elapsedSeconds <= 0) {
-      return 0;
-    }
-
-    const elapsedMinutes = elapsedSeconds / 60;
-
-    return Math.round(totalCharacters / 5 / elapsedMinutes);
+    if (elapsedSeconds <= 0) return 0;
+    return Math.round(totalCharacters / 5 / (elapsedSeconds / 60));
   }, [totalCharacters, elapsedSeconds]);
 
-  // Precisão baseada nos caracteres corretos digitados.
   const accuracy = useMemo(() => {
-    if (totalCharacters === 0) {
-      return 100;
-    }
-
+    if (totalCharacters === 0) return 100;
     return Math.round((totalCorrectCharacters / totalCharacters) * 100);
   }, [totalCorrectCharacters, totalCharacters]);
 
@@ -180,5 +204,13 @@ export function useTypingTest() {
     changeTime,
     resetTest,
     handleInputChange,
+    difficulty,
+    useAccents,
+    useUppercase,
+    usePunctuation,
+    changeDifficulty,
+    changeAccents,
+    changeUppercase,
+    changePunctuation,
   };
 }

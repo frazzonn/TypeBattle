@@ -31,10 +31,13 @@ interface TypingResult {
   userId: number;
 }
 
+const RESULTS_PER_PAGE = 10;
+
 export function Profile() {
   const { user, token, logout } = useAuth();
 
   const [results, setResults] = useState<TypingResult[]>([]);
+  const [visibleResults, setVisibleResults] = useState(RESULTS_PER_PAGE);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -52,10 +55,10 @@ export function Profile() {
 
         const response = await getTypingResults(authToken);
 
+        // Guarda todo o histórico para calcular as estatísticas.
         setResults(response.results);
       } catch (error) {
         console.error(error);
-
         setError("Não foi possível carregar o histórico de testes.");
       } finally {
         setIsLoading(false);
@@ -64,6 +67,19 @@ export function Profile() {
 
     loadResults();
   }, [token]);
+
+  // Exibe somente a quantidade de resultados liberada até o momento.
+  const sortedResults = [...results].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
+  const displayedResults = sortedResults.slice(0, visibleResults);
+  const hasMoreResults = visibleResults < results.length;
+
+  function loadMoreResults() {
+    setVisibleResults((current) =>
+      Math.min(current + RESULTS_PER_PAGE, results.length),
+    );
+  }
 
   // Melhor PPM registrado pelo usuário.
   const bestPpm =
@@ -111,9 +127,7 @@ export function Profile() {
   // Converte segundos para uma representação amigável.
   function formatTypingTime(seconds: number) {
     const hours = Math.floor(seconds / 3600);
-
     const minutes = Math.floor((seconds % 3600) / 60);
-
     const remainingSeconds = seconds % 60;
 
     if (hours > 0) {
@@ -192,12 +206,7 @@ export function Profile() {
               {user?.name?.charAt(0).toUpperCase()}
             </Avatar>
 
-            <Typography
-              variant="h4"
-              sx={{
-                fontWeight: 700,
-              }}
-            >
+            <Typography variant="h4" sx={{ fontWeight: 700 }}>
               Meu Perfil
             </Typography>
 
@@ -217,9 +226,7 @@ export function Profile() {
               variant="outlined"
               color="error"
               onClick={logout}
-              sx={{
-                alignSelf: "flex-start",
-              }}
+              sx={{ alignSelf: "flex-start" }}
             >
               Sair da conta
             </Button>
@@ -229,13 +236,7 @@ export function Profile() {
         {/* Resumo do desempenho */}
         {!isLoading && !error && results.length > 0 && (
           <Box>
-            <Typography
-              variant="h5"
-              sx={{
-                fontWeight: 700,
-                mb: 2,
-              }}
-            >
+            <Typography variant="h5" sx={{ fontWeight: 700, mb: 2 }}>
               Meu desempenho
             </Typography>
 
@@ -250,7 +251,6 @@ export function Profile() {
                 gap: 2,
               }}
             >
-              {/* Melhor PPM */}
               <Paper
                 elevation={0}
                 sx={{
@@ -262,25 +262,15 @@ export function Profile() {
               >
                 <Typography
                   variant="h3"
-                  sx={{
-                    fontWeight: 700,
-                    color: "primary.main",
-                  }}
+                  sx={{ fontWeight: 700, color: "primary.main" }}
                 >
                   {bestPpm}
                 </Typography>
-
-                <Typography
-                  color="text.secondary"
-                  sx={{
-                    fontWeight: 600,
-                  }}
-                >
+                <Typography color="text.secondary" sx={{ fontWeight: 600 }}>
                   Melhor PPM
                 </Typography>
               </Paper>
 
-              {/* Precisão média */}
               <Paper
                 elevation={0}
                 sx={{
@@ -292,25 +282,15 @@ export function Profile() {
               >
                 <Typography
                   variant="h3"
-                  sx={{
-                    fontWeight: 700,
-                    color: "secondary.main",
-                  }}
+                  sx={{ fontWeight: 700, color: "secondary.main" }}
                 >
                   {averageAccuracy}%
                 </Typography>
-
-                <Typography
-                  color="text.secondary"
-                  sx={{
-                    fontWeight: 600,
-                  }}
-                >
+                <Typography color="text.secondary" sx={{ fontWeight: 600 }}>
                   Precisão média
                 </Typography>
               </Paper>
 
-              {/* Total de testes */}
               <Paper
                 elevation={0}
                 sx={{
@@ -320,26 +300,14 @@ export function Profile() {
                   borderColor: "divider",
                 }}
               >
-                <Typography
-                  variant="h3"
-                  sx={{
-                    fontWeight: 700,
-                  }}
-                >
+                <Typography variant="h3" sx={{ fontWeight: 700 }}>
                   {totalTests}
                 </Typography>
-
-                <Typography
-                  color="text.secondary"
-                  sx={{
-                    fontWeight: 600,
-                  }}
-                >
+                <Typography color="text.secondary" sx={{ fontWeight: 600 }}>
                   Testes realizados
                 </Typography>
               </Paper>
 
-              {/* Tempo total */}
               <Paper
                 elevation={0}
                 sx={{
@@ -349,21 +317,10 @@ export function Profile() {
                   borderColor: "divider",
                 }}
               >
-                <Typography
-                  variant="h3"
-                  sx={{
-                    fontWeight: 700,
-                  }}
-                >
+                <Typography variant="h3" sx={{ fontWeight: 700 }}>
                   {totalTypingTime}
                 </Typography>
-
-                <Typography
-                  color="text.secondary"
-                  sx={{
-                    fontWeight: 600,
-                  }}
-                >
+                <Typography color="text.secondary" sx={{ fontWeight: 600 }}>
                   Tempo digitando
                 </Typography>
               </Paper>
@@ -374,13 +331,7 @@ export function Profile() {
         {/* Estatísticas adicionais */}
         {!isLoading && !error && results.length > 0 && (
           <Box>
-            <Typography
-              variant="h5"
-              sx={{
-                fontWeight: 700,
-                mb: 2,
-              }}
-            >
+            <Typography variant="h5" sx={{ fontWeight: 700, mb: 2 }}>
               Estatísticas
             </Typography>
 
@@ -394,7 +345,6 @@ export function Profile() {
                 gap: 2,
               }}
             >
-              {/* PPM médio */}
               <Paper
                 elevation={0}
                 sx={{
@@ -405,25 +355,15 @@ export function Profile() {
               >
                 <Typography
                   color="text.secondary"
-                  sx={{
-                    fontWeight: 600,
-                    mb: 1,
-                  }}
+                  sx={{ fontWeight: 600, mb: 1 }}
                 >
                   PPM médio
                 </Typography>
-
-                <Typography
-                  variant="h4"
-                  sx={{
-                    fontWeight: 700,
-                  }}
-                >
+                <Typography variant="h4" sx={{ fontWeight: 700 }}>
                   {averagePpm}
                 </Typography>
               </Paper>
 
-              {/* Melhor precisão */}
               <Paper
                 elevation={0}
                 sx={{
@@ -434,25 +374,15 @@ export function Profile() {
               >
                 <Typography
                   color="text.secondary"
-                  sx={{
-                    fontWeight: 600,
-                    mb: 1,
-                  }}
+                  sx={{ fontWeight: 600, mb: 1 }}
                 >
                   Melhor precisão
                 </Typography>
-
-                <Typography
-                  variant="h4"
-                  sx={{
-                    fontWeight: 700,
-                  }}
-                >
+                <Typography variant="h4" sx={{ fontWeight: 700 }}>
                   {bestAccuracy}%
                 </Typography>
               </Paper>
 
-              {/* Caracteres */}
               <Paper
                 elevation={0}
                 sx={{
@@ -463,20 +393,11 @@ export function Profile() {
               >
                 <Typography
                   color="text.secondary"
-                  sx={{
-                    fontWeight: 600,
-                    mb: 1,
-                  }}
+                  sx={{ fontWeight: 600, mb: 1 }}
                 >
                   Caracteres digitados
                 </Typography>
-
-                <Typography
-                  variant="h4"
-                  sx={{
-                    fontWeight: 700,
-                  }}
-                >
+                <Typography variant="h4" sx={{ fontWeight: 700 }}>
                   {totalCharacters}
                 </Typography>
               </Paper>
@@ -487,13 +408,7 @@ export function Profile() {
         {/* Desempenho por duração */}
         {!isLoading && !error && results.length > 0 && (
           <Box>
-            <Typography
-              variant="h5"
-              sx={{
-                fontWeight: 700,
-                mb: 2,
-              }}
-            >
+            <Typography variant="h5" sx={{ fontWeight: 700, mb: 2 }}>
               Desempenho por duração
             </Typography>
 
@@ -508,18 +423,9 @@ export function Profile() {
               }}
             >
               {[
-                {
-                  label: "15 segundos",
-                  stats: stats15,
-                },
-                {
-                  label: "30 segundos",
-                  stats: stats30,
-                },
-                {
-                  label: "60s",
-                  stats: stats60,
-                },
+                { label: "15 segundos", stats: stats15 },
+                { label: "30 segundos", stats: stats30 },
+                { label: "60s", stats: stats60 },
               ].map((item) => (
                 <Paper
                   key={item.label}
@@ -530,13 +436,7 @@ export function Profile() {
                     borderColor: "divider",
                   }}
                 >
-                  <Typography
-                    variant="h6"
-                    sx={{
-                      fontWeight: 700,
-                      mb: 2,
-                    }}
-                  >
+                  <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
                     {item.label}
                   </Typography>
 
@@ -561,20 +461,14 @@ export function Profile() {
           </Box>
         )}
 
-        {/* Evolução de desempenho */}
+        {/* Evolução de desempenho: considera todo o histórico. */}
         {!isLoading && !error && results.length > 0 && (
           <PerformanceEvolution results={results} />
         )}
 
         {/* Histórico de testes */}
         <Box>
-          <Typography
-            variant="h5"
-            sx={{
-              fontWeight: 700,
-              mb: 2,
-            }}
-          >
+          <Typography variant="h5" sx={{ fontWeight: 700, mb: 2 }}>
             Histórico de testes
           </Typography>
 
@@ -609,47 +503,72 @@ export function Profile() {
           )}
 
           {!isLoading && !error && results.length > 0 && (
-            <TableContainer
-              component={Paper}
-              elevation={0}
-              sx={{
-                border: "1px solid",
-                borderColor: "divider",
-              }}
-            >
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Data</TableCell>
-                    <TableCell>PPM</TableCell>
-                    <TableCell>Precisão</TableCell>
-                    <TableCell>Erros</TableCell>
-                    <TableCell>Caracteres</TableCell>
-                    <TableCell>Tempo</TableCell>
-                  </TableRow>
-                </TableHead>
-
-                <TableBody>
-                  {results.map((result) => (
-                    <TableRow key={result.id}>
-                      <TableCell>
-                        {new Date(result.createdAt).toLocaleString("pt-BR")}
-                      </TableCell>
-
-                      <TableCell>{result.ppm}</TableCell>
-
-                      <TableCell>{result.accuracy}%</TableCell>
-
-                      <TableCell>{result.errors}</TableCell>
-
-                      <TableCell>{result.characters}</TableCell>
-
-                      <TableCell>{result.duration}s</TableCell>
+            <>
+              <TableContainer
+                component={Paper}
+                elevation={0}
+                sx={{
+                  border: "1px solid",
+                  borderColor: "divider",
+                }}
+              >
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Data</TableCell>
+                      <TableCell>PPM</TableCell>
+                      <TableCell>Precisão</TableCell>
+                      <TableCell>Erros</TableCell>
+                      <TableCell>Caracteres</TableCell>
+                      <TableCell>Tempo</TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                  </TableHead>
+
+                  <TableBody>
+                    {displayedResults.map((result) => (
+                      <TableRow key={result.id}>
+                        <TableCell>
+                          {new Date(result.createdAt).toLocaleString("pt-BR")}
+                        </TableCell>
+                        <TableCell>{result.ppm}</TableCell>
+                        <TableCell>{result.accuracy}%</TableCell>
+                        <TableCell>{result.errors}</TableCell>
+                        <TableCell>{result.characters}</TableCell>
+                        <TableCell>{result.duration}s</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+
+              {/* Controles para expandir ou recolher o histórico. */}
+              {results.length > RESULTS_PER_PAGE && (
+                <Box
+                  sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 1,
+                    mt: 2,
+                  }}
+                >
+                  {hasMoreResults && (
+                    <Button variant="outlined" onClick={loadMoreResults}>
+                      Carregar mais
+                    </Button>
+                  )}
+
+                  {visibleResults > RESULTS_PER_PAGE && (
+                    <Button
+                      variant="text"
+                      onClick={() => setVisibleResults(RESULTS_PER_PAGE)}
+                    >
+                      Carregar menos
+                    </Button>
+                  )}
+                </Box>
+              )}
+            </>
           )}
         </Box>
       </Stack>

@@ -60,6 +60,10 @@ export function Header() {
             Digitar
           </Button>
 
+          <Button color="inherit" component={Link} to="/battle">
+            Battle
+          </Button>
+
           <Button component={Link} to="/ranking" color="inherit">
             Ranking
           </Button>

@@ -1,5 +1,8 @@
 import cors from "cors";
 import express from "express";
+import { createServer } from "node:http";
+import { randomBytes } from "node:crypto";
+import { Server, type Socket } from "socket.io";
 
 import { authMiddleware } from "./middleware/authMiddleware.js";
 import { db } from "./prisma/db.js";
@@ -8,14 +11,672 @@ import { typingResultRoutes } from "./routes/typingResultRoutes.js";
 import { userRoutes } from "./routes/userRoutes.js";
 
 const app = express();
+const httpServer = createServer(app);
 
-// Permite requisições do frontend
-app.use(cors());
+const allowedOrigins = ["http://localhost:5173", "http://127.0.0.1:5173"];
 
-// Permite receber JSON
+app.use(cors({ origin: allowedOrigins }));
 app.use(express.json());
 
-// Rota para verificar se a API está funcionando
+const io = new Server(httpServer, {
+  cors: {
+    origin: allowedOrigins,
+    methods: ["GET", "POST"],
+  },
+});
+
+type Difficulty = "easy" | "normal" | "hard";
+type MatchFormat = "single" | "best-of-3" | "best-of-5";
+type Duration = 15 | 30 | 60;
+type RoomStatus = "waiting" | "countdown" | "playing" | "finished";
+
+interface RoomSettings {
+  difficulty: Difficulty;
+  accents: boolean;
+  uppercase: boolean;
+  punctuation: boolean;
+  duration: Duration;
+  format: MatchFormat;
+}
+
+interface PlayerScore {
+  ppm: number;
+  accuracy: number;
+  errors: number;
+  progress: number;
+}
+
+interface RoomPlayer extends PlayerScore {
+  socketId: string;
+  nickname: string;
+  isGuest: boolean;
+}
+
+interface BattleState {
+  round: number;
+  text: string;
+  countdownEndsAt: number | null;
+  startedAt: number | null;
+  endsAt: number | null;
+  winnerSocketId: string | null;
+}
+
+interface SeriesResult {
+  winnerSocketId: string | null;
+  wins: Record<string, number>;
+  roundsPlayed: number;
+  players: Array<{
+    socketId: string;
+    nickname: string;
+  }>;
+}
+
+interface BattleRoom {
+  code: string;
+  hostSocketId: string;
+  players: RoomPlayer[];
+  settings: RoomSettings;
+  status: RoomStatus;
+  battle: BattleState | null;
+  typedTexts: Record<string, string>;
+  seriesWins: Record<string, number>;
+  seriesWinnerSocketId: string | null;
+  seriesFinished: boolean;
+  lastSeriesResult: SeriesResult | null;
+}
+
+const rooms = new Map<string, BattleRoom>();
+
+const countdownTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const finishTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const nextRoundTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const lobbyTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+// Listas de palavras em português, separadas por dificuldade.
+const EASY_WORDS = [
+  "casa",
+  "carro",
+  "mesa",
+  "livro",
+  "escola",
+  "amigo",
+  "cidade",
+  "trabalho",
+  "tempo",
+  "jogo",
+  "dia",
+  "noite",
+  "agua",
+  "comida",
+  "rua",
+  "praia",
+  "sol",
+  "lua",
+  "vida",
+  "mundo",
+  "porta",
+  "janela",
+  "cama",
+  "bola",
+  "musica",
+  "filme",
+  "papel",
+  "caneta",
+  "cafe",
+  "leite",
+  "roupa",
+  "sapato",
+  "esporte",
+  "viagem",
+  "familia",
+  "jardim",
+  "animal",
+  "fruta",
+  "arvore",
+  "computador",
+  "telefone",
+  "internet",
+  "programa",
+  "sistema",
+  "codigo",
+  "projeto",
+  "equipe",
+  "jogar",
+  "correr",
+  "andar",
+  "comer",
+  "beber",
+  "estudar",
+  "trabalhar",
+  "criar",
+  "testar",
+  "aprender",
+];
+
+const NORMAL_WORDS = [
+  "tecnologia",
+  "desenvolvimento",
+  "programacao",
+  "aplicacao",
+  "sistema",
+  "projeto",
+  "empresa",
+  "usuario",
+  "experiencia",
+  "processo",
+  "resultado",
+  "informacao",
+  "conhecimento",
+  "internet",
+  "computador",
+  "servidor",
+  "banco",
+  "dados",
+  "estrutura",
+  "funcao",
+  "componente",
+  "interface",
+  "pagina",
+  "navegador",
+  "qualidade",
+  "produto",
+  "equipe",
+  "trabalho",
+  "objetivo",
+  "desafio",
+  "solucao",
+  "problema",
+  "melhoria",
+  "velocidade",
+  "precisao",
+  "desempenho",
+  "aprendizado",
+  "criatividade",
+  "planejamento",
+  "organizacao",
+  "comunicacao",
+  "seguranca",
+  "conexao",
+  "servico",
+  "plataforma",
+  "inovacao",
+  "rapidamente",
+  "importante",
+  "diferente",
+  "melhorar",
+  "construir",
+  "desenvolver",
+  "utilizar",
+  "analisar",
+  "resolver",
+];
+
+const HARD_WORDS = [
+  "arquitetura",
+  "infraestrutura",
+  "implementacao",
+  "compatibilidade",
+  "responsabilidade",
+  "desenvolvimento",
+  "gerenciamento",
+  "configuracao",
+  "autenticacao",
+  "autorizacao",
+  "complexidade",
+  "escalabilidade",
+  "disponibilidade",
+  "manutenibilidade",
+  "internacionalizacao",
+  "documentacao",
+  "funcionalidade",
+  "produtividade",
+  "processamento",
+  "armazenamento",
+  "comunicacao",
+  "sincronizacao",
+  "concorrencia",
+  "persistencia",
+  "relacionamento",
+  "abstracao",
+  "encapsulamento",
+  "polimorfismo",
+  "interoperabilidade",
+  "virtualizacao",
+  "monitoramento",
+  "observabilidade",
+  "especificacao",
+  "reutilizacao",
+  "automatizacao",
+  "transformacao",
+  "otimizacao",
+  "especificamente",
+  "extraordinario",
+  "simultaneamente",
+  "principalmente",
+  "consequentemente",
+  "aproximadamente",
+  "necessariamente",
+  "possivelmente",
+  "estrategicamente",
+  "tecnicamente",
+  "consistentemente",
+];
+
+// Mantém as mesmas regras de acentuação do gerador individual.
+const ACCENTED_WORDS: Record<string, string> = {
+  agua: "água",
+  musica: "música",
+  cafe: "café",
+  codigo: "código",
+  usuario: "usuário",
+  experiencia: "experiência",
+  informacao: "informação",
+  funcao: "função",
+  aplicacao: "aplicação",
+  programacao: "programação",
+  solucao: "solução",
+  precisao: "precisão",
+  organizacao: "organização",
+  comunicacao: "comunicação",
+  seguranca: "segurança",
+  inovacao: "inovação",
+  implementacao: "implementação",
+  configuracao: "configuração",
+  autenticacao: "autenticação",
+  autorizacao: "autorização",
+  complexidade: "complexidade",
+  documentacao: "documentação",
+  funcionalidade: "funcionalidade",
+  sincronizacao: "sincronização",
+  concorrencia: "concorrência",
+  abstracao: "abstração",
+  reutilizacao: "reutilização",
+  otimizacao: "otimização",
+  extraordinario: "extraordinário",
+  estrategicamente: "estrategicamente",
+};
+
+function getRandomWord(words: string[]): string {
+  return words[Math.floor(Math.random() * words.length)] ?? "palavra";
+}
+
+function addPunctuation(word: string): string {
+  const punctuation = [".", ",", "!", "?", ";"];
+  const selected =
+    punctuation[Math.floor(Math.random() * punctuation.length)] ?? ".";
+
+  return word + selected;
+}
+
+function makeText(settings: RoomSettings): string {
+  const words =
+    settings.difficulty === "easy"
+      ? EASY_WORDS
+      : settings.difficulty === "hard"
+        ? HARD_WORDS
+        : NORMAL_WORDS;
+
+  const generatedWords: string[] = [];
+
+  // Gera um texto novo para cada rodada e o compartilha com os dois jogadores.
+  for (let i = 0; i < 80; i += 1) {
+    let word = getRandomWord(words);
+
+    if (settings.accents) {
+      word = ACCENTED_WORDS[word] ?? word;
+    }
+
+    if (settings.uppercase && i % 10 === 0) {
+      word = word.charAt(0).toUpperCase() + word.slice(1);
+    }
+
+    if (settings.punctuation && i % 7 === 6) {
+      word = addPunctuation(word);
+    }
+
+    generatedWords.push(word);
+  }
+
+  return generatedWords.join(" ");
+}
+
+function generateRoomCode(): string {
+  let code = "";
+
+  do {
+    code = randomBytes(4).toString("hex").toUpperCase();
+  } while (rooms.has(code));
+
+  return code;
+}
+
+function sanitizeNickname(value: unknown): string {
+  return typeof value === "string"
+    ? value.trim().replace(/\s+/g, " ").slice(0, 16)
+    : "";
+}
+
+function isValidSettings(value: unknown): value is RoomSettings {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const settings = value as Record<string, unknown>;
+
+  return (
+    ["easy", "normal", "hard"].includes(String(settings.difficulty)) &&
+    typeof settings.accents === "boolean" &&
+    typeof settings.uppercase === "boolean" &&
+    typeof settings.punctuation === "boolean" &&
+    [15, 30, 60].includes(Number(settings.duration)) &&
+    ["single", "best-of-3", "best-of-5"].includes(String(settings.format))
+  );
+}
+
+function initialScore(): PlayerScore {
+  return {
+    ppm: 0,
+    accuracy: 0,
+    errors: 0,
+    progress: 0,
+  };
+}
+
+function makePlayer(socketId: string, nickname: string): RoomPlayer {
+  return {
+    socketId,
+    nickname,
+    isGuest: true,
+    ...initialScore(),
+  };
+}
+
+// Não envia os textos digitados individualmente para os outros clientes.
+function publicRoom(room: BattleRoom) {
+  const { typedTexts: _typedTexts, ...safeRoom } = room;
+  return safeRoom;
+}
+
+function sendRoomUpdate(room: BattleRoom) {
+  io.to(room.code).emit("room:updated", publicRoom(room));
+}
+
+function clearTimer(
+  timers: Map<string, ReturnType<typeof setTimeout>>,
+  code: string,
+) {
+  const timer = timers.get(code);
+
+  if (timer) {
+    clearTimeout(timer);
+  }
+
+  timers.delete(code);
+}
+
+function clearTimers(code: string) {
+  clearTimer(countdownTimers, code);
+  clearTimer(finishTimers, code);
+  clearTimer(nextRoundTimers, code);
+  clearTimer(lobbyTimers, code);
+}
+
+// O servidor calcula as estatísticas oficiais da rodada.
+function calculateScore(
+  typedText: string,
+  target: string,
+  elapsedMs: number,
+): PlayerScore {
+  let correct = 0;
+  let errors = 0;
+
+  for (let index = 0; index < typedText.length; index += 1) {
+    if (index < target.length && typedText[index] === target[index]) {
+      correct += 1;
+    } else {
+      errors += 1;
+    }
+  }
+
+  const accuracy =
+    typedText.length > 0 ? (correct / typedText.length) * 100 : 0;
+
+  const minutes = Math.max(elapsedMs, 1000) / 60_000;
+  const ppm = Math.round(correct / 5 / minutes);
+
+  const progress =
+    target.length > 0
+      ? Math.min(100, Math.round((typedText.length / target.length) * 100))
+      : 0;
+
+  return {
+    ppm,
+    accuracy: Math.round(accuracy * 10) / 10,
+    errors,
+    progress,
+  };
+}
+
+function getRequiredWins(format: MatchFormat): number {
+  if (format === "best-of-3") return 2;
+  if (format === "best-of-5") return 3;
+  return 1;
+}
+
+function getMaximumRounds(format: MatchFormat): number {
+  if (format === "best-of-3") return 3;
+  if (format === "best-of-5") return 5;
+  return 1;
+}
+
+function getRoundWinner(room: BattleRoom): string | null {
+  const [first, second] = room.players;
+
+  if (!first || !second) return null;
+
+  if (first.ppm > second.ppm) return first.socketId;
+  if (second.ppm > first.ppm) return second.socketId;
+
+  if (first.accuracy > second.accuracy) return first.socketId;
+  if (second.accuracy > first.accuracy) return second.socketId;
+
+  return null;
+}
+
+function finishBattle(room: BattleRoom) {
+  if (room.status !== "playing" || room.battle?.startedAt == null) {
+    return;
+  }
+
+  clearTimer(finishTimers, room.code);
+
+  const battle = room.battle;
+  const startedAt = battle.startedAt;
+
+  if (startedAt === null) {
+    return;
+  }
+
+  const elapsed = Date.now() - startedAt;
+
+  // Recalcula os resultados no servidor, evitando confiar só no navegador.
+  for (const player of room.players) {
+    Object.assign(
+      player,
+      calculateScore(
+        room.typedTexts[player.socketId] ?? "",
+        battle.text,
+        elapsed,
+      ),
+    );
+  }
+
+  const roundWinner = getRoundWinner(room);
+  battle.winnerSocketId = roundWinner;
+
+  if (roundWinner) {
+    room.seriesWins[roundWinner] = (room.seriesWins[roundWinner] ?? 0) + 1;
+  }
+
+  const requiredWins = getRequiredWins(room.settings.format);
+  const maximumRounds = getMaximumRounds(room.settings.format);
+
+  const winnerBySeries = room.players.find(
+    (player) => (room.seriesWins[player.socketId] ?? 0) >= requiredWins,
+  );
+
+  const reachedRoundLimit = battle.round >= maximumRounds;
+
+  room.seriesFinished = Boolean(winnerBySeries) || reachedRoundLimit;
+  room.seriesWinnerSocketId = winnerBySeries?.socketId ?? null;
+  room.status = "finished";
+
+  if (room.seriesFinished) {
+    room.lastSeriesResult = {
+      winnerSocketId: room.seriesWinnerSocketId,
+      wins: { ...room.seriesWins },
+      roundsPlayed: battle.round,
+      players: room.players.map((player) => ({
+        socketId: player.socketId,
+        nickname: player.nickname,
+      })),
+    };
+  }
+
+  sendRoomUpdate(room);
+  io.to(room.code).emit("battle:finished", publicRoom(room));
+
+  if (!room.seriesFinished) {
+    // Dá tempo para os dois verem o resultado da rodada.
+    const timer = setTimeout(() => {
+      const currentRoom = rooms.get(room.code);
+
+      if (
+        currentRoom &&
+        currentRoom.status === "finished" &&
+        !currentRoom.seriesFinished &&
+        currentRoom.players.length === 2
+      ) {
+        startRound(currentRoom, (currentRoom.battle?.round ?? 0) + 1);
+      }
+    }, 2500);
+
+    nextRoundTimers.set(room.code, timer);
+    return;
+  }
+
+  // Mantém o resultado visível por alguns segundos e retorna ao mesmo lobby.
+  const lobbyTimer = setTimeout(() => {
+    const currentRoom = rooms.get(room.code);
+
+    if (!currentRoom || currentRoom.status !== "finished") return;
+
+    currentRoom.status = "waiting";
+    currentRoom.battle = null;
+    currentRoom.typedTexts = {};
+    currentRoom.seriesWins = Object.fromEntries(
+      currentRoom.players.map((player) => [player.socketId, 0]),
+    );
+    currentRoom.seriesWinnerSocketId = null;
+    currentRoom.seriesFinished = false;
+
+    for (const player of currentRoom.players) {
+      Object.assign(player, initialScore());
+    }
+
+    // lastSeriesResult é preservado para exibir o último resultado no lobby.
+    sendRoomUpdate(currentRoom);
+    lobbyTimers.delete(room.code);
+  }, 6000);
+
+  lobbyTimers.set(room.code, lobbyTimer);
+}
+
+function startRound(room: BattleRoom, round: number): boolean {
+  if (room.players.length !== 2) return false;
+
+  clearTimers(room.code);
+
+  room.status = "countdown";
+  room.typedTexts = {};
+
+  for (const player of room.players) {
+    Object.assign(player, initialScore());
+    room.typedTexts[player.socketId] = "";
+  }
+
+  room.battle = {
+    round,
+    text: makeText(room.settings),
+    countdownEndsAt: Date.now() + 3000,
+    startedAt: null,
+    endsAt: null,
+    winnerSocketId: null,
+  };
+
+  sendRoomUpdate(room);
+
+  io.to(room.code).emit("battle:countdown", {
+    startsAt: room.battle.countdownEndsAt,
+  });
+
+  const countdownTimer = setTimeout(() => {
+    const currentRoom = rooms.get(room.code);
+
+    if (
+      !currentRoom ||
+      currentRoom.status !== "countdown" ||
+      !currentRoom.battle
+    ) {
+      return;
+    }
+
+    const now = Date.now();
+
+    currentRoom.status = "playing";
+    currentRoom.battle.startedAt = now;
+    currentRoom.battle.endsAt = now + currentRoom.settings.duration * 1000;
+    currentRoom.battle.countdownEndsAt = null;
+
+    sendRoomUpdate(currentRoom);
+
+    io.to(currentRoom.code).emit("battle:started", {
+      startedAt: now,
+      endsAt: currentRoom.battle.endsAt,
+      duration: currentRoom.settings.duration,
+      text: currentRoom.battle.text,
+    });
+
+    const finishTimer = setTimeout(() => {
+      const roomToFinish = rooms.get(currentRoom.code);
+
+      if (roomToFinish) finishBattle(roomToFinish);
+    }, currentRoom.settings.duration * 1000);
+
+    finishTimers.set(currentRoom.code, finishTimer);
+    countdownTimers.delete(currentRoom.code);
+  }, 3000);
+
+  countdownTimers.set(room.code, countdownTimer);
+  return true;
+}
+
+function startBattle(room: BattleRoom): boolean {
+  if (room.status !== "waiting" || room.players.length !== 2) {
+    return false;
+  }
+
+  room.seriesWins = Object.fromEntries(
+    room.players.map((player) => [player.socketId, 0]),
+  );
+  room.seriesWinnerSocketId = null;
+  room.seriesFinished = false;
+  room.lastSeriesResult = null;
+
+  return startRound(room, 1);
+}
+
+// Rotas HTTP existentes.
 app.get("/api/health", (_request, response) => {
   response.json({
     status: "ok",
@@ -23,10 +684,8 @@ app.get("/api/health", (_request, response) => {
   });
 });
 
-// Rota para testar a conexão com o banco
 app.get("/api/db-test", async (_request, response) => {
   try {
-    // Consulta o model User através do Prisma 8
     await db.orm.public.User.all();
 
     response.json({
@@ -43,7 +702,6 @@ app.get("/api/db-test", async (_request, response) => {
   }
 });
 
-// Rota protegida para testar o JWT
 app.get("/api/auth/me", authMiddleware, (request, response) => {
   response.json({
     message: "Token válido!",
@@ -51,17 +709,243 @@ app.get("/api/auth/me", authMiddleware, (request, response) => {
   });
 });
 
-// Rotas de usuários
 app.use("/api/users", userRoutes);
-
-// Rotas de autenticação
 app.use("/api/auth", authRoutes);
-
-// Rotas de resultados de digitação
 app.use("/api/typing-results", typingResultRoutes);
+
+// Eventos multiplayer.
+io.on("connection", (socket) => {
+  console.log(`Socket conectado: ${socket.id}`);
+
+  socket.on(
+    "room:create",
+    (payload: { nickname: string; settings: RoomSettings }) => {
+      const nickname = sanitizeNickname(payload?.nickname);
+
+      if (!nickname) {
+        socket.emit("room:error", "Informe um nick válido.");
+        return;
+      }
+
+      if (!isValidSettings(payload?.settings)) {
+        socket.emit("room:error", "As configurações da sala são inválidas.");
+        return;
+      }
+
+      removePlayerFromRoom(socket);
+
+      const code = generateRoomCode();
+
+      const room: BattleRoom = {
+        code,
+        hostSocketId: socket.id,
+        players: [makePlayer(socket.id, nickname)],
+        settings: { ...payload.settings },
+        status: "waiting",
+        battle: null,
+        typedTexts: {},
+        seriesWins: { [socket.id]: 0 },
+        seriesWinnerSocketId: null,
+        seriesFinished: false,
+        lastSeriesResult: null,
+      };
+
+      rooms.set(code, room);
+      socket.join(code);
+      socket.data.roomCode = code;
+
+      socket.emit("room:created", publicRoom(room));
+      sendRoomUpdate(room);
+    },
+  );
+
+  socket.on("room:join", (payload: { code: string; nickname: string }) => {
+    const code = String(payload?.code ?? "")
+      .trim()
+      .toUpperCase();
+    const nickname = sanitizeNickname(payload?.nickname);
+    const room = rooms.get(code);
+
+    if (!nickname) {
+      socket.emit("room:error", "Informe um nick válido.");
+      return;
+    }
+
+    if (!room) {
+      socket.emit("room:error", "Sala não encontrada ou encerrada.");
+      return;
+    }
+
+    if (room.status !== "waiting") {
+      socket.emit("room:error", "Esta sala não está aceitando jogadores.");
+      return;
+    }
+
+    if (room.players.some((player) => player.socketId === socket.id)) {
+      socket.emit("room:joined", publicRoom(room));
+      return;
+    }
+
+    if (room.players.length >= 2) {
+      socket.emit("room:error", "Esta sala já está cheia.");
+      return;
+    }
+
+    removePlayerFromRoom(socket);
+
+    room.players.push(makePlayer(socket.id, nickname));
+    room.seriesWins[socket.id] = 0;
+
+    socket.join(code);
+    socket.data.roomCode = code;
+
+    socket.emit("room:joined", publicRoom(room));
+    sendRoomUpdate(room);
+  });
+
+  socket.on("room:update-settings", (payload: { settings: RoomSettings }) => {
+    const code = socket.data.roomCode as string | undefined;
+    const room = code ? rooms.get(code) : undefined;
+
+    if (!room || room.hostSocketId !== socket.id) {
+      socket.emit(
+        "room:error",
+        "Somente quem criou a sala pode alterar as configurações.",
+      );
+      return;
+    }
+
+    if (room.status !== "waiting" || !isValidSettings(payload?.settings)) {
+      socket.emit("room:error", "Não foi possível atualizar as configurações.");
+      return;
+    }
+
+    room.settings = { ...payload.settings };
+    sendRoomUpdate(room);
+  });
+
+  socket.on("battle:start", () => {
+    const code = socket.data.roomCode as string | undefined;
+    const room = code ? rooms.get(code) : undefined;
+
+    if (!room) {
+      socket.emit("room:error", "Você não está em uma sala.");
+      return;
+    }
+
+    if (room.hostSocketId !== socket.id) {
+      socket.emit("room:error", "Somente o anfitrião pode iniciar a partida.");
+      return;
+    }
+
+    if (room.players.length !== 2) {
+      socket.emit(
+        "room:error",
+        "É necessário ter dois jogadores para iniciar.",
+      );
+      return;
+    }
+
+    if (!startBattle(room)) {
+      socket.emit("room:error", "A partida não pode ser iniciada agora.");
+    }
+  });
+
+  socket.on("battle:progress", (payload: { typedText: string }) => {
+    const code = socket.data.roomCode as string | undefined;
+    const room = code ? rooms.get(code) : undefined;
+
+    if (!room || room.status !== "playing" || room.battle?.startedAt == null) {
+      return;
+    }
+
+    if (!room.players.some((player) => player.socketId === socket.id)) {
+      return;
+    }
+
+    const target = room.battle.text;
+
+    const typedText =
+      typeof payload?.typedText === "string"
+        ? payload.typedText.slice(0, target.length + 100)
+        : "";
+
+    room.typedTexts[socket.id] = typedText;
+
+    const elapsed = Math.min(
+      Date.now() - room.battle.startedAt,
+      room.settings.duration * 1000,
+    );
+
+    const player = room.players.find((item) => item.socketId === socket.id);
+
+    if (player) {
+      Object.assign(player, calculateScore(typedText, target, elapsed));
+    }
+
+    sendRoomUpdate(room);
+  });
+
+  socket.on("room:leave", () => {
+    removePlayerFromRoom(socket);
+  });
+
+  socket.on("disconnect", () => {
+    console.log(`Socket desconectado: ${socket.id}`);
+    removePlayerFromRoom(socket);
+  });
+});
+
+function removePlayerFromRoom(socket: Socket) {
+  const code = socket.data.roomCode as string | undefined;
+
+  if (!code) return;
+
+  const room = rooms.get(code);
+
+  socket.leave(code);
+  socket.data.roomCode = undefined;
+
+  if (!room) return;
+
+  room.players = room.players.filter((player) => player.socketId !== socket.id);
+
+  delete room.typedTexts[socket.id];
+  delete room.seriesWins[socket.id];
+
+  if (room.players.length === 0) {
+    clearTimers(code);
+    rooms.delete(code);
+    return;
+  }
+
+  // Cancela a série se alguém sair antes ou durante o resultado.
+  if (room.status !== "waiting") {
+    clearTimers(code);
+    room.status = "waiting";
+    room.battle = null;
+    room.typedTexts = {};
+    room.seriesWinnerSocketId = null;
+    room.seriesFinished = false;
+
+    room.seriesWins = Object.fromEntries(
+      room.players.map((player) => [player.socketId, 0]),
+    );
+
+    for (const player of room.players) {
+      Object.assign(player, initialScore());
+    }
+  }
+
+  if (room.hostSocketId === socket.id) {
+    room.hostSocketId = room.players[0].socketId;
+  }
+
+  sendRoomUpdate(room);
+}
 
 const PORT = 3000;
 
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log(`🚀 TypeBattle API rodando em http://localhost:${PORT}`);
 });
