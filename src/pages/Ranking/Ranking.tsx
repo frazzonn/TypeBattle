@@ -138,7 +138,7 @@ export function Ranking() {
 
               <ToggleButton value={30}>30s</ToggleButton>
 
-              <ToggleButton value={60}>1min</ToggleButton>
+              <ToggleButton value={60}>60s</ToggleButton>
             </ToggleButtonGroup>
           </Stack>
         </Paper>

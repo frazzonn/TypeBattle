@@ -34,6 +34,7 @@ const API_URL = "http://localhost:3000";
 type Difficulty = "easy" | "normal" | "hard";
 type MatchFormat = "single" | "best-of-3" | "best-of-5";
 type Duration = 15 | 30 | 60;
+type PlayerLimit = 2 | 3 | 4;
 type Screen = "home" | "create" | "join";
 type RoomStatus = "waiting" | "countdown" | "playing" | "finished";
 type PendingAction = "create" | "join" | null;
@@ -45,6 +46,7 @@ interface RoomSettings {
   punctuation: boolean;
   duration: Duration;
   format: MatchFormat;
+  playerLimit: PlayerLimit;
 }
 
 interface RoomPlayer {
@@ -86,6 +88,7 @@ const DEFAULT_SETTINGS: RoomSettings = {
   punctuation: false,
   duration: 30,
   format: "single",
+  playerLimit: 2,
 };
 
 function extractRoomCode(value: string): string {
@@ -147,6 +150,8 @@ function getErrorMessage(payload: unknown): string {
 interface SettingsFieldsProps {
   settings: RoomSettings;
   disabled?: boolean;
+  /** Evita reduzir a capacidade abaixo do número de pessoas já na sala. */
+  minimumPlayerCount?: number;
   onChange: <K extends keyof RoomSettings>(
     key: K,
     value: RoomSettings[K],
@@ -156,6 +161,7 @@ interface SettingsFieldsProps {
 function SettingsFields({
   settings,
   disabled = false,
+  minimumPlayerCount = 1,
   onChange,
 }: SettingsFieldsProps) {
   return (
@@ -173,6 +179,28 @@ function SettingsFields({
           <MenuItem value="easy">Fácil</MenuItem>
           <MenuItem value="normal">Normal</MenuItem>
           <MenuItem value="hard">Difícil</MenuItem>
+        </Select>
+      </FormControl>
+
+      <FormControl fullWidth disabled={disabled}>
+        <InputLabel id="battle-player-limit-label">
+          Quantidade de jogadores
+        </InputLabel>
+        <Select
+          labelId="battle-player-limit-label"
+          value={settings.playerLimit}
+          label="Quantidade de jogadores"
+          onChange={(event) =>
+            onChange("playerLimit", Number(event.target.value) as PlayerLimit)
+          }
+        >
+          <MenuItem value={2} disabled={minimumPlayerCount > 2}>
+            2 jogadores
+          </MenuItem>
+          <MenuItem value={3} disabled={minimumPlayerCount > 3}>
+            3 jogadores
+          </MenuItem>
+          <MenuItem value={4}>4 jogadores</MenuItem>
         </Select>
       </FormControl>
 
@@ -355,7 +383,7 @@ export function Battle() {
       setIsJoining(false);
 
       if (action === "create") {
-        setNotice("Sala criada! Compartilhe o convite com seu amigo.");
+        setNotice("Sala criada! Compartilhe o convite com seus amigos.");
         window.history.replaceState({}, "", `/battle?room=${normalized.code}`);
       } else if (action === "join") {
         setNotice("Você entrou na sala!");
@@ -387,7 +415,6 @@ export function Battle() {
       }
     });
 
-    // O backend também pode emitir room:updated ao criar ou entrar na sala.
     socket.on("room:updated", (payload: unknown) => {
       const updatedRoom = getRoomFromPayload(payload);
       if (!updatedRoom) return;
@@ -455,14 +482,13 @@ export function Battle() {
   }, [room?.status, room?.battle?.round]);
 
   const isHost = Boolean(room && room.hostSocketId === socketRef.current?.id);
-
   const myPlayer = room?.players.find(
     (player) => player.socketId === socketRef.current?.id,
   );
-
-  const opponent = room?.players.find(
-    (player) => player.socketId !== socketRef.current?.id,
-  );
+  const opponents =
+    room?.players.filter(
+      (player) => player.socketId !== socketRef.current?.id,
+    ) ?? [];
 
   const countdown = room?.battle?.countdownEndsAt
     ? Math.max(0, Math.ceil((room.battle.countdownEndsAt - currentTime) / 1000))
@@ -584,10 +610,15 @@ export function Battle() {
   const inviteLink = room
     ? `${window.location.origin}/battle?room=${room.code}`
     : "";
-
   const isInGame = room?.status === "countdown" || room?.status === "playing";
+  const roomIsFull = Boolean(
+    room && room.players.length === room.settings.playerLimit,
+  );
+  const missingPlayers = room
+    ? Math.max(0, room.settings.playerLimit - room.players.length)
+    : 0;
 
-  // Durante a partida, preserva a tela simples e focada na digitação.
+  // Durante a partida, mostra o progresso de todos os adversários.
   if (room && isInGame && room.battle) {
     return (
       <Container maxWidth="md" sx={{ py: { xs: 3, md: 6 } }}>
@@ -605,7 +636,7 @@ export function Battle() {
                 TypeBattle
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Sala {room.code}
+                Sala {room.code} · {room.players.length} jogadores
               </Typography>
             </Box>
 
@@ -626,46 +657,67 @@ export function Battle() {
 
           <Divider />
 
-          <Box>
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                gap: 2,
-              }}
-            >
-              <Box sx={{ minWidth: 0 }}>
-                <Typography sx={{ fontWeight: 700 }} noWrap>
-                  {myPlayer?.nickname ?? nickname}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Você · {myPlayer?.ppm ?? 0} PPM
-                </Typography>
-              </Box>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                sm: "repeat(2, minmax(0, 1fr))",
+              },
+              gap: 2,
+            }}
+          >
+            <Paper variant="outlined" sx={{ p: 2 }}>
+              <Typography sx={{ fontWeight: 700 }} noWrap>
+                {myPlayer?.nickname ?? nickname} (você)
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {myPlayer?.ppm ?? 0} PPM · Precisão {myPlayer?.accuracy ?? 100}%
+                · {myPlayer?.errors ?? 0} erros
+              </Typography>
+              <LinearProgress
+                variant="determinate"
+                value={Math.min(100, Math.max(0, myPlayer?.progress ?? 0))}
+                sx={{ mt: 1.5, height: 4, borderRadius: 2 }}
+              />
+            </Paper>
 
-              <Box sx={{ textAlign: "right", minWidth: 0 }}>
-                <Typography sx={{ fontWeight: 700 }} noWrap>
-                  {opponent?.nickname ?? "Aguardando adversário"}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Adversário · {opponent?.ppm ?? 0} PPM
-                </Typography>
-              </Box>
-            </Box>
-
-            <LinearProgress
-              variant="determinate"
-              value={Math.min(100, Math.max(0, opponent?.progress ?? 0))}
-              sx={{ mt: 1.5, height: 4, borderRadius: 2 }}
-            />
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ display: "block", mt: 0.5, textAlign: "right" }}
-            >
-              Progresso do adversário: {opponent?.progress ?? 0}%
-            </Typography>
+            <Stack spacing={1.5}>
+              <Typography variant="subtitle2" color="text.secondary">
+                Adversários ({opponents.length})
+              </Typography>
+              {opponents.map((opponent) => (
+                <Paper key={opponent.socketId} variant="outlined" sx={{ p: 2 }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 1,
+                    }}
+                  >
+                    <Typography sx={{ fontWeight: 700 }} noWrap>
+                      {opponent.nickname}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" noWrap>
+                      {opponent.ppm} PPM
+                    </Typography>
+                  </Box>
+                  <LinearProgress
+                    variant="determinate"
+                    value={Math.min(100, Math.max(0, opponent.progress ?? 0))}
+                    sx={{ mt: 1, height: 4, borderRadius: 2 }}
+                  />
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: "block", mt: 0.5, textAlign: "right" }}
+                  >
+                    {opponent.progress ?? 0}% de progresso
+                  </Typography>
+                </Paper>
+              ))}
+            </Stack>
           </Box>
 
           {room.status === "countdown" ? (
@@ -783,7 +835,7 @@ export function Battle() {
                   Criar sala
                 </Typography>
                 <Typography color="text.secondary" sx={{ flexGrow: 1 }}>
-                  Configure a partida e convide um amigo.
+                  Configure a partida e convide seus amigos.
                 </Typography>
                 <Button
                   variant="contained"
@@ -961,7 +1013,8 @@ export function Battle() {
                   <Divider />
 
                   <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                    Jogadores ({room.players.length}/2)
+                    Jogadores ({room.players.length}/{room.settings.playerLimit}
+                    )
                   </Typography>
 
                   <Stack spacing={1}>
@@ -994,9 +1047,11 @@ export function Battle() {
                       </Paper>
                     ))}
 
-                    {room.players.length < 2 && (
+                    {!roomIsFull && (
                       <Typography color="text.secondary" sx={{ py: 1 }}>
-                        Aguardando adversário...
+                        Aguardando mais {missingPlayers}{" "}
+                        {missingPlayers === 1 ? "jogador" : "jogadores"} para
+                        completar a sala...
                       </Typography>
                     )}
                   </Stack>
@@ -1009,7 +1064,6 @@ export function Battle() {
                   <Typography variant="h6" sx={{ fontWeight: 700 }}>
                     Configurações da partida
                   </Typography>
-
                   <Typography>
                     Dificuldade:{" "}
                     {room.settings.difficulty === "easy"
@@ -1017,6 +1071,9 @@ export function Battle() {
                       : room.settings.difficulty === "normal"
                         ? "Normal"
                         : "Difícil"}
+                  </Typography>
+                  <Typography>
+                    Jogadores necessários: {room.settings.playerLimit}
                   </Typography>
                   <Typography>
                     Acentuação:{" "}
@@ -1050,6 +1107,7 @@ export function Battle() {
                       </Typography>
                       <SettingsFields
                         settings={settings}
+                        minimumPlayerCount={room.players.length}
                         onChange={updateSetting}
                       />
                       <Button
@@ -1064,17 +1122,20 @@ export function Battle() {
                         size="large"
                         startIcon={<PlayArrowRoundedIcon />}
                         onClick={startBattle}
-                        disabled={!connected || room.players.length !== 2}
+                        disabled={!connected || !roomIsFull}
                       >
-                        Iniciar batalha
+                        {roomIsFull
+                          ? "Iniciar batalha"
+                          : `Aguardando jogadores (${room.players.length}/${room.settings.playerLimit})`}
                       </Button>
                     </>
                   )}
 
-                  {!isHost && room.players.length === 2 && (
+                  {!isHost && (
                     <Alert severity="info">
-                      O anfitrião pode iniciar a batalha quando estiverem
-                      prontos.
+                      {roomIsFull
+                        ? "Todos os jogadores entraram. O anfitrião pode iniciar a batalha."
+                        : `Aguardando mais ${missingPlayers} ${missingPlayers === 1 ? "jogador" : "jogadores"} para completar a sala.`}
                     </Alert>
                   )}
                 </>
@@ -1084,12 +1145,7 @@ export function Battle() {
                 <>
                   <Typography variant="h5" sx={{ fontWeight: 800 }}>
                     {room.battle.winnerSocketId
-                      ? `Vitória de ${
-                          room.players.find(
-                            (player) =>
-                              player.socketId === room.battle?.winnerSocketId,
-                          )?.nickname ?? "um jogador"
-                        }!`
+                      ? `Vitória de ${room.players.find((player) => player.socketId === room.battle?.winnerSocketId)?.nickname ?? "um jogador"}!`
                       : "Empate!"}
                   </Typography>
 
@@ -1133,7 +1189,7 @@ export function Battle() {
                   </Button>
 
                   <Typography variant="body2" color="text.secondary">
-                    Para jogar novamente na mesma sala, o servidor precisa
+                    Para jogar novamente na mesma sala, aguarde o servidor
                     reiniciar a rodada e atualizar o estado da sala.
                   </Typography>
                 </>

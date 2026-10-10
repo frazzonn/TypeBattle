@@ -10,57 +10,77 @@ export interface TextGeneratorOptions {
   usePunctuation?: boolean;
 }
 
-// Variantes acentuadas de palavras usadas nos textos.
+// Mapeia formas sem acento para formas corretas em português.
 const ACCENTED_WORDS: Record<string, string> = {
   agua: "água",
   musica: "música",
   cafe: "café",
+  familia: "família",
+  arvore: "árvore",
   codigo: "código",
+  programacao: "programação",
+  aplicacao: "aplicação",
   usuario: "usuário",
   experiencia: "experiência",
   informacao: "informação",
   funcao: "função",
-  aplicacao: "aplicação",
-  programacao: "programação",
+  pagina: "página",
   solucao: "solução",
   precisao: "precisão",
   organizacao: "organização",
   comunicacao: "comunicação",
   seguranca: "segurança",
+  conexao: "conexão",
+  servico: "serviço",
   inovacao: "inovação",
   implementacao: "implementação",
   configuracao: "configuração",
   autenticacao: "autenticação",
   autorizacao: "autorização",
-  complexidade: "complexidade",
+  internacionalizacao: "internacionalização",
   documentacao: "documentação",
-  funcionalidade: "funcionalidade",
   sincronizacao: "sincronização",
   concorrencia: "concorrência",
+  persistencia: "persistência",
   abstracao: "abstração",
+  virtualizacao: "virtualização",
+  especificacao: "especificação",
   reutilizacao: "reutilização",
+  automatizacao: "automatização",
+  transformacao: "transformação",
   otimizacao: "otimização",
   extraordinario: "extraordinário",
-  estrategicamente: "estrategicamente",
 };
 
-// Escolhe uma palavra aleatória.
-function getRandomWord(words: string[]) {
+function removeAccents(word: string): string {
+  return word.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+function applyAccents(word: string): string {
+  const normalizedWord = removeAccents(word).toLowerCase();
+  return ACCENTED_WORDS[normalizedWord] ?? word;
+}
+
+function getRandomWord(words: readonly string[]): string {
   return words[Math.floor(Math.random() * words.length)] ?? "palavra";
 }
 
-function capitalize(word: string) {
-  return word.charAt(0).toUpperCase() + word.slice(1);
+function capitalize(word: string): string {
+  return word.charAt(0).toLocaleUpperCase("pt-BR") + word.slice(1);
 }
 
-function addPunctuation(word: string) {
-  const punctuation = [".", ",", "!", "?", ";"];
-  return (
-    word + (punctuation[Math.floor(Math.random() * punctuation.length)] ?? ".")
-  );
+// O fim de frase usa apenas ponto, exclamação ou interrogação, sem reticências.
+function getSentenceEnding(): string {
+  const endings = [".", ".", ".", "!", "?"];
+  return endings[Math.floor(Math.random() * endings.length)] ?? ".";
 }
 
-function getWordList(difficulty: TextDifficulty) {
+function getClausePunctuation(): string {
+  const punctuation = [",", ",", ",", ";", ":"];
+  return punctuation[Math.floor(Math.random() * punctuation.length)] ?? ",";
+}
+
+function getWordList(difficulty: TextDifficulty): readonly string[] {
   switch (difficulty) {
     case "easy":
       return EASY_WORDS;
@@ -71,7 +91,7 @@ function getWordList(difficulty: TextDifficulty) {
   }
 }
 
-export function generateText(options: TextGeneratorOptions = {}) {
+export function generateText(options: TextGeneratorOptions = {}): string {
   const {
     difficulty = "normal",
     wordCount = 80,
@@ -82,21 +102,36 @@ export function generateText(options: TextGeneratorOptions = {}) {
 
   const words = getWordList(difficulty);
   const generatedWords: string[] = [];
+  const safeWordCount = Math.max(1, Math.floor(wordCount));
+  const getSentenceLength = () => Math.floor(Math.random() * 5) + 6;
 
-  for (let i = 0; i < wordCount; i += 1) {
+  let wordsInSentence = 0;
+  let sentenceLength = getSentenceLength();
+
+  for (let i = 0; i < safeWordCount; i += 1) {
     let word = getRandomWord(words);
+    word = useAccents ? applyAccents(word) : removeAccents(word);
 
-    if (useAccents) {
-      word = ACCENTED_WORDS[word] ?? word;
+    if (usePunctuation) {
+      if (wordsInSentence === 0) {
+        word = capitalize(word);
+      }
+
+      wordsInSentence += 1;
+      const isLastWord = i === safeWordCount - 1;
+      const endsSentence = wordsInSentence >= sentenceLength;
+
+      if (isLastWord || endsSentence) {
+        word += getSentenceEnding();
+        wordsInSentence = 0;
+        sentenceLength = getSentenceLength();
+      } else if (wordsInSentence >= 2 && Math.random() < 0.18) {
+        word += getClausePunctuation();
+      }
     }
 
-    // O modo fácil mantém o texto simples por padrão.
     if (useUppercase && i % 10 === 0) {
       word = capitalize(word);
-    }
-
-    if (usePunctuation && i % 7 === 6) {
-      word = addPunctuation(word);
     }
 
     generatedWords.push(word);
