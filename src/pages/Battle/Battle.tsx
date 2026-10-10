@@ -29,8 +29,9 @@ import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { TypingText } from "../../components/typing/TypingText";
 
-const API_URL = "http://localhost:3000";
-
+const SOCKET_URL = (
+  import.meta.env.VITE_SOCKET_URL || "http://localhost:3000"
+).replace(/\/$/, "");
 type Difficulty = "easy" | "normal" | "hard";
 type MatchFormat = "single" | "best-of-3" | "best-of-5";
 type Duration = 15 | 30 | 60;
@@ -370,7 +371,7 @@ export function Battle() {
   const [currentTime, setCurrentTime] = useState(Date.now());
 
   useEffect(() => {
-    const socket = io(API_URL);
+    const socket = io(SOCKET_URL);
     socketRef.current = socket;
 
     function applyRoom(incomingRoom: BattleRoom, action?: PendingAction) {

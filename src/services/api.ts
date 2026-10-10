@@ -1,4 +1,6 @@
-const API_URL = "http://localhost:3000/api";
+const API_URL = (
+  import.meta.env.VITE_API_URL || "http://localhost:3000/api"
+).replace(/\/$/, "");
 
 interface RegisterData {
   name: string;
@@ -31,6 +33,56 @@ interface TypingResultData {
   duration: number;
 }
 
+// Formato de um resultado salvo no histórico.
+export interface TypingResult {
+  id: number;
+  userId: number;
+  ppm: number;
+  accuracy: number;
+  errors: number;
+  characters: number;
+  duration: number;
+  createdAt: string;
+}
+
+// Formato das respostas usadas pelo perfil e pelo ranking.
+interface TypingResultsResponse {
+  results: TypingResult[];
+}
+
+export interface RankingEntry {
+  userId: number;
+  name: string;
+  ppm: number;
+  accuracy: number;
+  position: number;
+}
+
+export interface RankingResponse {
+  duration: number;
+  ranking: RankingEntry[];
+}
+
+// Converte a resposta da API e trata erros HTTP.
+async function handleResponse<T>(response: Response): Promise<T> {
+  const result: unknown = await response.json();
+
+  if (!response.ok) {
+    const message =
+      typeof result === "object" &&
+      result !== null &&
+      "message" in result &&
+      typeof result.message === "string"
+        ? result.message
+        : "Erro ao comunicar com o servidor.";
+
+    throw new Error(message);
+  }
+
+  return result as T;
+}
+
+// Cadastra um novo usuário.
 export async function registerUser(data: RegisterData) {
   const response = await fetch(`${API_URL}/users`, {
     method: "POST",
@@ -40,15 +92,10 @@ export async function registerUser(data: RegisterData) {
     body: JSON.stringify(data),
   });
 
-  const result = await response.json();
-
-  if (!response.ok) {
-    throw new Error(result.message || "Erro ao cadastrar usuário.");
-  }
-
-  return result;
+  return handleResponse<User>(response);
 }
 
+// Realiza o login e retorna o token de autenticação.
 export async function loginUser(data: LoginData): Promise<AuthResponse> {
   const response = await fetch(`${API_URL}/auth/login`, {
     method: "POST",
@@ -58,16 +105,10 @@ export async function loginUser(data: LoginData): Promise<AuthResponse> {
     body: JSON.stringify(data),
   });
 
-  const result = await response.json();
-
-  if (!response.ok) {
-    throw new Error(result.message || "Erro ao realizar login.");
-  }
-
-  return result;
+  return handleResponse<AuthResponse>(response);
 }
 
-// Salva o resultado do teste de digitação
+// Salva o resultado do teste de digitação.
 export async function saveTypingResult(data: TypingResultData, token: string) {
   const response = await fetch(`${API_URL}/typing-results`, {
     method: "POST",
@@ -78,17 +119,13 @@ export async function saveTypingResult(data: TypingResultData, token: string) {
     body: JSON.stringify(data),
   });
 
-  const result = await response.json();
-
-  if (!response.ok) {
-    throw new Error(result.message || "Erro ao salvar resultado.");
-  }
-
-  return result;
+  return handleResponse<{ message: string }>(response);
 }
 
-// Busca o histórico de testes do usuário autenticado
-export async function getTypingResults(token: string) {
+// Busca o histórico do usuário autenticado.
+export async function getTypingResults(
+  token: string,
+): Promise<TypingResultsResponse> {
   const response = await fetch(`${API_URL}/typing-results`, {
     method: "GET",
     headers: {
@@ -96,15 +133,14 @@ export async function getTypingResults(token: string) {
     },
   });
 
-  const result = await response.json();
-
-  if (!response.ok) {
-    throw new Error(result.message || "Erro ao buscar resultados.");
-  }
-
-  return result;
+  return handleResponse<TypingResultsResponse>(response);
 }
-export async function getRanking(token: string, duration: number) {
+
+// Busca o ranking para a duração selecionada.
+export async function getRanking(
+  token: string,
+  duration: number,
+): Promise<RankingResponse> {
   const response = await fetch(
     `${API_URL}/typing-results/ranking?duration=${duration}`,
     {
@@ -115,11 +151,5 @@ export async function getRanking(token: string, duration: number) {
     },
   );
 
-  const result = await response.json();
-
-  if (!response.ok) {
-    throw new Error(result.message || "Erro ao buscar ranking.");
-  }
-
-  return result;
+  return handleResponse<RankingResponse>(response);
 }

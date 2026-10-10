@@ -10,9 +10,23 @@ import { typingResultRoutes } from "./routes/typingResultRoutes.js";
 import { userRoutes } from "./routes/userRoutes.js";
 const app = express();
 const httpServer = createServer(app);
-const allowedOrigins = ["http://localhost:5173", "http://127.0.0.1:5173"];
+
+// Mantém o acesso local e permite cadastrar a URL do frontend hospedado.
+const configuredOrigins = (process.env.FRONTEND_URL ?? "")
+  .split(",")
+  .map((origin) => origin.trim().replace(/\/$/, ""))
+  .filter(Boolean);
+
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  ...configuredOrigins,
+];
+
 app.use(cors({ origin: allowedOrigins }));
 app.use(express.json());
+
+// O Socket.IO utiliza as mesmas origens permitidas pela API.
 const io = new Server(httpServer, {
   cors: {
     origin: allowedOrigins,
@@ -878,7 +892,8 @@ function removePlayerFromRoom(socket: Socket) {
   }
   sendRoomUpdate(room);
 }
-const PORT = 3000;
-httpServer.listen(PORT, () => {
-  console.log(`🚀 TypeBattle API rodando em http://localhost:${PORT}`);
+const PORT = Number(process.env.PORT) || 3000;
+
+httpServer.listen(PORT, "0.0.0.0", () => {
+  console.log(`TypeBattle API rodando na porta ${PORT}`);
 });
