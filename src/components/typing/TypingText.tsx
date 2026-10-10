@@ -223,9 +223,7 @@ function TypingTextComponent({
                 ref={isCurrentCharacter ? currentCharacterRef : null}
                 style={{
                   color,
-                  backgroundColor: isCurrentCharacter
-                    ? "rgba(124, 77, 255, 0.18)"
-                    : "transparent",
+
                   borderRadius: "2px",
                   // Mantém o espaço, mas o cursor agora é independente.
                   borderLeft: "2px solid transparent",
