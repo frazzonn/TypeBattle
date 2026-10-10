@@ -1,6 +1,6 @@
-const API_URL = (
-  import.meta.env.VITE_API_URL || "http://localhost:3000/api"
-).replace(/\/$/, "");
+const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:3000/api")
+  .trim()
+  .replace(/\/+$/, "");
 
 interface RegisterData {
   name: string;
@@ -33,7 +33,6 @@ interface TypingResultData {
   duration: number;
 }
 
-// Formato de um resultado salvo no histórico.
 export interface TypingResult {
   id: number;
   userId: number;
@@ -45,7 +44,6 @@ export interface TypingResult {
   createdAt: string;
 }
 
-// Formato das respostas usadas pelo perfil e pelo ranking.
 interface TypingResultsResponse {
   results: TypingResult[];
 }
@@ -63,9 +61,17 @@ export interface RankingResponse {
   ranking: RankingEntry[];
 }
 
-// Converte a resposta da API e trata erros HTTP.
+// Trata erros HTTP e respostas que não sejam JSON válido.
 async function handleResponse<T>(response: Response): Promise<T> {
-  const result: unknown = await response.json();
+  let result: unknown;
+
+  try {
+    result = await response.json();
+  } catch {
+    throw new Error(
+      `O servidor retornou uma resposta inválida (HTTP ${response.status}).`,
+    );
+  }
 
   if (!response.ok) {
     const message =
@@ -83,7 +89,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 // Cadastra um novo usuário.
-export async function registerUser(data: RegisterData) {
+export async function registerUser(data: RegisterData): Promise<User> {
   const response = await fetch(`${API_URL}/users`, {
     method: "POST",
     headers: {
@@ -109,7 +115,10 @@ export async function loginUser(data: LoginData): Promise<AuthResponse> {
 }
 
 // Salva o resultado do teste de digitação.
-export async function saveTypingResult(data: TypingResultData, token: string) {
+export async function saveTypingResult(
+  data: TypingResultData,
+  token: string,
+): Promise<{ message: string }> {
   const response = await fetch(`${API_URL}/typing-results`, {
     method: "POST",
     headers: {
