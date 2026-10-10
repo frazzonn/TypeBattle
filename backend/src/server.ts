@@ -21,9 +21,10 @@ const allowedOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
   "https://type-battle-wpqb.vercel.app",
+  ...configuredOrigins,
 ];
 
-// Permite requisições do frontend local e do site publicado.
+// Permite o frontend local e os domínios configurados na hospedagem.
 app.use(
   cors({
     origin: allowedOrigins,
