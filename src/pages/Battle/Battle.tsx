@@ -30,8 +30,11 @@ import { useAuth } from "../../contexts/AuthContext";
 import { TypingText } from "../../components/typing/TypingText";
 
 const SOCKET_URL = (
-  import.meta.env.VITE_SOCKET_URL || "http://localhost:3000"
-).replace(/\/$/, "");
+  import.meta.env.VITE_SOCKET_URL ||
+  (import.meta.env.PROD
+    ? "https://typebattle.up.railway.app"
+    : "http://localhost:3000")
+).replace(/\/+$/, "");
 type Difficulty = "easy" | "normal" | "hard";
 type MatchFormat = "single" | "best-of-3" | "best-of-5";
 type Duration = 15 | 30 | 60;

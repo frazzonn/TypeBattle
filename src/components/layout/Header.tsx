@@ -31,22 +31,51 @@ export function Header() {
           width: "100%",
           margin: "0 auto",
           px: { xs: 2, md: 3 },
+          minHeight: "64px !important",
+          height: "64px",
+          overflow: "visible",
         }}
       >
-        {/* Logo */}
-        <Typography
+        {/* Logo do TypeBattle */}
+        <Box
           component={Link}
           to="/"
-          variant="h6"
           sx={{
-            color: "text.primary",
-            textDecoration: "none",
-            fontWeight: 700,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 1,
             flexGrow: 1,
+            textDecoration: "none",
+            height: 64,
           }}
         >
-          TypeBattle
-        </Typography>
+          <Box
+            component="img"
+            src="/logo.png"
+            alt="Logo TypeBattle"
+            sx={{
+              width: 90,
+              height: 90,
+              objectFit: "contain",
+              flexShrink: 0,
+            }}
+          />
+
+          <Typography
+            variant="h6"
+            sx={{
+              color: "text.primary",
+              fontWeight: 700,
+              whiteSpace: "nowrap",
+              lineHeight: 1,
+            }}
+          >
+            Type
+            <Box component="span" sx={{ color: "#a78bfa" }}>
+              battle
+            </Box>
+          </Typography>
+        </Box>
 
         <Box
           sx={{
