@@ -132,6 +132,26 @@ export function TypingTest() {
     selectedTime,
   ]);
 
+  useEffect(() => {
+    if (!isFinished) return;
+
+    function handleResultsTab(event: globalThis.KeyboardEvent) {
+      if (event.key !== "Tab" || event.shiftKey) return;
+
+      const replayButton = replayButtonRef.current;
+      if (!replayButton) return;
+
+      event.preventDefault();
+      replayButton.focus({ preventScroll: true });
+    }
+
+    document.addEventListener("keydown", handleResultsTab);
+
+    return () => {
+      document.removeEventListener("keydown", handleResultsTab);
+    };
+  }, [isFinished]);
+
   function handleReset() {
     resultSavedRef.current = false;
     resetTest();
@@ -139,14 +159,19 @@ export function TypingTest() {
 
   // Tab direciona o foco ao Replay dentro da área do teste.
   function handleTestKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (
-      event.key === "Tab" &&
-      !event.shiftKey &&
-      event.target !== replayButtonRef.current &&
-      !(event.target instanceof HTMLButtonElement)
-    ) {
+    // Aplica esta correção somente na tela de resultados.
+    if (!isFinished) return;
+
+    if (event.key === "Tab" && !event.shiftKey) {
       event.preventDefault();
       replayButtonRef.current?.focus();
+      return;
+    }
+
+    if (event.key === "Enter" && event.target === replayButtonRef.current) {
+      event.preventDefault();
+      event.stopPropagation();
+      handleReset();
     }
   }
 
@@ -615,6 +640,13 @@ export function TypingTest() {
               >
                 <Button
                   ref={replayButtonRef}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      handleReset();
+                    }
+                  }}
                   variant="contained"
                   startIcon={<ReplayIcon />}
                   onClick={handleReset}
