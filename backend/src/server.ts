@@ -723,6 +723,9 @@ app.get("/api/auth/me", authMiddleware, (request, response) => {
 });
 app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
+app.get("/api/typing-results/ranking-debug", (_request, response) => {
+  response.json({ status: "ok", route: "ranking-debug-public" });
+});
 app.use("/api/typing-results", typingResultRoutes);
 // Eventos multiplayer.
 io.on("connection", (socket) => {

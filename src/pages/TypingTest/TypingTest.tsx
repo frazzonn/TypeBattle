@@ -79,8 +79,8 @@ export function TypingTest() {
 
   const resultSavedRef = useRef(false);
   const replayButtonRef = useRef<HTMLButtonElement | null>(null);
+  const testPanelRef = useRef<HTMLDivElement | null>(null);
 
-  // Recupera a preferência salva no navegador.
   const [showLiveStats, setShowLiveStats] = useState(() => {
     try {
       return localStorage.getItem(LIVE_STATS_KEY) === "true";
@@ -89,12 +89,11 @@ export function TypingTest() {
     }
   });
 
-  // Persiste a escolha do usuário entre visitas.
   useEffect(() => {
     try {
       localStorage.setItem(LIVE_STATS_KEY, String(showLiveStats));
     } catch {
-      // O teste continua funcionando mesmo sem acesso ao armazenamento.
+      // O teste continua funcionando sem acesso ao armazenamento.
     }
   }, [showLiveStats]);
 
@@ -132,6 +131,38 @@ export function TypingTest() {
     selectedTime,
   ]);
 
+  // Durante o teste, Tab leva ao botão Reiniciar teste.
+  useEffect(() => {
+    if (isFinished) return;
+
+    function handleTypingTab(event: globalThis.KeyboardEvent) {
+      if (event.key !== "Tab" || event.shiftKey) return;
+
+      const panel = testPanelRef.current;
+      const activeElement = document.activeElement;
+
+      // Só interfere quando o foco está dentro do painel do teste.
+      if (!panel || !activeElement || !panel.contains(activeElement)) {
+        return;
+      }
+
+      const replayButton = replayButtonRef.current;
+      if (!replayButton) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      replayButton.focus({ preventScroll: true });
+    }
+
+    // A captura ocorre antes dos handlers dos componentes filhos.
+    document.addEventListener("keydown", handleTypingTab, true);
+
+    return () => {
+      document.removeEventListener("keydown", handleTypingTab, true);
+    };
+  }, [isFinished]);
+
+  // Na tela de resultados, Tab seleciona Jogar novamente.
   useEffect(() => {
     if (!isFinished) return;
 
@@ -142,13 +173,14 @@ export function TypingTest() {
       if (!replayButton) return;
 
       event.preventDefault();
+      event.stopPropagation();
       replayButton.focus({ preventScroll: true });
     }
 
-    document.addEventListener("keydown", handleResultsTab);
+    document.addEventListener("keydown", handleResultsTab, true);
 
     return () => {
-      document.removeEventListener("keydown", handleResultsTab);
+      document.removeEventListener("keydown", handleResultsTab, true);
     };
   }, [isFinished]);
 
@@ -157,18 +189,12 @@ export function TypingTest() {
     resetTest();
   }
 
-  // Tab direciona o foco ao Replay dentro da área do teste.
   function handleTestKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    // Aplica esta correção somente na tela de resultados.
-    if (!isFinished) return;
-
-    if (event.key === "Tab" && !event.shiftKey) {
-      event.preventDefault();
-      replayButtonRef.current?.focus();
-      return;
-    }
-
-    if (event.key === "Enter" && event.target === replayButtonRef.current) {
+    if (
+      isFinished &&
+      event.key === "Enter" &&
+      event.target === replayButtonRef.current
+    ) {
       event.preventDefault();
       event.stopPropagation();
       handleReset();
@@ -216,7 +242,6 @@ export function TypingTest() {
                 <AccessTimeRoundedIcon
                   sx={{ color: "#a78bfa", fontSize: 19 }}
                 />
-
                 <Typography
                   variant="caption"
                   sx={{
@@ -273,7 +298,6 @@ export function TypingTest() {
             >
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <TuneRoundedIcon sx={{ color: "#a78bfa", fontSize: 19 }} />
-
                 <Typography
                   variant="caption"
                   sx={{
@@ -322,7 +346,6 @@ export function TypingTest() {
                 <TextFieldsRoundedIcon
                   sx={{ color: "#a78bfa", fontSize: 19 }}
                 />
-
                 <Typography
                   variant="caption"
                   sx={{
@@ -348,11 +371,9 @@ export function TypingTest() {
                   <FormatSizeRoundedIcon
                     sx={{ color: "#a0a4ad", fontSize: 18 }}
                   />
-
                   <Typography variant="body2" sx={{ color: "#d5d7de" }}>
                     Acentos
                   </Typography>
-
                   <Switch
                     size="small"
                     checked={useAccents}
@@ -369,7 +390,6 @@ export function TypingTest() {
                   >
                     ABC
                   </Typography>
-
                   <Switch
                     size="small"
                     checked={useUppercase}
@@ -383,11 +403,9 @@ export function TypingTest() {
                   <ShortTextRoundedIcon
                     sx={{ color: "#a0a4ad", fontSize: 18 }}
                   />
-
                   <Typography variant="body2" sx={{ color: "#d5d7de" }}>
                     Pontuação
                   </Typography>
-
                   <Switch
                     size="small"
                     checked={usePunctuation}
@@ -402,18 +420,11 @@ export function TypingTest() {
             </Box>
 
             {/* Preferência das estatísticas em tempo real */}
-            <Box
-              sx={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 1,
-              }}
-            >
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <QueryStatsRoundedIcon
                   sx={{ color: "#a78bfa", fontSize: 19 }}
                 />
-
                 <Typography
                   variant="caption"
                   sx={{
@@ -431,7 +442,6 @@ export function TypingTest() {
                 <Typography variant="body2" sx={{ color: "#d5d7de" }}>
                   {showLiveStats ? "Visíveis" : "Ocultas"}
                 </Typography>
-
                 <Switch
                   size="small"
                   checked={showLiveStats}
@@ -451,6 +461,7 @@ export function TypingTest() {
 
         {/* Painel principal: teste ou resultado final */}
         <Paper
+          ref={testPanelRef}
           elevation={0}
           onKeyDown={handleTestKeyDown}
           sx={{
@@ -482,7 +493,6 @@ export function TypingTest() {
                   >
                     Tempo restante
                   </Typography>
-
                   <Typography
                     variant="h3"
                     sx={{
@@ -542,10 +552,8 @@ export function TypingTest() {
               )}
             </>
           ) : (
-            /* Tela de resultados: substitui completamente o texto */
+            /* Tela de resultados */
             <Box sx={{ py: { xs: 1, md: 2 } }}>
-              {/* Cabeçalho */}
-
               <Box sx={{ textAlign: "center", mb: { xs: 3, md: 3.5 } }}>
                 <Typography
                   variant="overline"
@@ -631,7 +639,6 @@ export function TypingTest() {
                   >
                     {ppm}
                   </Typography>
-
                   <Typography
                     sx={{
                       color: "#e0d7ff",
@@ -650,7 +657,7 @@ export function TypingTest() {
                 </Typography>
               </Box>
 
-              {/* Cards complementares, sem repetir o PPM */}
+              {/* Estatísticas complementares */}
               <TypingStats
                 ppm={ppm}
                 accuracy={accuracy}
@@ -691,13 +698,6 @@ export function TypingTest() {
               <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
                 <Button
                   ref={replayButtonRef}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      handleReset();
-                    }
-                  }}
                   variant="contained"
                   size="large"
                   startIcon={<ReplayIcon />}
