@@ -3,7 +3,7 @@ import GitHubIcon from "@mui/icons-material/GitHub";
 import WorkOutlineRoundedIcon from "@mui/icons-material/WorkOutlineRounded";
 import EmailRoundedIcon from "@mui/icons-material/EmailRounded";
 import FavoriteRoundedIcon from "@mui/icons-material/FavoriteRounded";
-import KeyboardRoundedIcon from "@mui/icons-material/KeyboardRounded";
+
 import OpenInNewRoundedIcon from "@mui/icons-material/OpenInNewRounded";
 
 const technologies = [
