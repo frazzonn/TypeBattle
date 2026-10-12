@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { MouseEvent, KeyboardEvent } from "react";
-
+import { Link } from "react-router-dom";
 import {
   Box,
   Button,
@@ -193,24 +193,6 @@ export function TypingTest() {
   return (
     <Container maxWidth="lg" sx={{ py: 5 }}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-        {/* Cabeçalho */}
-        <Box>
-          <Typography
-            variant="h4"
-            sx={{
-              fontWeight: 800,
-              letterSpacing: "-1px",
-              color: "#ffffff",
-            }}
-          >
-            Teste de digitação
-          </Typography>
-
-          <Typography sx={{ color: "#a0a4ad", mt: 1 }}>
-            Treine sua velocidade, precisão e consistência.
-          </Typography>
-        </Box>
-
         {/* Painel de configurações */}
         <Paper
           elevation={0}
@@ -547,10 +529,6 @@ export function TypingTest() {
                 />
               </Box>
 
-              <Typography variant="body2" sx={{ color: "#777d8a", mt: 2 }}>
-                Clique no texto acima e comece a digitar.
-              </Typography>
-
               {/* Estatísticas opcionais durante o teste */}
               {showLiveStats && (
                 <Box sx={{ mt: 3 }}>
@@ -565,14 +543,19 @@ export function TypingTest() {
             </>
           ) : (
             /* Tela de resultados: substitui completamente o texto */
-            <Box sx={{ py: { xs: 1, md: 3 } }}>
-              <Box sx={{ textAlign: "center", mb: 4 }}>
+            <Box sx={{ py: { xs: 1, md: 2 } }}>
+              {/* Cabeçalho */}
+
+              <Box sx={{ textAlign: "center", mb: { xs: 3, md: 3.5 } }}>
                 <Typography
                   variant="overline"
                   sx={{
-                    color: "#a78bfa",
+                    display: "inline-block",
+                    color: "#b69aff",
                     fontWeight: 800,
-                    letterSpacing: 2,
+                    letterSpacing: 2.5,
+                    fontSize: "0.7rem",
+                    lineHeight: 1.5,
                   }}
                 >
                   TESTE CONCLUÍDO
@@ -583,61 +566,129 @@ export function TypingTest() {
                   sx={{
                     color: "#ffffff",
                     fontWeight: 800,
-                    letterSpacing: "-0.5px",
-                    mt: 1,
+                    letterSpacing: "-0.8px",
+                    fontSize: { xs: "1.8rem", sm: "2.125rem" },
+                    mt: 0.75,
                   }}
                 >
                   Seu resultado
                 </Typography>
 
-                <Typography sx={{ color: "#a0a4ad", mt: 1 }}>
+                <Typography
+                  sx={{
+                    color: "#969bad",
+                    mt: 1,
+                    fontSize: { xs: "0.875rem", sm: "0.95rem" },
+                  }}
+                >
                   Confira seu desempenho nesta rodada.
                 </Typography>
               </Box>
 
-              {/* Resultados calculados pelo teste */}
+              {/* Destaque principal de velocidade */}
+              <Box
+                sx={{
+                  textAlign: "center",
+                  py: { xs: 3, md: 4 },
+                  px: 2,
+                  mb: 2.5,
+                  borderRadius: 4,
+                  border: "1px solid #493576",
+                  background:
+                    "radial-gradient(ellipse at top, rgba(124,77,255,0.20), transparent 70%), #15131e",
+                }}
+              >
+                <Typography
+                  sx={{
+                    color: "#c4b5fd",
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: 2,
+                    fontSize: "0.8rem",
+                  }}
+                >
+                  Sua velocidade
+                </Typography>
+
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "baseline",
+                    justifyContent: "center",
+                    gap: 1.5,
+                    mt: 1,
+                  }}
+                >
+                  <Typography
+                    sx={{
+                      color: "#a78bfa",
+                      fontWeight: 900,
+                      fontSize: { xs: "4rem", sm: "5.5rem" },
+                      lineHeight: 1.1,
+                      letterSpacing: "-3px",
+                      fontVariantNumeric: "tabular-nums",
+                    }}
+                  >
+                    {ppm}
+                  </Typography>
+
+                  <Typography
+                    sx={{
+                      color: "#e0d7ff",
+                      fontWeight: 700,
+                      fontSize: { xs: "1rem", sm: "1.25rem" },
+                    }}
+                  >
+                    PPM
+                  </Typography>
+                </Box>
+
+                <Typography
+                  sx={{ color: "#969bad", fontSize: "0.9rem", mt: 1 }}
+                >
+                  Palavras por minuto
+                </Typography>
+              </Box>
+
+              {/* Cards complementares, sem repetir o PPM */}
               <TypingStats
                 ppm={ppm}
                 accuracy={accuracy}
                 errors={totalErrors}
                 characters={totalCharacters}
+                showPpm={false}
+                duration={selectedTime}
               />
 
-              <Box
+              {/* Informações da rodada */}
+              <Typography
+                variant="body2"
                 sx={{
-                  mt: 3,
-                  p: 2.5,
-                  borderRadius: 2,
-                  backgroundColor: "#211a35",
-                  border: "1px solid #493576",
+                  color: "#777d8b",
+                  lineHeight: 1.7,
+                  mt: 2.5,
                   textAlign: "center",
                 }}
               >
-                <Typography sx={{ color: "#a0a4ad", mb: 0.5 }}>
-                  Duração do teste
-                </Typography>
+                {!isAuthenticated && (
+                  <>
+                    <Link
+                      to="/login"
+                      style={{
+                        color: "#a78bfa",
+                        fontWeight: 600,
+                        textDecoration: "none",
+                      }}
+                    >
+                      Entre na sua conta{" "}
+                    </Link>
+                    para salvar e acompanhar seu histórico.
+                  </>
+                )}
+              </Typography>
 
-                <Typography
-                  variant="h5"
-                  sx={{ color: "#ffffff", fontWeight: 800 }}
-                >
-                  {selectedTime} segundos
-                </Typography>
-
-                <Typography variant="body2" sx={{ color: "#c4b5fd", mt: 2 }}>
-                  {isAuthenticated
-                    ? "Seu resultado será salvo no seu histórico."
-                    : "Entre na sua conta para salvar e acompanhar seu histórico."}
-                </Typography>
-              </Box>
-
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "center",
-                  mt: 3,
-                }}
-              >
+              {/* Ação principal */}
+              <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
                 <Button
                   ref={replayButtonRef}
                   onKeyDown={(event) => {
@@ -648,18 +699,24 @@ export function TypingTest() {
                     }
                   }}
                   variant="contained"
+                  size="large"
                   startIcon={<ReplayIcon />}
                   onClick={handleReset}
                   sx={{
-                    px: 3,
-                    py: 1.25,
-                    borderRadius: 2,
+                    width: { xs: "100%", sm: "auto" },
+                    minWidth: { sm: 240 },
+                    px: 4,
+                    py: 1.5,
+                    borderRadius: 2.5,
                     backgroundColor: "#7c4dff",
                     color: "#ffffff",
                     fontWeight: 800,
+                    fontSize: "1rem",
                     textTransform: "none",
+                    boxShadow: "0 8px 24px rgba(124,77,255,0.22)",
                     "&:hover": {
                       backgroundColor: "#906cff",
+                      boxShadow: "0 10px 28px rgba(124,77,255,0.32)",
                     },
                     "&:focus-visible": {
                       outline: "2px solid #a78bfa",

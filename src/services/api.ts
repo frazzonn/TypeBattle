@@ -145,19 +145,10 @@ export async function getTypingResults(
   return handleResponse<TypingResultsResponse>(response);
 }
 
-// Busca o ranking para a duração selecionada.
-export async function getRanking(
-  token: string,
-  duration: number,
-): Promise<RankingResponse> {
+/** Busca o ranking público para a duração selecionada. */
+export async function getRanking(duration: number): Promise<RankingResponse> {
   const response = await fetch(
     `${API_URL}/typing-results/ranking?duration=${duration}`,
-    {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    },
   );
 
   return handleResponse<RankingResponse>(response);

@@ -20,9 +20,6 @@ export function AppRoutes() {
       <Route path="/ranking" element={<Ranking />} />
       <Route path="/battle" element={<Battle />} />
 
-      {/* Batalhas públicas: não exigem conta */}
-      <Route path="/battle" element={<Battle />} />
-
       {/* Rotas que exigem autenticação */}
       <Route element={<ProtectedRoute />}>
         <Route path="/profile" element={<Profile />} />

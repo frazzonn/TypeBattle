@@ -181,8 +181,9 @@ export function useTypingTest() {
 
   const ppm = useMemo(() => {
     if (elapsedSeconds <= 0) return 0;
-    return Math.round(totalCharacters / 5 / (elapsedSeconds / 60));
-  }, [totalCharacters, elapsedSeconds]);
+
+    return Math.round(totalCorrectCharacters / 5 / (elapsedSeconds / 60));
+  }, [totalCorrectCharacters, elapsedSeconds]);
 
   const accuracy = useMemo(() => {
     if (totalCharacters === 0) return 100;
