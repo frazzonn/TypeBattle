@@ -6,11 +6,11 @@ model User {
   email         String         @unique
   password      String
   createdAt     DateTime       @default(now())
+  avatarUrl     String?
 
   // Resultados dos testes de digitação
   typingResults TypingResult[]
 }
-
 model TypingResult {
   id         Int      @id @default(autoincrement())
   userId     Int

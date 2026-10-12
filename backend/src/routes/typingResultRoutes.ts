@@ -9,13 +9,13 @@ import { authMiddleware } from "../middleware/authMiddleware.js";
 
 const typingResultRoutes = Router();
 
-// Salvar resultados exige autenticação.
+// Salva um resultado
 typingResultRoutes.post("/", authMiddleware, createTypingResult);
 
-// Consultar o histórico pessoal exige autenticação.
+// Busca os resultados do usuário
 typingResultRoutes.get("/", authMiddleware, getTypingResults);
 
-// Consultar o ranking é público.
+// Busca o ranking por duração
 typingResultRoutes.get("/ranking", getRanking);
 
 export { typingResultRoutes };
