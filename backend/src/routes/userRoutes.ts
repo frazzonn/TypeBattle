@@ -4,6 +4,7 @@ import {
   avatarUpload,
   createUser,
   uploadAvatar,
+  removeAvatar,
 } from "../controllers/UserController.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 
@@ -19,5 +20,8 @@ userRoutes.post(
   avatarUpload.single("avatar"),
   uploadAvatar,
 );
+
+// Remove a foto do usuário autenticado.
+userRoutes.delete("/avatar", authMiddleware, removeAvatar);
 
 export { userRoutes };

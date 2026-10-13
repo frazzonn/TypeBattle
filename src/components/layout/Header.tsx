@@ -240,6 +240,8 @@ export function Header() {
                   to="/profile"
                   startIcon={
                     <Avatar
+                      src={user.avatarUrl || undefined}
+                      alt={`Foto de perfil de ${firstName}`}
                       sx={{
                         width: 34,
                         height: 34,
@@ -248,6 +250,10 @@ export function Header() {
                         color: "#f3eaff",
                         backgroundColor: "#30204e",
                         border: `2px solid ${purple}`,
+                        "& .MuiAvatar-img": {
+                          objectFit: "cover",
+                          objectPosition: "center",
+                        },
                       }}
                     >
                       {initial}
@@ -445,6 +451,8 @@ export function Header() {
             >
               <ListItemIcon>
                 <Avatar
+                  src={user?.avatarUrl || undefined}
+                  alt={`Foto de perfil de ${firstName}`}
                   sx={{
                     width: 30,
                     height: 30,
@@ -453,6 +461,13 @@ export function Header() {
                     color: "#f3eaff",
                     backgroundColor: "#30204e",
                     border: `2px solid ${purple}`,
+                    "& .MuiAvatar-img": {
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      objectPosition: "center",
+                      borderRadius: "50%",
+                    },
                   }}
                 >
                   {initial}

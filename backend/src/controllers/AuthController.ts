@@ -4,19 +4,19 @@ import type { Request, Response } from "express";
 
 import { db } from "../prisma/db.js";
 
-// Realiza o login do usuário
+// Realiza o login do usuário.
 export async function login(request: Request, response: Response) {
   try {
     const { email, password } = request.body;
 
-    // Validação básica
+    // Validação básica.
     if (!email || !password) {
       return response.status(400).json({
         message: "Email e senha são obrigatórios.",
       });
     }
 
-    // Procura o usuário pelo email
+    // Procura o usuário pelo email.
     const user = await db.orm.public.User.first({
       email,
     });
@@ -27,7 +27,7 @@ export async function login(request: Request, response: Response) {
       });
     }
 
-    // Compara a senha informada com o hash salvo
+    // Compara a senha informada com o hash salvo.
     const passwordIsValid = await bcrypt.compare(password, user.password);
 
     if (!passwordIsValid) {
@@ -38,7 +38,7 @@ export async function login(request: Request, response: Response) {
 
     const jwtSecret = process.env["JWT_SECRET"];
 
-    // Verifica se a chave do JWT foi configurada
+    // Verifica se a chave JWT foi configurada.
     if (!jwtSecret) {
       console.error("JWT_SECRET não configurado.");
 
@@ -47,7 +47,7 @@ export async function login(request: Request, response: Response) {
       });
     }
 
-    // Cria o token contendo a identificação do usuário
+    // Mantém a estrutura atual do token.
     const token = jwt.sign(
       {
         userId: user.id,
@@ -59,7 +59,7 @@ export async function login(request: Request, response: Response) {
       },
     );
 
-    // Login válido
+    // Inclui a foto salva no banco na resposta do login.
     return response.status(200).json({
       message: "Login realizado com sucesso.",
       token,
@@ -67,6 +67,7 @@ export async function login(request: Request, response: Response) {
         id: user.id,
         name: user.name,
         email: user.email,
+        avatarUrl: user.avatarUrl ?? null,
       },
     });
   } catch (error) {

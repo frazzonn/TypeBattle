@@ -5,7 +5,7 @@ import { v2 as cloudinary } from "cloudinary";
 
 import { db } from "../prisma/db.js";
 
-// Configura o recebimento da imagem em memória, com limite de 5 MB.
+// Recebe imagens em memória, com limite de 5 MB.
 export const avatarUpload = multer({
   storage: multer.memoryStorage(),
   limits: {
@@ -107,7 +107,6 @@ export async function uploadAvatar(request: Request, response: Response) {
       },
     );
 
-    // O endereço só será salvo quando a coluna avatarUrl existir no banco.
     await db.orm.public.User.where({ id: userId }).update({
       avatarUrl: result.secure_url,
     });
@@ -121,6 +120,34 @@ export async function uploadAvatar(request: Request, response: Response) {
 
     return response.status(500).json({
       message: "Erro ao atualizar a foto de perfil.",
+    });
+  }
+}
+
+// Remove a foto do perfil e restaura o avatar padrão.
+export async function removeAvatar(request: Request, response: Response) {
+  try {
+    const userId = request.user?.userId;
+
+    if (!userId) {
+      return response.status(401).json({
+        message: "Usuário não autenticado.",
+      });
+    }
+
+    await db.orm.public.User.where({ id: userId }).update({
+      avatarUrl: null,
+    });
+
+    return response.status(200).json({
+      message: "Foto de perfil removida com sucesso.",
+      avatarUrl: null,
+    });
+  } catch (error) {
+    console.error("ERRO AO REMOVER FOTO:", error);
+
+    return response.status(500).json({
+      message: "Erro ao remover a foto de perfil.",
     });
   }
 }

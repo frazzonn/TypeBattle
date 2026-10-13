@@ -1,11 +1,14 @@
-import { useEffect, useState } from "react";
-import type { ChangeEvent } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { ChangeEvent, MouseEvent } from "react";
 import {
   Alert,
   Avatar,
   Box,
   Button,
   CircularProgress,
+  Divider,
+  Menu,
+  MenuItem,
   Paper,
   Stack,
   Table,
@@ -20,7 +23,11 @@ import {
 import PhotoCameraOutlinedIcon from "@mui/icons-material/PhotoCameraOutlined";
 
 import { useAuth } from "../../contexts/AuthContext";
-import { getTypingResults } from "../../services/api";
+import {
+  getTypingResults,
+  uploadAvatar,
+  removeAvatar,
+} from "../../services/api";
 import PerformanceEvolution from "../../components/profile/PerformanceEvolution";
 
 interface TypingResult {
@@ -117,16 +124,40 @@ function StatCard({
 }
 
 export function Profile() {
-  const { user, token, logout } = useAuth();
+  const { user, token, logout, updateAvatar } = useAuth();
 
   const [results, setResults] = useState<TypingResult[]>([]);
   const [visibleResults, setVisibleResults] = useState(RESULTS_PER_PAGE);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Foto temporária: a persistência na conta será implementada depois.
-  const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
   const [photoError, setPhotoError] = useState("");
+  const [photoSuccess, setPhotoSuccess] = useState("");
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+
+  const [photoMenuAnchor, setPhotoMenuAnchor] = useState<HTMLElement | null>(
+    null,
+  );
+
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const isPhotoMenuOpen = Boolean(photoMenuAnchor);
+
+  function handleOpenPhotoMenu(event: MouseEvent<HTMLElement>) {
+    if (isUploadingPhoto) return;
+
+    setPhotoError("");
+    setPhotoSuccess("");
+    setPhotoMenuAnchor(event.currentTarget);
+  }
+
+  function handleClosePhotoMenu() {
+    setPhotoMenuAnchor(null);
+  }
+
+  function handleChoosePhoto() {
+    handleClosePhotoMenu();
+    photoInputRef.current?.click();
+  }
 
   useEffect(() => {
     if (!token) {
@@ -152,39 +183,82 @@ export function Profile() {
     loadResults();
   }, [token]);
 
-  // Libera a URL temporária da imagem quando ela é substituída ou o componente desmonta.
-  useEffect(() => {
-    return () => {
-      if (profilePhoto) {
-        URL.revokeObjectURL(profilePhoto);
-      }
-    };
-  }, [profilePhoto]);
-
-  function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
+  async function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
+
+    // Permite escolher o mesmo arquivo novamente.
+    event.target.value = "";
 
     if (!file) return;
 
+    setPhotoError("");
+    setPhotoSuccess("");
+
     if (!file.type.startsWith("image/")) {
       setPhotoError("Selecione um arquivo de imagem válido.");
-      event.target.value = "";
       return;
     }
 
     if (file.size > MAX_PHOTO_SIZE) {
       setPhotoError("A imagem deve ter no máximo 5 MB.");
-      event.target.value = "";
       return;
     }
 
-    const newPhotoUrl = URL.createObjectURL(file);
+    if (!token) {
+      setPhotoError("Sua sessão expirou. Entre novamente na sua conta.");
+      return;
+    }
 
+    try {
+      setIsUploadingPhoto(true);
+
+      const response = await uploadAvatar(file, token);
+      updateAvatar(response.avatarUrl);
+
+      setPhotoSuccess("Foto de perfil atualizada com sucesso.");
+    } catch (error) {
+      console.error("Erro ao enviar foto de perfil:", error);
+
+      setPhotoError(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível atualizar sua foto de perfil.",
+      );
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  }
+
+  async function handleRemovePhoto() {
+    handleClosePhotoMenu();
     setPhotoError("");
-    setProfilePhoto(newPhotoUrl);
+    setPhotoSuccess("");
 
-    // Permite escolher novamente o mesmo arquivo.
-    event.target.value = "";
+    if (!token) {
+      setPhotoError("Sua sessão expirou. Entre novamente na sua conta.");
+      return;
+    }
+
+    try {
+      setIsUploadingPhoto(true);
+
+      await removeAvatar(token);
+
+      // Limpa a foto e volta a mostrar o ícone de câmera.
+      updateAvatar(null);
+
+      setPhotoSuccess("Foto de perfil removida com sucesso.");
+    } catch (error) {
+      console.error("Erro ao remover foto de perfil:", error);
+
+      setPhotoError(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível remover sua foto de perfil.",
+      );
+    } finally {
+      setIsUploadingPhoto(false);
+    }
   }
 
   const sortedResults = [...results].sort(
@@ -282,7 +356,6 @@ export function Profile() {
       }}
     >
       <Stack spacing={{ xs: 3, md: 4 }}>
-        {/* Cabeçalho do perfil */}
         <Paper
           elevation={0}
           sx={{
@@ -317,22 +390,196 @@ export function Profile() {
               gap: 2,
             }}
           >
-            <Avatar
-              src={profilePhoto || undefined}
-              alt={`Foto de perfil de ${user?.name || "jogador"}`}
+            {/* O contêiner mantém o avatar fixo e posiciona o indicador. */}
+            <Box
               sx={{
+                position: "relative",
+                flexShrink: 0,
                 width: { xs: 82, sm: 104 },
                 height: { xs: 82, sm: 104 },
-                fontSize: { xs: 32, sm: 42 },
-                fontWeight: 800,
-                bgcolor: "primary.main",
-                color: "#fff",
-                border: "3px solid rgba(167, 139, 250, 0.55)",
-                boxShadow: "0 0 28px rgba(126, 87, 194, 0.25)",
               }}
             >
-              {user?.name?.charAt(0).toUpperCase() || "?"}
-            </Avatar>
+              <Avatar
+                component="button"
+                type="button"
+                src={user?.avatarUrl || undefined}
+                alt={`Foto de perfil de ${user?.name || "jogador"}`}
+                onClick={handleOpenPhotoMenu}
+                aria-label="Opções da foto de perfil"
+                aria-haspopup="menu"
+                aria-expanded={isPhotoMenuOpen ? "true" : undefined}
+                sx={{
+                  // Evita que os estilos padrão do botão desloquem o avatar.
+                  position: "relative",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: "100%",
+                  height: "100%",
+                  minWidth: 0,
+                  p: 0,
+                  m: 0,
+                  appearance: "none",
+                  boxSizing: "border-box",
+                  fontFamily: "inherit",
+                  fontSize: { xs: 32, sm: 42 },
+                  fontWeight: 800,
+                  lineHeight: 1,
+                  bgcolor: "primary.main",
+                  color: "#fff",
+                  border: "3px solid rgba(167, 139, 250, 0.55)",
+                  boxShadow: "0 0 28px rgba(126, 87, 194, 0.25)",
+                  cursor: isUploadingPhoto ? "wait" : "pointer",
+                  overflow: "hidden",
+                  flexShrink: 0,
+
+                  "& .MuiAvatar-img": {
+                    position: "absolute",
+                    inset: 0,
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    objectPosition: "center",
+                    borderRadius: "50%",
+                  },
+
+                  "&:hover": {
+                    filter: "brightness(1.1)",
+                  },
+
+                  "&:focus-visible": {
+                    outline: "2px solid",
+                    outlineColor: "primary.light",
+                    outlineOffset: 4,
+                  },
+                }}
+              >
+                {!user?.avatarUrl && (
+                  <PhotoCameraOutlinedIcon
+                    sx={{
+                      display: "block",
+                      fontSize: { xs: 36, sm: 44 },
+                      color: "#e9d5ff",
+                      pointerEvents: "none",
+                    }}
+                  />
+                )}
+              </Avatar>
+
+              {/* Indicador de câmera sobreposto, sem ocupar espaço extra. */}
+              <Box
+                sx={{
+                  position: "absolute",
+                  right: 2,
+                  bottom: 2,
+                  width: 30,
+                  height: 30,
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  bgcolor: "#7e57c2",
+                  color: "#fff",
+                  border: "2px solid",
+                  borderColor: "background.paper",
+                  boxSizing: "border-box",
+                  pointerEvents: "none",
+                  zIndex: 1,
+                }}
+              >
+                <PhotoCameraOutlinedIcon sx={{ fontSize: 16 }} />
+              </Box>
+
+              {isUploadingPhoto && (
+                <CircularProgress
+                  size={32}
+                  sx={{
+                    position: "absolute",
+                    top: "50%",
+                    left: "50%",
+                    transform: "translate(-50%, -50%)",
+                    color: "#fff",
+                    zIndex: 2,
+                    pointerEvents: "none",
+                  }}
+                />
+              )}
+
+              <input
+                ref={photoInputRef}
+                hidden
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoChange}
+                disabled={isUploadingPhoto}
+              />
+
+              <Menu
+                anchorEl={photoMenuAnchor}
+                open={isPhotoMenuOpen}
+                onClose={handleClosePhotoMenu}
+                anchorOrigin={{
+                  vertical: "bottom",
+                  horizontal: "left",
+                }}
+                transformOrigin={{
+                  vertical: "top",
+                  horizontal: "left",
+                }}
+                slotProps={{
+                  paper: {
+                    sx: {
+                      mt: 1,
+                      minWidth: 190,
+                      border: "1px solid",
+                      borderColor: "rgba(155, 109, 255, 0.2)",
+                      borderRadius: 2,
+                      boxShadow: "0 8px 28px rgba(0, 0, 0, 0.25)",
+                    },
+                  },
+                }}
+              >
+                <MenuItem
+                  onClick={handleChoosePhoto}
+                  disabled={isUploadingPhoto}
+                >
+                  <PhotoCameraOutlinedIcon
+                    fontSize="small"
+                    sx={{ mr: 1.5, color: "text.secondary" }}
+                  />
+                  {user?.avatarUrl ? "Escolher outra foto" : "Adicionar foto"}
+                </MenuItem>
+
+                {user?.avatarUrl && (
+                  <>
+                    <Divider />
+                    <MenuItem
+                      onClick={handleRemovePhoto}
+                      disabled={isUploadingPhoto}
+                      sx={{
+                        color: "text.secondary",
+                        fontSize: 14,
+                        "&:hover": {
+                          color: "error.main",
+                        },
+                      }}
+                    >
+                      <Box
+                        component="span"
+                        sx={{
+                          mr: 1.5,
+                          fontSize: 18,
+                          lineHeight: 1,
+                        }}
+                      >
+                        🗑
+                      </Box>
+                      Remover foto
+                    </MenuItem>
+                  </>
+                )}
+              </Menu>
+            </Box>
 
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <Typography
@@ -369,41 +616,17 @@ export function Profile() {
                 ID do jogador: {user?.id ?? "—"}
               </Typography>
 
-              <Box sx={{ mt: 2 }}>
-                <Button
-                  component="label"
-                  variant="outlined"
-                  size="small"
-                  startIcon={<PhotoCameraOutlinedIcon />}
-                  sx={{
-                    borderRadius: 2,
-                    textTransform: "none",
-                    fontWeight: 700,
-                  }}
-                >
-                  Alterar foto
-                  <input
-                    hidden
-                    type="file"
-                    accept="image/*"
-                    onChange={handlePhotoChange}
-                  />
-                </Button>
+              {photoError && (
+                <Alert severity="error" sx={{ mt: 1 }}>
+                  {photoError}
+                </Alert>
+              )}
 
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ display: "block", mt: 0.75 }}
-                >
-                  Imagem de até 5 MB.
-                </Typography>
-
-                {photoError && (
-                  <Alert severity="error" sx={{ mt: 1 }}>
-                    {photoError}
-                  </Alert>
-                )}
-              </Box>
+              {photoSuccess && (
+                <Alert severity="success" sx={{ mt: 1 }}>
+                  {photoSuccess}
+                </Alert>
+              )}
             </Box>
 
             <Button
@@ -455,7 +678,6 @@ export function Profile() {
 
         {!isLoading && !error && results.length > 0 && (
           <>
-            {/* Estatísticas principais */}
             <Box>
               <Box sx={{ mb: 2.5 }}>
                 <Typography variant="h5" sx={{ fontWeight: 800 }}>
@@ -500,7 +722,6 @@ export function Profile() {
               </Box>
             </Box>
 
-            {/* Estatísticas complementares */}
             <Box>
               <Typography variant="h5" sx={{ fontWeight: 800, mb: 2.5 }}>
                 Estatísticas
@@ -534,7 +755,6 @@ export function Profile() {
               </Box>
             </Box>
 
-            {/* Desempenho por duração */}
             <Box>
               <Typography variant="h5" sx={{ fontWeight: 800, mb: 1 }}>
                 Desempenho por duração
@@ -616,7 +836,6 @@ export function Profile() {
               </Box>
             </Box>
 
-            {/* Gráficos de evolução */}
             <Box>
               <Typography variant="h5" sx={{ fontWeight: 800, mb: 2.5 }}>
                 Evolução de desempenho
@@ -626,7 +845,6 @@ export function Profile() {
           </>
         )}
 
-        {/* Histórico de testes */}
         <Box>
           {!isLoading && !error && results.length > 0 && (
             <>

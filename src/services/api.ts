@@ -17,6 +17,7 @@ interface User {
   id: number;
   name: string;
   email: string;
+  avatarUrl?: string | null;
 }
 
 interface AuthResponse {
@@ -61,26 +62,25 @@ export interface RankingResponse {
   ranking: RankingEntry[];
 }
 
-// Trata erros HTTP e respostas que não sejam JSON válido.
-async function handleResponse<T>(response: Response): Promise<T> {
-  let result: unknown;
+interface UploadAvatarResponse {
+  message: string;
+  avatarUrl: string;
+}
 
-  try {
-    result = await response.json();
-  } catch {
-    throw new Error(
-      `O servidor retornou uma resposta inválida (HTTP ${response.status}).`,
-    );
-  }
+interface RemoveAvatarResponse {
+  message: string;
+  avatarUrl: string | null;
+}
+
+// Trata as respostas da API e exibe a mensagem de erro do backend.
+async function handleResponse<T>(response: Response): Promise<T> {
+  const result = await response.json().catch(() => ({}));
 
   if (!response.ok) {
     const message =
-      typeof result === "object" &&
-      result !== null &&
-      "message" in result &&
-      typeof result.message === "string"
+      typeof result?.message === "string"
         ? result.message
-        : "Erro ao comunicar com o servidor.";
+        : "Ocorreu um erro ao comunicar com o servidor.";
 
     throw new Error(message);
   }
@@ -88,7 +88,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return result as T;
 }
 
-// Cadastra um novo usuário.
+// Cadastra um usuário.
 export async function registerUser(data: RegisterData): Promise<User> {
   const response = await fetch(`${API_URL}/users`, {
     method: "POST",
@@ -101,7 +101,7 @@ export async function registerUser(data: RegisterData): Promise<User> {
   return handleResponse<User>(response);
 }
 
-// Realiza o login e retorna o token de autenticação.
+// Realiza o login.
 export async function loginUser(data: LoginData): Promise<AuthResponse> {
   const response = await fetch(`${API_URL}/auth/login`, {
     method: "POST",
@@ -114,7 +114,40 @@ export async function loginUser(data: LoginData): Promise<AuthResponse> {
   return handleResponse<AuthResponse>(response);
 }
 
-// Salva o resultado do teste de digitação.
+// Envia a foto para o backend, que a armazena no Cloudinary.
+export async function uploadAvatar(
+  file: File,
+  token: string,
+): Promise<UploadAvatarResponse> {
+  const formData = new FormData();
+  formData.append("avatar", file);
+
+  const response = await fetch(`${API_URL}/users/avatar`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  return handleResponse<UploadAvatarResponse>(response);
+}
+
+// Remove a foto de perfil do usuário autenticado.
+export async function removeAvatar(
+  token: string,
+): Promise<RemoveAvatarResponse> {
+  const response = await fetch(`${API_URL}/users/avatar`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  return handleResponse<RemoveAvatarResponse>(response);
+}
+
+// Salva o resultado de um teste de digitação.
 export async function saveTypingResult(
   data: TypingResultData,
   token: string,
@@ -131,7 +164,7 @@ export async function saveTypingResult(
   return handleResponse<{ message: string }>(response);
 }
 
-// Busca o histórico do usuário autenticado.
+// Busca o histórico de testes do usuário autenticado.
 export async function getTypingResults(
   token: string,
 ): Promise<TypingResultsResponse> {
@@ -145,7 +178,7 @@ export async function getTypingResults(
   return handleResponse<TypingResultsResponse>(response);
 }
 
-/** Busca o ranking público para a duração selecionada. */
+// Busca o ranking para uma duração específica.
 export async function getRanking(duration: number): Promise<RankingResponse> {
   const response = await fetch(
     `${API_URL}/typing-results/ranking?duration=${duration}`,
