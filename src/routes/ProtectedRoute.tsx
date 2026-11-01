@@ -1,28 +1,11 @@
 import { Navigate, Outlet } from "react-router-dom";
-import { CircularProgress, Box } from "@mui/material";
 
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../contexts/useAuth";
 
 export function ProtectedRoute() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated } = useAuth();
 
-  // Espera a recuperação da sessão terminar
-  if (isLoading) {
-    return (
-      <Box
-        sx={{
-          minHeight: "calc(100vh - 64px)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <CircularProgress />
-      </Box>
-    );
-  }
-
-  // Só redireciona depois de verificar o localStorage
+  // A sessão salva já é lida na primeira renderização do AuthProvider.
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }

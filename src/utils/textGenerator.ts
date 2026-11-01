@@ -1,8 +1,26 @@
-import { EASY_WORDS, HARD_WORDS, NORMAL_WORDS } from "../data/wordLists";
+import { DEFAULT_LANGUAGE, LANGUAGES } from "../data/languages";
+
+export { DEFAULT_LANGUAGE };
 
 export type TextDifficulty = "easy" | "normal" | "hard";
 
+// Fácil = ~200 palavras mais comuns, normal = 5k, difícil = 10k (ver scripts/build-languages.mjs).
+// Idiomas sem dificuldade só têm "easy", com todas as palavras.
+export type WordBank = {
+  easy: readonly string[];
+  normal?: readonly string[];
+  hard?: readonly string[];
+};
+
+export const LANGUAGE_OPTIONS = LANGUAGES;
+
+export function languageHasDifficulty(code: string): boolean {
+  return LANGUAGES.find((item) => item.code === code)?.hasDifficulty ?? true;
+}
+
 export interface TextGeneratorOptions {
+  bank: WordBank;
+  language?: string;
   difficulty?: TextDifficulty;
   wordCount?: number;
   useAccents?: boolean;
@@ -10,63 +28,37 @@ export interface TextGeneratorOptions {
   usePunctuation?: boolean;
 }
 
-// Mapeia formas sem acento para formas corretas em português.
-const ACCENTED_WORDS: Record<string, string> = {
-  agua: "água",
-  musica: "música",
-  cafe: "café",
-  familia: "família",
-  arvore: "árvore",
-  codigo: "código",
-  programacao: "programação",
-  aplicacao: "aplicação",
-  usuario: "usuário",
-  experiencia: "experiência",
-  informacao: "informação",
-  funcao: "função",
-  pagina: "página",
-  solucao: "solução",
-  precisao: "precisão",
-  organizacao: "organização",
-  comunicacao: "comunicação",
-  seguranca: "segurança",
-  conexao: "conexão",
-  servico: "serviço",
-  inovacao: "inovação",
-  implementacao: "implementação",
-  configuracao: "configuração",
-  autenticacao: "autenticação",
-  autorizacao: "autorização",
-  internacionalizacao: "internacionalização",
-  documentacao: "documentação",
-  sincronizacao: "sincronização",
-  concorrencia: "concorrência",
-  persistencia: "persistência",
-  abstracao: "abstração",
-  virtualizacao: "virtualização",
-  especificacao: "especificação",
-  reutilizacao: "reutilização",
-  automatizacao: "automatização",
-  transformacao: "transformação",
-  otimizacao: "otimização",
-  extraordinario: "extraordinário",
-};
+// Cada idioma fica num arquivo separado e só é baixado quando escolhido.
+const bankLoaders = import.meta.glob<WordBank>("../data/wordBanks/*.json", {
+  import: "default",
+});
+const bankCache = new Map<string, Promise<WordBank>>();
 
-function removeAccents(word: string): string {
-  return word.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+export function loadWordBank(language: string): Promise<WordBank> {
+  const cached = bankCache.get(language);
+  if (cached) return cached;
+
+  const loader =
+    bankLoaders[`../data/wordBanks/${language}.json`] ??
+    bankLoaders[`../data/wordBanks/${DEFAULT_LANGUAGE}.json`];
+  const promise = loader();
+
+  // Se falhar (rede caiu), permite tentar de novo depois.
+  promise.catch(() => bankCache.delete(language));
+  bankCache.set(language, promise);
+  return promise;
 }
 
-function applyAccents(word: string): string {
-  const normalizedWord = removeAccents(word).toLowerCase();
-  return ACCENTED_WORDS[normalizedWord] ?? word;
+function removeAccents(word: string): string {
+  return word.normalize("NFD").replace(/\p{M}/gu, "");
 }
 
 function getRandomWord(words: readonly string[]): string {
   return words[Math.floor(Math.random() * words.length)] ?? "palavra";
 }
 
-function capitalize(word: string): string {
-  return word.charAt(0).toLocaleUpperCase("pt-BR") + word.slice(1);
+function capitalize(word: string, locale: string): string {
+  return word.charAt(0).toLocaleUpperCase(locale) + word.slice(1);
 }
 
 // O fim de frase usa apenas ponto, exclamação ou interrogação, sem reticências.
@@ -80,27 +72,22 @@ function getClausePunctuation(): string {
   return punctuation[Math.floor(Math.random() * punctuation.length)] ?? ",";
 }
 
-function getWordList(difficulty: TextDifficulty): readonly string[] {
-  switch (difficulty) {
-    case "easy":
-      return EASY_WORDS;
-    case "hard":
-      return HARD_WORDS;
-    default:
-      return NORMAL_WORDS;
-  }
-}
-
-export function generateText(options: TextGeneratorOptions = {}): string {
+export function generateText(options: TextGeneratorOptions): string {
   const {
-    difficulty = "normal",
+    bank,
+    language: languageCode = DEFAULT_LANGUAGE,
+    difficulty = "easy",
     wordCount = 80,
     useAccents = false,
     useUppercase = false,
     usePunctuation = false,
   } = options;
 
-  const words = getWordList(difficulty);
+  const language = LANGUAGES.find((item) => item.code === languageCode);
+  const locale = language?.locale ?? "pt-BR";
+  // Sem acentos, eles são removidos; alfabetos não latinos ficam como estão.
+  const stripAccents = !useAccents && (language?.latin ?? true);
+  const words = bank[difficulty] ?? bank.easy;
   const generatedWords: string[] = [];
   const safeWordCount = Math.max(1, Math.floor(wordCount));
   const getSentenceLength = () => Math.floor(Math.random() * 5) + 6;
@@ -110,11 +97,11 @@ export function generateText(options: TextGeneratorOptions = {}): string {
 
   for (let i = 0; i < safeWordCount; i += 1) {
     let word = getRandomWord(words);
-    word = useAccents ? applyAccents(word) : removeAccents(word);
+    if (stripAccents) word = removeAccents(word);
 
     if (usePunctuation) {
       if (wordsInSentence === 0) {
-        word = capitalize(word);
+        word = capitalize(word, locale);
       }
 
       wordsInSentence += 1;
@@ -131,7 +118,7 @@ export function generateText(options: TextGeneratorOptions = {}): string {
     }
 
     if (useUppercase && i % 10 === 0) {
-      word = capitalize(word);
+      word = capitalize(word, locale);
     }
 
     generatedWords.push(word);

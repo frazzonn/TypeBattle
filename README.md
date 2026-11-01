@@ -89,3 +89,7 @@ backend/src/
 
 - **Railway (backend):** root `backend/`, build `npm run build`, start `npm start`. Configure as variáveis do `.env` acima.
 - **Vercel (frontend):** build `npm run build`, saída `dist/`. Configure `VITE_API_URL` e `VITE_SOCKET_URL`.
+
+## Idiomas
+
+O teste e as batalhas aceitam 12 idiomas. O português usa as listas próprias do projeto (`src/data/wordLists.ts`). Os demais são gerados por `npm run build:languages` a partir dos arquivos brutos em `src/languages/` (fora do git), que escreve `src/data/languageWords.ts` e `backend/src/battle/languageWords.ts`.

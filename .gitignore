@@ -34,3 +34,6 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+
+# Listas brutas de idiomas (geradas em src/data/languageWords.ts)
+src/languages/

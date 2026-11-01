@@ -6,6 +6,7 @@ export type PlayerLimit = 2 | 3 | 4;
 export type RoomStatus = "waiting" | "countdown" | "playing" | "finished";
 export interface RoomSettings {
   difficulty: Difficulty;
+  language: string;
   accents: boolean;
   uppercase: boolean;
   punctuation: boolean;

@@ -1,12 +1,17 @@
 import { randomBytes } from "node:crypto";
 import type { Server, Socket } from "socket.io";
 
-import { makeText } from "../battle/textGenerator.js";
+import {
+  DEFAULT_LANGUAGE,
+  isLanguageCode,
+  makeText,
+} from "../battle/textGenerator.js";
 import type { MatchFormat, RoomSettings, RoomStatus } from "../battle/types.js";
 
-// Aceita clientes antigos sem playerLimit e usa 2 jogadores como padrão.
-type RoomSettingsInput = Omit<RoomSettings, "playerLimit"> & {
+// Aceita clientes antigos sem playerLimit ou language e usa os padrões.
+type RoomSettingsInput = Omit<RoomSettings, "playerLimit" | "language"> & {
   playerLimit?: unknown;
+  language?: string;
 };
 interface PlayerScore {
   ppm: number;
@@ -57,7 +62,7 @@ const lobbyTimers = new Map<string, ReturnType<typeof setTimeout>>();
 // Instância do Socket.IO, definida em registerBattleSocket.
 let io: Server;
 function generateRoomCode(): string {
-  let code = "";
+  let code: string;
   do {
     code = randomBytes(4).toString("hex").toUpperCase();
   } while (rooms.has(code));
@@ -75,6 +80,7 @@ function isValidSettings(value: unknown): value is RoomSettingsInput {
   const settings = value as Record<string, unknown>;
   return (
     ["easy", "normal", "hard"].includes(String(settings.difficulty)) &&
+    (settings.language === undefined || isLanguageCode(settings.language)) &&
     typeof settings.accents === "boolean" &&
     typeof settings.uppercase === "boolean" &&
     typeof settings.punctuation === "boolean" &&
@@ -88,6 +94,7 @@ function normalizeRoomSettings(settings: RoomSettingsInput): RoomSettings {
   const limit = Number(settings.playerLimit);
   return {
     difficulty: settings.difficulty,
+    language: settings.language ?? DEFAULT_LANGUAGE,
     accents: settings.accents,
     uppercase: settings.uppercase,
     punctuation: settings.punctuation,

@@ -24,13 +24,18 @@ import TextFieldsRoundedIcon from "@mui/icons-material/TextFieldsRounded";
 import FormatSizeRoundedIcon from "@mui/icons-material/FormatSizeRounded";
 import ShortTextRoundedIcon from "@mui/icons-material/ShortTextRounded";
 import QueryStatsRoundedIcon from "@mui/icons-material/QueryStatsRounded";
+import LanguageRoundedIcon from "@mui/icons-material/LanguageRounded";
 
 import { TIME_OPTIONS, useTypingTest } from "../../hooks/useTypingTest";
-import type { TextDifficulty } from "../../utils/textGenerator";
+import {
+  languageHasDifficulty,
+  type TextDifficulty,
+} from "../../utils/textGenerator";
+import { LanguageAutocomplete } from "../../components/LanguageAutocomplete";
 import { TypingText } from "../../components/typing/TypingText";
 import { TypingStats } from "../../components/typing/TypingStats";
 import { saveTypingResult } from "../../services/api";
-import { useAuth } from "../../contexts/AuthContext";
+import { useAuth } from "../../contexts/useAuth";
 
 const panelSx = {
   backgroundColor: "#181b21",
@@ -44,6 +49,21 @@ const switchSx = {
   },
   "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
     backgroundColor: "#7c4dff",
+  },
+};
+
+const selectSx = {
+  color: "#ffffff",
+  backgroundColor: "#20232b",
+  borderRadius: 2,
+  ".MuiOutlinedInput-notchedOutline": {
+    borderColor: "#343844",
+  },
+  "&:hover .MuiOutlinedInput-notchedOutline": {
+    borderColor: "#7c4dff",
+  },
+  ".MuiSvgIcon-root": {
+    color: "#a0a4ad",
   },
 };
 
@@ -66,10 +86,14 @@ export function TypingTest() {
     resetTest,
     handleInputChange,
     difficulty,
+    language,
+    isLoadingWords,
+    loadError,
     useAccents,
     useUppercase,
     usePunctuation,
     changeDifficulty,
+    changeLanguage,
     changeAccents,
     changeUppercase,
     changePunctuation,
@@ -287,18 +311,19 @@ export function TypingTest() {
               </ToggleButtonGroup>
             </Box>
 
-            {/* Dificuldade */}
+            {/* Idioma */}
             <Box
               sx={{
                 display: "flex",
                 flexDirection: "column",
                 gap: 1,
-                minWidth: 150,
+                minWidth: 170,
               }}
             >
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <TuneRoundedIcon sx={{ color: "#a78bfa", fontSize: 19 }} />
+                <LanguageRoundedIcon sx={{ color: "#a78bfa", fontSize: 19 }} />
                 <Typography
+                  id="typing-language"
                   variant="caption"
                   sx={{
                     color: "#a0a4ad",
@@ -307,38 +332,60 @@ export function TypingTest() {
                     letterSpacing: 1,
                   }}
                 >
-                  Dificuldade
+                  Idioma
                 </Typography>
               </Box>
 
-              <FormControl size="small" fullWidth>
-                <Select
-                  value={difficulty}
-                  onChange={(event) =>
-                    handleDifficultyChange(event.target.value)
-                  }
-                  disabled={controlsDisabled}
-                  sx={{
-                    color: "#ffffff",
-                    backgroundColor: "#20232b",
-                    borderRadius: 2,
-                    ".MuiOutlinedInput-notchedOutline": {
-                      borderColor: "#343844",
-                    },
-                    "&:hover .MuiOutlinedInput-notchedOutline": {
-                      borderColor: "#7c4dff",
-                    },
-                    ".MuiSvgIcon-root": {
-                      color: "#a0a4ad",
-                    },
-                  }}
-                >
-                  <MenuItem value="easy">Fácil</MenuItem>
-                  <MenuItem value="normal">Normal</MenuItem>
-                  <MenuItem value="hard">Difícil</MenuItem>
-                </Select>
-              </FormControl>
+              <LanguageAutocomplete
+                value={language}
+                onChange={changeLanguage}
+                disabled={controlsDisabled}
+                labelId="typing-language"
+                inputSx={{ "& .MuiOutlinedInput-root": selectSx }}
+              />
             </Box>
+
+            {/* Dificuldade (alguns idiomas têm uma lista só) */}
+            {languageHasDifficulty(language) && (
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 1,
+                  minWidth: 150,
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <TuneRoundedIcon sx={{ color: "#a78bfa", fontSize: 19 }} />
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: "#a0a4ad",
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      letterSpacing: 1,
+                    }}
+                  >
+                    Dificuldade
+                  </Typography>
+                </Box>
+
+                <FormControl size="small" fullWidth>
+                  <Select
+                    value={difficulty}
+                    onChange={(event) =>
+                      handleDifficultyChange(event.target.value)
+                    }
+                    disabled={controlsDisabled}
+                    sx={selectSx}
+                  >
+                    <MenuItem value="easy">Fácil</MenuItem>
+                    <MenuItem value="normal">Normal</MenuItem>
+                    <MenuItem value="hard">Difícil</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
+            )}
 
             {/* Opções do texto */}
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
@@ -530,6 +577,16 @@ export function TypingTest() {
 
               {/* Área de digitação */}
               <Box sx={{ minHeight: 150 }}>
+                {(isLoadingWords || loadError) && (
+                  <Typography
+                    role="status"
+                    sx={{ color: loadError ? "#f87171" : "#a0a4ad", mb: 1 }}
+                  >
+                    {loadError
+                      ? "Não foi possível carregar as palavras. Verifique sua conexão e troque o idioma para tentar de novo."
+                      : "Carregando palavras…"}
+                  </Typography>
+                )}
                 <TypingText
                   text={targetText}
                   input={input}

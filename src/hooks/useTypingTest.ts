@@ -1,16 +1,29 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { generateText, type TextDifficulty } from "../utils/textGenerator";
+import {
+  DEFAULT_LANGUAGE,
+  generateText,
+  loadWordBank,
+  type TextDifficulty,
+  type WordBank,
+} from "../utils/textGenerator";
 
 export const TIME_OPTIONS = [15, 30, 60];
 
+// Sem as palavras do idioma carregadas, o texto fica vazio até chegarem.
 function createTypingText(
+  bank: WordBank | null,
   difficulty: TextDifficulty,
   useAccents: boolean,
   useUppercase: boolean,
   usePunctuation: boolean,
+  language: string,
 ) {
+  if (!bank) return "";
+
   return generateText({
+    bank,
     difficulty,
+    language,
     wordCount: 80,
     useAccents,
     useUppercase,
@@ -22,15 +35,53 @@ export function useTypingTest() {
   const [selectedTime, setSelectedTime] = useState(30);
   const [timeLeft, setTimeLeft] = useState(30);
 
-  const [difficulty, setDifficulty] = useState<TextDifficulty>("normal");
+  const [difficulty, setDifficulty] = useState<TextDifficulty>("easy");
+  const [language, setLanguage] = useState(DEFAULT_LANGUAGE);
   const [useAccents, setUseAccents] = useState(false);
   const [useUppercase, setUseUppercase] = useState(false);
   const [usePunctuation, setUsePunctuation] = useState(false);
 
+  const [loadedBank, setLoadedBank] = useState<{
+    language: string;
+    words: WordBank;
+  } | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const bank = loadedBank?.language === language ? loadedBank.words : null;
+
   const [input, setInput] = useState("");
-  const [targetText, setTargetText] = useState(() =>
-    createTypingText("normal", false, false, false),
-  );
+  const [targetText, setTargetText] = useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    loadWordBank(language)
+      .then((words) => {
+        if (!active) return;
+        setLoadError(false);
+        setLoadedBank({ language, words });
+      })
+      .catch(() => {
+        if (active) setLoadError(true);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [language]);
+
+  // Quando as palavras do idioma chegam, gera o primeiro texto.
+  if (bank && targetText === "") {
+    setTargetText(
+      createTypingText(
+        bank,
+        difficulty,
+        useAccents,
+        useUppercase,
+        usePunctuation,
+        language,
+      ),
+    );
+  }
 
   const [isStarted, setIsStarted] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
@@ -46,15 +97,27 @@ export function useTypingTest() {
     nextAccents = useAccents,
     nextUppercase = useUppercase,
     nextPunctuation = usePunctuation,
+    nextLanguage = language,
   ) {
     setTargetText(
       createTypingText(
+        bank,
         nextDifficulty,
         nextAccents,
         nextUppercase,
         nextPunctuation,
+        nextLanguage,
       ),
     );
+  }
+
+  function changeLanguage(value: string) {
+    if (isStarted || value === language) return;
+
+    // O texto novo é gerado quando as palavras do idioma terminam de carregar.
+    setLanguage(value);
+    setInput("");
+    setTargetText("");
   }
 
   function changeDifficulty(value: TextDifficulty) {
@@ -88,7 +151,14 @@ export function useTypingTest() {
   function resetTest() {
     setInput("");
     setTargetText(
-      createTypingText(difficulty, useAccents, useUppercase, usePunctuation),
+      createTypingText(
+        bank,
+        difficulty,
+        useAccents,
+        useUppercase,
+        usePunctuation,
+        language,
+      ),
     );
     setTimeLeft(selectedTime);
     setIsStarted(false);
@@ -135,7 +205,8 @@ export function useTypingTest() {
   }, [isStarted, isFinished]);
 
   function handleInputChange(value: string) {
-    if (isFinished) return;
+    // Ainda carregando as palavras do idioma.
+    if (isFinished || !bank || targetText === "") return;
 
     if (!isStarted && value.length > 0) {
       setIsStarted(true);
@@ -166,10 +237,12 @@ export function useTypingTest() {
       setTargetText(
         (previous) =>
           `${previous} ${createTypingText(
+            bank,
             difficulty,
             useAccents,
             useUppercase,
             usePunctuation,
+            language,
           )}`,
       );
     }
@@ -206,10 +279,14 @@ export function useTypingTest() {
     resetTest,
     handleInputChange,
     difficulty,
+    language,
+    isLoadingWords: !bank && !loadError,
+    loadError,
     useAccents,
     useUppercase,
     usePunctuation,
     changeDifficulty,
+    changeLanguage,
     changeAccents,
     changeUppercase,
     changePunctuation,

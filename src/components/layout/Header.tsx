@@ -25,7 +25,7 @@ import LoginRoundedIcon from "@mui/icons-material/LoginRounded";
 import PersonAddAlt1RoundedIcon from "@mui/icons-material/PersonAddAlt1Rounded";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
-import { useAuth } from "../../contexts/AuthContext";
+import { useAuth } from "../../contexts/useAuth";
 
 const purple = "#a78bfa";
 

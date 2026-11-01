@@ -1,4 +1,4 @@
-import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { memo, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { Box, Typography } from "@mui/material";
 import KeyboardCapslockRoundedIcon from "@mui/icons-material/KeyboardCapslockRounded";
@@ -11,12 +11,67 @@ interface TypingTextProps {
   inputRef: React.RefObject<HTMLInputElement | null>;
 }
 
-interface CursorPosition {
-  left: number;
-  top: number;
-  height: number;
-  visible: boolean;
+interface WordChunk {
+  start: number;
+  text: string;
 }
+
+interface WordProps {
+  text: string;
+  typed: string;
+  caretIndex: number;
+  caretRef: React.RefObject<HTMLSpanElement | null>;
+}
+
+// Quebra o texto em palavras, cada uma com os espaços que vêm depois.
+function splitWords(text: string): WordChunk[] {
+  const chunks: WordChunk[] = [];
+  let start = 0;
+
+  for (let index = 1; index <= text.length; index += 1) {
+    const endsWord =
+      index === text.length || (text[index] !== " " && text[index - 1] === " ");
+
+    if (endsWord) {
+      chunks.push({ start, text: text.slice(start, index) });
+      start = index;
+    }
+  }
+
+  return chunks;
+}
+
+// Só a palavra que está sendo digitada muda a cada tecla; as outras
+// recebem as mesmas props e não renderizam de novo.
+const Word = memo(function Word({
+  text,
+  typed,
+  caretIndex,
+  caretRef,
+}: WordProps) {
+  return (
+    <span>
+      {text.split("").map((character, index) => {
+        const status =
+          index >= typed.length
+            ? ""
+            : typed[index] === character
+              ? " ok"
+              : " err";
+
+        return (
+          <span
+            key={index}
+            ref={index === caretIndex ? caretRef : null}
+            className={`ch${status}`}
+          >
+            {character}
+          </span>
+        );
+      })}
+    </span>
+  );
+});
 
 function TypingTextComponent({
   text,
@@ -28,37 +83,39 @@ function TypingTextComponent({
   const containerRef = useRef<HTMLDivElement>(null);
   const textContentRef = useRef<HTMLDivElement>(null);
   const currentCharacterRef = useRef<HTMLSpanElement>(null);
+  const caretRef = useRef<HTMLDivElement>(null);
+  const caretPlacedRef = useRef(false);
   const targetScrollOffsetRef = useRef(0);
 
-  const [cursorPosition, setCursorPosition] = useState<CursorPosition>({
-    left: 0,
-    top: 0,
-    height: 24,
-    visible: false,
-  });
+  const words = useMemo(() => splitWords(text), [text]);
 
   const [scrollOffset, setScrollOffset] = useState(0);
   const [hasFocused, setHasFocused] = useState(false);
   const [capsLockOn, setCapsLockOn] = useState(false);
 
-  // Restaura a posição inicial quando o teste é reiniciado.
-  useEffect(() => {
-    if (input.length === 0 && !isStarted) {
-      setHasFocused(false);
-    }
-  }, [input, isStarted]);
+  // Restaura a posição inicial quando o teste é reiniciado
+  // (ajuste de estado durante a renderização, sem efeito extra).
+  const isReset = input.length === 0 && !isStarted;
+  const [wasReset, setWasReset] = useState(isReset);
 
-  // Mede a posição da próxima letra e anima o cursor independente.
+  if (isReset !== wasReset) {
+    setWasReset(isReset);
+    if (isReset) setHasFocused(false);
+  }
+
+  // Mede a posição da próxima letra e move o cursor direto no DOM
+  // (sem estado, para não renderizar o texto de novo a cada tecla).
   useLayoutEffect(() => {
     const container = containerRef.current;
     const content = textContentRef.current;
     const target = currentCharacterRef.current;
+    const caret = caretRef.current;
+
+    if (!caret) return;
 
     if (!container || !content || !target) {
-      setCursorPosition((current) => ({
-        ...current,
-        visible: false,
-      }));
+      caret.style.opacity = "0";
+      caretPlacedRef.current = false;
       return;
     }
 
@@ -68,25 +125,14 @@ function TypingTextComponent({
     // As coordenadas são relativas ao texto, não à tela.
     const left = targetRect.left - contentRect.left;
     const top = targetRect.top - contentRect.top;
-    const height = targetRect.height;
 
-    setCursorPosition((current) => {
-      if (
-        current.visible &&
-        Math.abs(current.left - left) < 0.1 &&
-        Math.abs(current.top - top) < 0.1 &&
-        Math.abs(current.height - height) < 0.1
-      ) {
-        return current;
-      }
-
-      return {
-        left,
-        top,
-        height,
-        visible: true,
-      };
-    });
+    // Na primeira vez o cursor aparece no lugar, sem deslizar do canto.
+    caret.style.transition = caretPlacedRef.current ? "" : "none";
+    caretPlacedRef.current = true;
+    caret.style.left = `${left}px`;
+    caret.style.top = `${top}px`;
+    caret.style.height = `${targetRect.height}px`;
+    caret.style.opacity = "1";
 
     const lineHeight = Number.parseFloat(
       getComputedStyle(container).lineHeight,
@@ -204,35 +250,40 @@ function TypingTextComponent({
             "@media (prefers-reduced-motion: reduce)": {
               transition: "none",
             },
+            // Cores das letras por classe, sem um objeto de estilo por letra.
+            "& .ch": {
+              color: "#a0a4ad",
+              borderRadius: "2px",
+              // Mantém o espaço, mas o cursor é independente.
+              borderLeft: "2px solid transparent",
+              boxSizing: "border-box",
+              // Sem transição de cor: a letra muda na hora em que é digitada.
+            },
+            "& .ch.ok": { color: "#4ade80" },
+            "& .ch.err": { color: "#ff5c75" },
           }}
         >
-          {text.split("").map((character, index) => {
-            const isTyped = index < input.length;
-            const isCorrect = input[index] === character;
-            const isCurrentCharacter = index === input.length;
-
-            const color = !isTyped
-              ? "#a0a4ad"
-              : isCorrect
-                ? "#4ade80"
-                : "#ff5c75";
+          {words.map((word) => {
+            const end = word.start + word.text.length;
+            const caretIndex =
+              input.length >= word.start && input.length < end
+                ? input.length - word.start
+                : -1;
+            // Palavras já digitadas ou ainda não alcançadas recebem a mesma
+            // string a cada tecla, então o memo evita renderizar de novo.
+            const typed =
+              input.length <= word.start
+                ? ""
+                : input.slice(word.start, Math.min(end, input.length));
 
             return (
-              <span
-                key={index}
-                ref={isCurrentCharacter ? currentCharacterRef : null}
-                style={{
-                  color,
-
-                  borderRadius: "2px",
-                  // Mantém o espaço, mas o cursor agora é independente.
-                  borderLeft: "2px solid transparent",
-                  boxSizing: "border-box",
-                  transition: "color 100ms ease",
-                }}
-              >
-                {character}
-              </span>
+              <Word
+                key={word.start}
+                text={word.text}
+                typed={typed}
+                caretIndex={caretIndex}
+                caretRef={currentCharacterRef}
+              />
             );
           })}
 
@@ -251,29 +302,29 @@ function TypingTextComponent({
           )}
 
           {/* Cursor independente: sua posição pode animar entre caracteres. */}
-          {cursorPosition.visible && (
-            <Box
-              aria-hidden="true"
-              sx={{
-                position: "absolute",
-                left: cursorPosition.left,
-                top: cursorPosition.top,
-                width: "2px",
-                height: `${cursorPosition.height}px`,
-                backgroundColor: "#a78bfa",
-                borderRadius: "2px",
-                boxShadow: "0 0 5px rgba(167, 139, 250, 0.35)",
-                pointerEvents: "none",
-                zIndex: 1,
-                animation: "typingCaretBlink 1s step-end infinite",
-                transition: "left 85ms linear, top 85ms ease-out",
-                "@media (prefers-reduced-motion: reduce)": {
-                  transition: "none",
-                  animation: "none",
-                },
-              }}
-            />
-          )}
+          <Box
+            ref={caretRef}
+            aria-hidden="true"
+            sx={{
+              position: "absolute",
+              left: 0,
+              top: 0,
+              width: "2px",
+              height: "24px",
+              opacity: 0,
+              backgroundColor: "#a78bfa",
+              borderRadius: "2px",
+              boxShadow: "0 0 5px rgba(167, 139, 250, 0.35)",
+              pointerEvents: "none",
+              zIndex: 1,
+              animation: "typingCaretBlink 1s step-end infinite",
+              transition: "left 85ms linear, top 85ms ease-out",
+              "@media (prefers-reduced-motion: reduce)": {
+                transition: "none",
+                animation: "none",
+              },
+            }}
+          />
         </Box>
 
         {/* Mensagem inicial original. */}
