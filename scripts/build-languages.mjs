@@ -187,6 +187,7 @@ writeFileSync(
 export interface LanguageWordList {
   code: string;
   label: string;
+  name: string;
   locale: string;
   latin: boolean;
   // false: só existe "easy", com todas as palavras do idioma.

@@ -23,6 +23,7 @@ export interface RoomPlayer {
   socketId: string;
   nickname: string;
   isGuest?: boolean;
+  avatarUrl?: string | null;
   ppm: number;
   accuracy: number;
   errors: number;

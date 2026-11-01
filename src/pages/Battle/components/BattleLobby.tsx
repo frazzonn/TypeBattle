@@ -1,5 +1,6 @@
-import { Box, Button, ButtonBase, Typography } from "@mui/material";
+import { Box, Button, ButtonBase, Tooltip, Typography } from "@mui/material";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
+import ContentCopyRoundedIcon from "@mui/icons-material/ContentCopyRounded";
 import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
 import LinkRoundedIcon from "@mui/icons-material/LinkRounded";
 import WorkspacePremiumRoundedIcon from "@mui/icons-material/WorkspacePremiumRounded";
@@ -19,6 +20,7 @@ import {
   primaryButtonSx,
 } from "../styles";
 import type { BattleRoom, RoomSettings } from "../types";
+import { PlayerAvatar } from "./PlayerAvatar";
 import { SegmentedControl } from "./SegmentedControl";
 
 interface BattleLobbyProps {
@@ -29,6 +31,7 @@ interface BattleLobbyProps {
   onStart: () => void;
   onLeave: () => void;
   onCopyInvite: () => void;
+  onCopyCode: () => void;
 }
 
 interface ToggleChipProps {
@@ -80,6 +83,7 @@ export function BattleLobby({
   onStart,
   onLeave,
   onCopyInvite,
+  onCopyCode,
 }: BattleLobbyProps) {
   const { settings } = room;
   const isHost = room.hostSocketId === myId;
@@ -118,19 +122,42 @@ export function BattleLobby({
           <Typography sx={{ ...labelSx, letterSpacing: "2px" }}>
             CÓDIGO DA SALA
           </Typography>
-          <Typography
-            sx={{
-              fontFamily: monoFont,
-              fontWeight: 700,
-              fontSize: { xs: 28, sm: 34 },
-              letterSpacing: { xs: 4, sm: 6 },
-            }}
-          >
-            {room.code.slice(0, 4)}
-            <Box component="span" sx={{ color: colors.accent }}>
-              {room.code.slice(4)}
-            </Box>
-          </Typography>
+          <Tooltip title="Clique para copiar o código" placement="bottom-start">
+            <ButtonBase
+              onClick={onCopyCode}
+              aria-label={`Copiar código da sala ${room.code}`}
+              sx={{
+                alignSelf: "flex-start",
+                gap: 1.25,
+                ml: -1,
+                px: 1,
+                borderRadius: "10px",
+                fontFamily: monoFont,
+                fontWeight: 700,
+                fontSize: { xs: 28, sm: 34 },
+                letterSpacing: { xs: 4, sm: 6 },
+                color: "#ffffff",
+                transition: "background-color 150ms ease",
+                "&:hover": { bgcolor: "rgba(124,77,255,0.12)" },
+                "&:hover .copy-icon": { color: colors.accentSoft },
+                "&.Mui-focusVisible": {
+                  outline: `2px solid ${colors.accent}`,
+                  outlineOffset: 2,
+                },
+              }}
+            >
+              <span>
+                {room.code.slice(0, 4)}
+                <Box component="span" sx={{ color: colors.accent }}>
+                  {room.code.slice(4)}
+                </Box>
+              </span>
+              <ContentCopyRoundedIcon
+                className="copy-icon"
+                sx={{ fontSize: 20, color: colors.textSecondary }}
+              />
+            </ButtonBase>
+          </Tooltip>
         </Box>
 
         <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.25 }}>
@@ -251,22 +278,11 @@ export function BattleLobby({
                   border: `1px solid ${isMe ? "rgba(167,139,250,0.45)" : colors.border}`,
                 }}
               >
-                <Box
-                  sx={{
-                    display: "grid",
-                    placeItems: "center",
-                    flexShrink: 0,
-                    width: 40,
-                    height: 40,
-                    borderRadius: "10px",
-                    bgcolor: color,
-                    color: colors.background,
-                    fontWeight: 900,
-                    fontSize: 17,
-                  }}
-                >
-                  {player.nickname.charAt(0).toUpperCase()}
-                </Box>
+                <PlayerAvatar
+                  nickname={player.nickname}
+                  avatarUrl={player.avatarUrl}
+                  color={color}
+                />
                 <Typography
                   noWrap
                   sx={{ flex: 1, minWidth: 0, fontWeight: 700, fontSize: 15 }}

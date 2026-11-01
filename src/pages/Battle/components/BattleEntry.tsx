@@ -15,13 +15,12 @@ import { DEFAULT_SETTINGS } from "../types";
 
 interface BattleEntryProps {
   nickname: string;
-  inviteCode: string;
   connected: boolean;
   isCreating: boolean;
-  isJoining: boolean;
   onNicknameChange: (value: string) => void;
   onCreate: () => void;
-  onJoin: (code: string) => void;
+  // Vai para a tela de escolher o nick com o código (ou link) informado.
+  onContinue: (codeOrLink: string) => void;
 }
 
 const inputSx = {
@@ -51,7 +50,11 @@ const STEPS = [
   },
 ];
 
-function CardIcon({ color, bg, children }: {
+function CardIcon({
+  color,
+  bg,
+  children,
+}: {
   color: string;
   bg: string;
   children: React.ReactNode;
@@ -77,16 +80,14 @@ function CardIcon({ color, bg, children }: {
 // Tela inicial: criar uma sala ou entrar com o código recebido.
 export function BattleEntry({
   nickname,
-  inviteCode,
   connected,
   isCreating,
-  isJoining,
   onNicknameChange,
   onCreate,
-  onJoin,
+  onContinue,
 }: BattleEntryProps) {
-  const [code, setCode] = useState(inviteCode);
-  const isBusy = !connected || isCreating || isJoining;
+  const [code, setCode] = useState("");
+  const isBusy = !connected || isCreating;
 
   const defaultsSummary = [
     `${DEFAULT_SETTINGS.duration} s`,
@@ -190,7 +191,11 @@ export function BattleEntry({
           </Box>
 
           <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
-            <Typography component="label" htmlFor="battle-nickname" sx={labelSx}>
+            <Typography
+              component="label"
+              htmlFor="battle-nickname"
+              sx={labelSx}
+            >
               SEU NICK
             </Typography>
             <InputBase
@@ -203,7 +208,14 @@ export function BattleEntry({
             />
           </Box>
 
-          <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1 }}>
+          <Box
+            sx={{
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "center",
+              gap: 1,
+            }}
+          >
             {defaultsSummary.map((item) => (
               <Box
                 key={item}
@@ -236,7 +248,11 @@ export function BattleEntry({
             disabled={isBusy}
             sx={primaryButtonSx}
           >
-            {isCreating ? <CircularProgress size={24} color="inherit" /> : "Criar sala"}
+            {isCreating ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : (
+              "Criar sala"
+            )}
           </Button>
         </Box>
 
@@ -244,7 +260,7 @@ export function BattleEntry({
           component="form"
           onSubmit={(event: React.FormEvent) => {
             event.preventDefault();
-            onJoin(code);
+            onContinue(code);
           }}
           sx={{
             ...cardSx,
@@ -252,9 +268,7 @@ export function BattleEntry({
             display: "flex",
             flexDirection: "column",
             gap: 2.5,
-            borderColor: inviteCode
-              ? "rgba(103,232,249,0.55)"
-              : "rgba(0,188,212,0.28)",
+            borderColor: "rgba(0,188,212,0.28)",
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.75 }}>
@@ -266,15 +280,17 @@ export function BattleEntry({
                 Entrar numa sala
               </Typography>
               <Typography sx={{ color: colors.textSecondary, fontSize: 14 }}>
-                {inviteCode
-                  ? "Você recebeu um convite. É só entrar."
-                  : "Cole o código ou o link do convite."}
+                Cole o código ou o link do convite.
               </Typography>
             </Box>
           </Box>
 
           <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
-            <Typography component="label" htmlFor="battle-room-code" sx={labelSx}>
+            <Typography
+              component="label"
+              htmlFor="battle-room-code"
+              sx={labelSx}
+            >
               CÓDIGO DA SALA
             </Typography>
             <InputBase
@@ -296,7 +312,7 @@ export function BattleEntry({
           </Box>
 
           <Typography sx={{ color: colors.textSecondary, fontSize: 13 }}>
-            Você entra com o nick do card ao lado.
+            Na próxima tela você escolhe seu nick.
           </Typography>
 
           <Box sx={{ flexGrow: 1 }} />
@@ -304,7 +320,6 @@ export function BattleEntry({
           <Button
             type="submit"
             variant="outlined"
-            disabled={isBusy}
             sx={{
               height: 52,
               borderRadius: "10px",
@@ -319,7 +334,7 @@ export function BattleEntry({
               },
             }}
           >
-            {isJoining ? <CircularProgress size={24} color="inherit" /> : "Entrar"}
+            Continuar
           </Button>
         </Box>
       </Box>
@@ -350,11 +365,21 @@ export function BattleEntry({
           >
             <Typography
               component="span"
-              sx={{ fontFamily: monoFont, fontWeight: 700, color: colors.accent }}
+              sx={{
+                fontFamily: monoFont,
+                fontWeight: 700,
+                color: colors.accent,
+              }}
             >
               {String(index + 1).padStart(2, "0")}
             </Typography>
-            <Typography sx={{ color: colors.textSecondary, fontSize: 14, lineHeight: 1.5 }}>
+            <Typography
+              sx={{
+                color: colors.textSecondary,
+                fontSize: 14,
+                lineHeight: 1.5,
+              }}
+            >
               <Box component="strong" sx={{ color: "#ffffff" }}>
                 {step.title}
               </Box>{" "}

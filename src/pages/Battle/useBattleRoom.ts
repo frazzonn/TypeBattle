@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { io, type Socket } from "socket.io-client";
 
+import { useAuth } from "../../contexts/useAuth";
 import {
   buildInviteLink,
   extractRoomCode,
@@ -20,6 +21,8 @@ type PendingAction = "create" | "join" | null;
 
 // Conexão com o servidor de batalhas e todo o estado da sala atual.
 export function useBattleRoom() {
+  // Com o token, o servidor mostra a foto de perfil de quem está logado.
+  const { token } = useAuth();
   const socketRef = useRef<Socket | null>(null);
   const pendingActionRef = useRef<PendingAction>(null);
   const hasRoomRef = useRef(false);
@@ -51,7 +54,11 @@ export function useBattleRoom() {
       setError("");
 
       if (action === "create") {
-        window.history.replaceState({}, "", `/battle?room=${incomingRoom.code}`);
+        window.history.replaceState(
+          {},
+          "",
+          `/battle?room=${incomingRoom.code}`,
+        );
       }
     }
 
@@ -146,6 +153,7 @@ export function useBattleRoom() {
     socket.emit("room:create", {
       nickname: cleanNickname,
       settings: DEFAULT_SETTINGS,
+      token: token ?? undefined,
     });
   }
 
@@ -170,7 +178,11 @@ export function useBattleRoom() {
     setNotice("");
     pendingActionRef.current = "join";
     setPendingAction("join");
-    socket.emit("room:join", { nickname: cleanNickname, code });
+    socket.emit("room:join", {
+      nickname: cleanNickname,
+      code,
+      token: token ?? undefined,
+    });
   }
 
   // Só o anfitrião altera; a mudança vale assim que o servidor confirma.
@@ -205,17 +217,34 @@ export function useBattleRoom() {
     [room?.status],
   );
 
-  async function copyInviteLink() {
+  async function copyText(text: string, success: string, fallback: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setNotice(success);
+    } catch {
+      setNotice(`${fallback}: ${text}`);
+    }
+  }
+
+  function copyInviteLink() {
     if (!room) return;
 
-    const link = buildInviteLink(room.code);
+    void copyText(
+      buildInviteLink(room.code),
+      "Link de convite copiado!",
+      "Copie este link para convidar",
+    );
+  }
 
-    try {
-      await navigator.clipboard.writeText(link);
-      setNotice("Link de convite copiado!");
-    } catch {
-      setNotice(`Copie este link para convidar: ${link}`);
-    }
+  function copyRoomCode() {
+    if (!room) return;
+
+    void copyText(room.code, "Código da sala copiado!", "Código da sala");
+  }
+
+  // Mensagem de erro da tela de entrada (ex.: código vazio).
+  function showError(message: string) {
+    setError(message);
   }
 
   return {
@@ -236,5 +265,7 @@ export function useBattleRoom() {
     leaveRoom,
     sendProgress,
     copyInviteLink,
+    copyRoomCode,
+    showError,
   };
 }

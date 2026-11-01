@@ -3,7 +3,9 @@ import { Alert, Box } from "@mui/material";
 import { useSearchParams } from "react-router-dom";
 
 import { useAuth } from "../../contexts/useAuth";
+import { extractRoomCode } from "./battleUtils";
 import { BattleEntry } from "./components/BattleEntry";
+import { BattleJoin } from "./components/BattleJoin";
 import { BattleLobby } from "./components/BattleLobby";
 import { BattleMatch } from "./components/BattleMatch";
 import { BattleResult } from "./components/BattleResult";
@@ -17,6 +19,34 @@ export function Battle() {
 
   const battle = useBattleRoom();
   const { room } = battle;
+
+  // Código da sala em que a pessoa vai entrar (link de convite ou digitado).
+  // Com ele preenchido, aparece a tela de escolher o nick.
+  const [joinCode, setJoinCode] = useState(inviteCode);
+
+  function continueToJoin(codeOrLink: string) {
+    const code = extractRoomCode(codeOrLink);
+
+    if (!code) {
+      battle.showError("Informe o código ou link da sala.");
+      return;
+    }
+
+    battle.showError("");
+    setJoinCode(code);
+    window.history.replaceState({}, "", `/battle?room=${code}`);
+  }
+
+  function backToEntry() {
+    battle.showError("");
+    setJoinCode("");
+    window.history.replaceState({}, "", "/battle");
+  }
+
+  function leaveRoom() {
+    battle.leaveRoom();
+    setJoinCode("");
+  }
 
   // Usa o nome da conta até o jogador digitar outro nick.
   const [nicknameInput, setNicknameInput] = useState<string | null>(null);
@@ -32,17 +62,27 @@ export function Battle() {
 
   let content;
 
-  if (!room) {
+  if (!room && joinCode) {
+    content = (
+      <BattleJoin
+        code={joinCode}
+        nickname={nickname}
+        connected={battle.connected}
+        isJoining={battle.isJoining}
+        onNicknameChange={setNicknameInput}
+        onJoin={() => battle.joinRoom(nickname, joinCode)}
+        onBack={backToEntry}
+      />
+    );
+  } else if (!room) {
     content = (
       <BattleEntry
         nickname={nickname}
-        inviteCode={inviteCode}
         connected={battle.connected}
         isCreating={battle.isCreating}
-        isJoining={battle.isJoining}
         onNicknameChange={setNicknameInput}
         onCreate={() => battle.createRoom(nickname)}
-        onJoin={(code) => battle.joinRoom(nickname, code)}
+        onContinue={continueToJoin}
       />
     );
   } else if ((status === "countdown" || status === "playing") && room.battle) {
@@ -63,7 +103,7 @@ export function Battle() {
         myId={battle.myId}
         finishedAt={battle.finishedAt}
         now={now}
-        onLeave={battle.leaveRoom}
+        onLeave={leaveRoom}
         onCopyInvite={battle.copyInviteLink}
       />
     );
@@ -75,8 +115,9 @@ export function Battle() {
         connected={battle.connected}
         onUpdateSettings={battle.updateSettings}
         onStart={battle.startBattle}
-        onLeave={battle.leaveRoom}
+        onLeave={leaveRoom}
         onCopyInvite={battle.copyInviteLink}
+        onCopyCode={battle.copyRoomCode}
       />
     );
   }

@@ -1,5 +1,8 @@
 import { randomBytes } from "node:crypto";
+import jwt from "jsonwebtoken";
 import type { Server, Socket } from "socket.io";
+
+import { db } from "../prisma/db.js";
 
 import {
   DEFAULT_LANGUAGE,
@@ -23,6 +26,11 @@ interface RoomPlayer extends PlayerScore {
   socketId: string;
   nickname: string;
   isGuest: boolean;
+  avatarUrl: string | null;
+}
+interface PlayerAccount {
+  isGuest: boolean;
+  avatarUrl: string | null;
 }
 interface BattleState {
   round: number;
@@ -111,13 +119,34 @@ function initialScore(): PlayerScore {
     progress: 0,
   };
 }
-function makePlayer(socketId: string, nickname: string): RoomPlayer {
+function makePlayer(
+  socketId: string,
+  nickname: string,
+  account: PlayerAccount,
+): RoomPlayer {
   return {
     socketId,
     nickname,
-    isGuest: true,
+    ...account,
     ...initialScore(),
   };
+}
+const GUEST: PlayerAccount = { isGuest: true, avatarUrl: null };
+// Quem está logado manda o token; a foto vem do banco, nunca do cliente.
+// Token ausente, inválido ou expirado entra como convidado.
+async function getPlayerAccount(token: unknown): Promise<PlayerAccount> {
+  const jwtSecret = process.env["JWT_SECRET"];
+  if (typeof token !== "string" || !token || !jwtSecret) return GUEST;
+  try {
+    const { userId } = jwt.verify(token, jwtSecret) as { userId: number };
+    const user = await db.orm.public.User.select("avatarUrl").first({
+      id: userId,
+    });
+    if (!user) return GUEST;
+    return { isGuest: false, avatarUrl: user.avatarUrl ?? null };
+  } catch {
+    return GUEST;
+  }
 }
 // Não envia os textos digitados individualmente para os outros clientes.
 function publicRoom(room: BattleRoom) {
@@ -380,7 +409,11 @@ export function registerBattleSocket(server: Server) {
     console.log(`Socket conectado: ${socket.id}`);
     socket.on(
       "room:create",
-      (payload: { nickname: string; settings: RoomSettings }) => {
+      async (payload: {
+        nickname: string;
+        settings: RoomSettings;
+        token?: string;
+      }) => {
         const nickname = sanitizeNickname(payload?.nickname);
         if (!nickname) {
           socket.emit("room:error", "Informe um nick válido.");
@@ -390,12 +423,15 @@ export function registerBattleSocket(server: Server) {
           socket.emit("room:error", "As configurações da sala são inválidas.");
           return;
         }
+        const account = await getPlayerAccount(payload?.token);
+        // A conexão pode ter caído enquanto buscava a conta.
+        if (!socket.connected) return;
         removePlayerFromRoom(socket);
         const code = generateRoomCode();
         const room: BattleRoom = {
           code,
           hostSocketId: socket.id,
-          players: [makePlayer(socket.id, nickname)],
+          players: [makePlayer(socket.id, nickname, account)],
           settings: normalizeRoomSettings(payload.settings),
           status: "waiting",
           battle: null,
@@ -412,40 +448,46 @@ export function registerBattleSocket(server: Server) {
         sendRoomUpdate(room);
       },
     );
-    socket.on("room:join", (payload: { code: string; nickname: string }) => {
-      const code = String(payload?.code ?? "")
-        .trim()
-        .toUpperCase();
-      const nickname = sanitizeNickname(payload?.nickname);
-      const room = rooms.get(code);
-      if (!nickname) {
-        socket.emit("room:error", "Informe um nick válido.");
-        return;
-      }
-      if (!room) {
-        socket.emit("room:error", "Sala não encontrada ou encerrada.");
-        return;
-      }
-      if (room.status !== "waiting") {
-        socket.emit("room:error", "Esta sala não está aceitando jogadores.");
-        return;
-      }
-      if (room.players.some((player) => player.socketId === socket.id)) {
+    socket.on(
+      "room:join",
+      async (payload: { code: string; nickname: string; token?: string }) => {
+        const code = String(payload?.code ?? "")
+          .trim()
+          .toUpperCase();
+        const nickname = sanitizeNickname(payload?.nickname);
+        if (!nickname) {
+          socket.emit("room:error", "Informe um nick válido.");
+          return;
+        }
+        const account = await getPlayerAccount(payload?.token);
+        if (!socket.connected) return;
+        // Busca a sala depois da conta: ela pode ter mudado durante a espera.
+        const room = rooms.get(code);
+        if (!room) {
+          socket.emit("room:error", "Sala não encontrada ou encerrada.");
+          return;
+        }
+        if (room.status !== "waiting") {
+          socket.emit("room:error", "Esta sala não está aceitando jogadores.");
+          return;
+        }
+        if (room.players.some((player) => player.socketId === socket.id)) {
+          socket.emit("room:joined", publicRoom(room));
+          return;
+        }
+        if (room.players.length >= room.settings.playerLimit) {
+          socket.emit("room:error", "Esta sala já está cheia.");
+          return;
+        }
+        removePlayerFromRoom(socket);
+        room.players.push(makePlayer(socket.id, nickname, account));
+        room.seriesWins[socket.id] = 0;
+        socket.join(code);
+        socket.data.roomCode = code;
         socket.emit("room:joined", publicRoom(room));
-        return;
-      }
-      if (room.players.length >= room.settings.playerLimit) {
-        socket.emit("room:error", "Esta sala já está cheia.");
-        return;
-      }
-      removePlayerFromRoom(socket);
-      room.players.push(makePlayer(socket.id, nickname));
-      room.seriesWins[socket.id] = 0;
-      socket.join(code);
-      socket.data.roomCode = code;
-      socket.emit("room:joined", publicRoom(room));
-      sendRoomUpdate(room);
-    });
+        sendRoomUpdate(room);
+      },
+    );
     socket.on("room:update-settings", (payload: { settings: RoomSettings }) => {
       const code = socket.data.roomCode as string | undefined;
       const room = code ? rooms.get(code) : undefined;
