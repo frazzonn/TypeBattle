@@ -6,7 +6,7 @@ import {
   type ReactNode,
 } from "react";
 
-import { loginUser } from "../services/api";
+import { ApiError, getCurrentUser, loginUser } from "../services/api";
 
 interface User {
   id: number;
@@ -31,6 +31,29 @@ interface AuthProviderProps {
 
 const AuthContext = createContext<AuthContextData | undefined>(undefined);
 
+const TOKEN_KEY = "typebattle_token";
+const USER_KEY = "typebattle_user";
+
+// Lê o campo exp do JWT sem validar a assinatura (isso é papel do backend).
+function isTokenExpired(token: string): boolean {
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return true;
+
+    const json = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
+    const { exp } = JSON.parse(json) as { exp?: number };
+
+    return typeof exp === "number" && exp * 1000 <= Date.now();
+  } catch {
+    return true;
+  }
+}
+
+function clearStoredSession() {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+}
+
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -39,21 +62,49 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const savedToken = localStorage.getItem("typebattle_token");
-    const savedUser = localStorage.getItem("typebattle_user");
+    const savedToken = localStorage.getItem(TOKEN_KEY);
+    const savedUser = localStorage.getItem(USER_KEY);
+    let isActive = true;
 
     if (savedToken && savedUser) {
       try {
+        if (isTokenExpired(savedToken)) {
+          throw new Error("Sessão expirada.");
+        }
+
         setToken(savedToken);
         setUser(JSON.parse(savedUser) as User);
+
+        // Confere a sessão no backend e atualiza nome/foto em segundo plano.
+        getCurrentUser(savedToken)
+          .then((response) => {
+            // Versões antigas do backend não retornam o nome no /me.
+            if (!isActive || typeof response.user?.name !== "string") return;
+
+            setUser(response.user);
+            localStorage.setItem(USER_KEY, JSON.stringify(response.user));
+          })
+          .catch((error: unknown) => {
+            // Só encerra a sessão se o backend recusar o token;
+            // falhas de rede mantêm o usuário logado.
+            if (!isActive || !(error instanceof ApiError)) return;
+            if (error.status !== 401) return;
+
+            setUser(null);
+            setToken(null);
+            clearStoredSession();
+          });
       } catch {
-        // Remove os dados inválidos do localStorage.
-        localStorage.removeItem("typebattle_token");
-        localStorage.removeItem("typebattle_user");
+        // Remove os dados inválidos ou expirados do localStorage.
+        clearStoredSession();
       }
     }
 
     setIsLoading(false);
+
+    return () => {
+      isActive = false;
+    };
   }, []);
 
   async function login(email: string, password: string) {
@@ -66,8 +117,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setUser(response.user);
 
     // Persiste a sessão no navegador.
-    localStorage.setItem("typebattle_token", response.token);
-    localStorage.setItem("typebattle_user", JSON.stringify(response.user));
+    localStorage.setItem(TOKEN_KEY, response.token);
+    localStorage.setItem(USER_KEY, JSON.stringify(response.user));
   }
 
   function updateAvatar(avatarUrl: string | null) {
@@ -80,7 +131,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       };
 
       // Mantém a foto atualizada ao recarregar a página.
-      localStorage.setItem("typebattle_user", JSON.stringify(updatedUser));
+      localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
 
       return updatedUser;
     });
@@ -91,8 +142,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setToken(null);
 
     // Remove os dados da sessão.
-    localStorage.removeItem("typebattle_token");
-    localStorage.removeItem("typebattle_user");
+    clearStoredSession();
   }
 
   return (

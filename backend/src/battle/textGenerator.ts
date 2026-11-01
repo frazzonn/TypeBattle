@@ -1,13 +1,6 @@
-export type TextDifficulty = "easy" | "normal" | "hard";
+import type { RoomSettings } from "./types.js";
 
-interface TextGeneratorOptions {
-  difficulty: TextDifficulty;
-  wordCount?: number;
-  useAccents: boolean;
-  useUppercase: boolean;
-  usePunctuation: boolean;
-}
-
+// Listas de palavras em português, separadas por dificuldade.
 const EASY_WORDS = [
   "casa",
   "carro",
@@ -67,7 +60,6 @@ const EASY_WORDS = [
   "testar",
   "aprender",
 ];
-
 const NORMAL_WORDS = [
   "tecnologia",
   "desenvolvimento",
@@ -125,7 +117,6 @@ const NORMAL_WORDS = [
   "analisar",
   "resolver",
 ];
-
 const HARD_WORDS = [
   "arquitetura",
   "infraestrutura",
@@ -176,84 +167,104 @@ const HARD_WORDS = [
   "tecnicamente",
   "consistentemente",
 ];
-
+// Mantém o gerador das salas alinhado ao teste padrão.
 const ACCENTED_WORDS: Record<string, string> = {
   agua: "água",
   musica: "música",
   cafe: "café",
+  familia: "família",
+  arvore: "árvore",
   codigo: "código",
+  programacao: "programação",
+  aplicacao: "aplicação",
   usuario: "usuário",
   experiencia: "experiência",
   informacao: "informação",
   funcao: "função",
-  aplicacao: "aplicação",
-  programacao: "programação",
+  pagina: "página",
   solucao: "solução",
   precisao: "precisão",
   organizacao: "organização",
   comunicacao: "comunicação",
   seguranca: "segurança",
+  conexao: "conexão",
+  servico: "serviço",
   inovacao: "inovação",
   implementacao: "implementação",
   configuracao: "configuração",
   autenticacao: "autenticação",
   autorizacao: "autorização",
-  complexidade: "complexidade",
+  internacionalizacao: "internacionalização",
   documentacao: "documentação",
-  funcionalidade: "funcionalidade",
   sincronizacao: "sincronização",
   concorrencia: "concorrência",
+  persistencia: "persistência",
   abstracao: "abstração",
+  virtualizacao: "virtualização",
+  especificacao: "especificação",
   reutilizacao: "reutilização",
+  automatizacao: "automatização",
+  transformacao: "transformação",
   otimizacao: "otimização",
   extraordinario: "extraordinário",
   estrategicamente: "estrategicamente",
 };
-
-function getRandomWord(words: string[]) {
+function removeAccents(word: string): string {
+  return word.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+function applyAccents(word: string): string {
+  const normalizedWord = removeAccents(word).toLowerCase();
+  return ACCENTED_WORDS[normalizedWord] ?? word;
+}
+function getRandomWord(words: string[]): string {
   return words[Math.floor(Math.random() * words.length)] ?? "palavra";
 }
-
-function addPunctuation(word: string) {
-  const punctuation = [".", ",", "!", "?", ";"];
-  return (
-    word + (punctuation[Math.floor(Math.random() * punctuation.length)] ?? ".")
-  );
+function getSentenceEnding(): string {
+  const endings = [".", ".", ".", "!", "?"];
+  return endings[Math.floor(Math.random() * endings.length)] ?? ".";
 }
-
-export function generateBattleText({
-  difficulty,
-  wordCount = 80,
-  useAccents,
-  useUppercase,
-  usePunctuation,
-}: TextGeneratorOptions): string {
+function getClausePunctuation(): string {
+  const punctuation = [",", ",", ",", ";", ":"];
+  return punctuation[Math.floor(Math.random() * punctuation.length)] ?? ",";
+}
+function capitalize(word: string): string {
+  return word.charAt(0).toLocaleUpperCase("pt-BR") + word.slice(1);
+}
+export function makeText(settings: RoomSettings): string {
   const words =
-    difficulty === "easy"
+    settings.difficulty === "easy"
       ? EASY_WORDS
-      : difficulty === "hard"
+      : settings.difficulty === "hard"
         ? HARD_WORDS
         : NORMAL_WORDS;
-
   const generatedWords: string[] = [];
-
+  const wordCount = 80;
+  const getSentenceLength = () => Math.floor(Math.random() * 5) + 6;
+  let wordsInSentence = 0;
+  let sentenceLength = getSentenceLength();
+  // Gera um único texto compartilhado por todos os jogadores da rodada.
   for (let i = 0; i < wordCount; i += 1) {
     let word = getRandomWord(words);
-
-    if (useAccents) {
-      word = ACCENTED_WORDS[word] ?? word;
+    word = settings.accents ? applyAccents(word) : removeAccents(word);
+    if (settings.punctuation) {
+      if (wordsInSentence === 0) {
+        word = capitalize(word);
+      }
+      wordsInSentence += 1;
+      const isLastWord = i === wordCount - 1;
+      const endsSentence = wordsInSentence >= sentenceLength;
+      if (isLastWord || endsSentence) {
+        word += getSentenceEnding();
+        wordsInSentence = 0;
+        sentenceLength = getSentenceLength();
+      } else if (wordsInSentence >= 2 && Math.random() < 0.18) {
+        word += getClausePunctuation();
+      }
     }
-
-    if (useUppercase && i % 10 === 0) {
-      word = word.charAt(0).toUpperCase() + word.slice(1);
+    if (settings.uppercase && i % 10 === 0) {
+      word = capitalize(word);
     }
-
-    if (usePunctuation && i % 7 === 6) {
-      word = addPunctuation(word);
-    }
-
     generatedWords.push(word);
   }
-
   return generatedWords.join(" ");
 }

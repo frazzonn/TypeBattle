@@ -10,7 +10,12 @@ export async function login(request: Request, response: Response) {
     const { email, password } = request.body;
 
     // Validação básica.
-    if (!email || !password) {
+    if (
+      !email ||
+      !password ||
+      typeof email !== "string" ||
+      typeof password !== "string"
+    ) {
       return response.status(400).json({
         message: "Email e senha são obrigatórios.",
       });
@@ -18,7 +23,7 @@ export async function login(request: Request, response: Response) {
 
     // Procura o usuário pelo email.
     const user = await db.orm.public.User.first({
-      email,
+      email: email.trim(),
     });
 
     if (!user) {
@@ -75,7 +80,49 @@ export async function login(request: Request, response: Response) {
 
     return response.status(500).json({
       message: "Erro ao realizar login.",
-      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+// Retorna os dados atuais do usuário dono do token.
+export async function me(request: Request, response: Response) {
+  try {
+    const userId = request.user?.userId;
+
+    if (!userId) {
+      return response.status(401).json({
+        message: "Usuário não autenticado.",
+      });
+    }
+
+    const user = await db.orm.public.User.select(
+      "id",
+      "name",
+      "email",
+      "avatarUrl",
+    ).first({ id: userId });
+
+    // A conta pode ter sido removida depois que o token foi emitido.
+    if (!user) {
+      return response.status(401).json({
+        message: "Usuário não encontrado.",
+      });
+    }
+
+    return response.status(200).json({
+      message: "Token válido!",
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        avatarUrl: user.avatarUrl ?? null,
+      },
+    });
+  } catch (error) {
+    console.error("ERRO AO BUSCAR USUÁRIO:", error);
+
+    return response.status(500).json({
+      message: "Erro ao buscar usuário.",
     });
   }
 }

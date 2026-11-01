@@ -72,6 +72,22 @@ interface RemoveAvatarResponse {
   avatarUrl: string | null;
 }
 
+interface CurrentUserResponse {
+  message: string;
+  user: User;
+}
+
+// Erro da API com o status HTTP, para diferenciar 401 de falha de rede.
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 // Trata as respostas da API e exibe a mensagem de erro do backend.
 async function handleResponse<T>(response: Response): Promise<T> {
   const result = await response.json().catch(() => ({}));
@@ -82,7 +98,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
         ? result.message
         : "Ocorreu um erro ao comunicar com o servidor.";
 
-    throw new Error(message);
+    throw new ApiError(message, response.status);
   }
 
   return result as T;
@@ -112,6 +128,20 @@ export async function loginUser(data: LoginData): Promise<AuthResponse> {
   });
 
   return handleResponse<AuthResponse>(response);
+}
+
+// Busca os dados atuais do usuário dono do token.
+export async function getCurrentUser(
+  token: string,
+): Promise<CurrentUserResponse> {
+  const response = await fetch(`${API_URL}/auth/me`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  return handleResponse<CurrentUserResponse>(response);
 }
 
 // Envia a foto para o backend, que a armazena no Cloudinary.

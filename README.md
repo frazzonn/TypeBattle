@@ -1,75 +1,91 @@
-# React + TypeScript + Vite
+# TypeBattle
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Teste de digitação em português com ranking e batalhas multiplayer em tempo real.
 
-Currently, two official plugins are available:
+- **Frontend** (raiz do repositório): React 19, Vite, MUI, React Router, Socket.IO Client. Hospedado na Vercel.
+- **Backend** (`backend/`): Express 5, Socket.IO, Prisma 8 (PostgreSQL), JWT, Cloudinary. Hospedado no Railway.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Funcionalidades
 
-## React Compiler
+- Teste de digitação de 15, 30 ou 60 segundos, com dificuldade, acentos, maiúsculas e pontuação configuráveis.
+- Cadastro, login e perfil com histórico, gráfico de evolução e foto.
+- Ranking público com o melhor resultado de cada jogador por duração.
+- Batalhas de 2 a 4 jogadores (melhor de 1, 3 ou 5) sem precisar de conta. O servidor gera o texto e calcula a pontuação.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Rodando localmente
 
-## Expanding the ESLint configuration
+Pré-requisitos: Node.js 20+ e um PostgreSQL.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Backend
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+cd backend
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+Crie `backend/.env`:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+```env
+DATABASE_URL=postgresql://usuario:senha@localhost:5432/typebattle
+JWT_SECRET=uma-chave-longa-e-aleatoria
+CLOUDINARY_URL=cloudinary://API_KEY:API_SECRET@CLOUD_NAME
+# Opcional: origens extras liberadas no CORS, separadas por vírgula
+FRONTEND_URL=https://meu-front.vercel.app
+```
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Aplique as migrations e suba o servidor:
+
+```bash
+npx prisma db migrate
+npm run dev        # http://localhost:3000
+```
+
+### Frontend
+
+Na raiz:
+
+```bash
+npm install
+npm run dev        # http://localhost:5173
+```
+
+Por padrão o front usa `http://localhost:3000`. Para apontar para outro backend, crie `.env.local`:
+
+```env
+VITE_API_URL=https://minha-api.up.railway.app/api
+VITE_SOCKET_URL=https://minha-api.up.railway.app
+```
+
+## API
+
+| Método | Rota | Auth | Descrição |
+| --- | --- | --- | --- |
+| GET | `/api/health` | | Status da API |
+| POST | `/api/users` | | Cadastro |
+| POST | `/api/auth/login` | | Login (retorna JWT de 7 dias) |
+| GET | `/api/auth/me` | ✓ | Dados atuais do usuário |
+| POST | `/api/users/avatar` | ✓ | Upload da foto (campo `avatar`, até 5 MB) |
+| DELETE | `/api/users/avatar` | ✓ | Remove a foto |
+| POST | `/api/typing-results` | ✓ | Salva um resultado |
+| GET | `/api/typing-results` | ✓ | Histórico do usuário |
+| GET | `/api/typing-results/ranking?duration=15\|30\|60` | | Top 100 da duração |
+
+Login, cadastro, upload de foto e envio de resultados têm limite de requisições por IP.
+
+## Estrutura do backend
 
 ```
+backend/src/
+  server.ts              Express, CORS, rotas e inicialização do Socket.IO
+  routes/                Definição das rotas HTTP
+  controllers/           Regras de cada rota
+  middleware/            JWT e limite de requisições
+  socket/battleSocket.ts Salas e partidas multiplayer
+  battle/                Tipos e gerador de texto das partidas
+  prisma/                Contrato do banco (contract.prisma) e cliente
+```
+
+## Deploy
+
+- **Railway (backend):** root `backend/`, build `npm run build`, start `npm start`. Configure as variáveis do `.env` acima.
+- **Vercel (frontend):** build `npm run build`, saída `dist/`. Configure `VITE_API_URL` e `VITE_SOCKET_URL`.

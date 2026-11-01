@@ -1,5 +1,5 @@
 import bcrypt from "bcrypt";
-import type { Request, Response } from "express";
+import type { NextFunction, Request, Response } from "express";
 import multer from "multer";
 import { v2 as cloudinary } from "cloudinary";
 
@@ -20,14 +20,80 @@ export const avatarUpload = multer({
   },
 });
 
+// Converte erros do multer (arquivo grande, tipo inválido) em resposta JSON.
+export function handleAvatarUploadError(
+  error: unknown,
+  _request: Request,
+  response: Response,
+  next: NextFunction,
+) {
+  if (error instanceof multer.MulterError) {
+    const message =
+      error.code === "LIMIT_FILE_SIZE"
+        ? "A imagem deve ter no máximo 5 MB."
+        : "Não foi possível processar a imagem enviada.";
+
+    return response.status(400).json({ message });
+  }
+
+  if (error instanceof Error) {
+    return response.status(400).json({ message: error.message });
+  }
+
+  next(error);
+}
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Extrai o public_id de uma URL do Cloudinary gerada por este backend.
+function getAvatarPublicId(avatarUrl: string): string | null {
+  const match = avatarUrl.match(/\/upload\/(?:v\d+\/)?(typebattle\/avatars\/[^.]+)/);
+  return match?.[1] ?? null;
+}
+
+// Apaga a foto antiga sem interromper a requisição se falhar.
+async function deleteStoredAvatar(avatarUrl: string | null | undefined) {
+  if (!avatarUrl) return;
+
+  const publicId = getAvatarPublicId(avatarUrl);
+  if (!publicId) return;
+
+  try {
+    await cloudinary.uploader.destroy(publicId, { resource_type: "image" });
+  } catch (error) {
+    console.error("ERRO AO APAGAR FOTO ANTIGA:", error);
+  }
+}
+
 // Cria um novo usuário.
 export async function createUser(request: Request, response: Response) {
   try {
-    const { name, email, password } = request.body;
+    const { name: rawName, email: rawEmail, password } = request.body ?? {};
+    const name = typeof rawName === "string" ? rawName.trim() : "";
+    const email = typeof rawEmail === "string" ? rawEmail.trim() : "";
 
-    if (!name || !email || !password) {
+    if (!name || !email || !password || typeof password !== "string") {
       return response.status(400).json({
         message: "Nome, email e senha são obrigatórios.",
+      });
+    }
+
+    if (name.length > 50) {
+      return response.status(400).json({
+        message: "O nome deve ter no máximo 50 caracteres.",
+      });
+    }
+
+    if (email.length > 254 || !EMAIL_PATTERN.test(email)) {
+      return response.status(400).json({
+        message: "Informe um email válido.",
+      });
+    }
+
+    // O bcrypt considera só os primeiros 72 bytes da senha.
+    if (password.length < 6 || Buffer.byteLength(password) > 72) {
+      return response.status(400).json({
+        message: "A senha deve ter entre 6 e 72 caracteres.",
       });
     }
 
@@ -58,7 +124,6 @@ export async function createUser(request: Request, response: Response) {
 
     return response.status(500).json({
       message: "Erro ao criar usuário.",
-      error: error instanceof Error ? error.message : String(error),
     });
   }
 }
@@ -107,9 +172,15 @@ export async function uploadAvatar(request: Request, response: Response) {
       },
     );
 
+    const currentUser = await db.orm.public.User.select("avatarUrl").first({
+      id: userId,
+    });
+
     await db.orm.public.User.where({ id: userId }).update({
       avatarUrl: result.secure_url,
     });
+
+    await deleteStoredAvatar(currentUser?.avatarUrl);
 
     return response.status(200).json({
       message: "Foto de perfil atualizada com sucesso.",
@@ -135,9 +206,15 @@ export async function removeAvatar(request: Request, response: Response) {
       });
     }
 
+    const currentUser = await db.orm.public.User.select("avatarUrl").first({
+      id: userId,
+    });
+
     await db.orm.public.User.where({ id: userId }).update({
       avatarUrl: null,
     });
+
+    await deleteStoredAvatar(currentUser?.avatarUrl);
 
     return response.status(200).json({
       message: "Foto de perfil removida com sucesso.",
