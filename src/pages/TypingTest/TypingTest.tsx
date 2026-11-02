@@ -132,6 +132,7 @@ export function TypingTest() {
     wordCount,
     quoteLength,
     timeLeft,
+    elapsedMs,
     typedWords,
     totalWords,
     input,
@@ -699,7 +700,11 @@ export function TypingTest() {
               >
                 <Box>
                   <Typography variant="caption" sx={captionSx}>
-                    {mode === "time" ? "Tempo restante" : "Palavras"}
+                    {mode === "time"
+                      ? "Tempo restante"
+                      : mode === "words"
+                        ? "Palavras"
+                        : "Tempo"}
                   </Typography>
                   <Typography
                     variant="h3"
@@ -714,6 +719,9 @@ export function TypingTest() {
                   >
                     {mode === "time" ? (
                       `${timeLeft}s`
+                    ) : mode === "quote" ? (
+                      // Frases: o tempo corre; o PPM aparece ao terminar.
+                      `${Math.floor(elapsedMs / 1000)}s`
                     ) : (
                       <>
                         {typedWords}

@@ -32,9 +32,19 @@ export function getPlayerName(room: BattleRoom, socketId: string | null) {
   );
 }
 
-// Mesmo critério do servidor: maior PPM, depois maior precisão.
+// Mesmo critério do servidor: no modo palavras, quem terminou primeiro;
+// depois maior PPM e maior precisão.
 export function rankPlayers(players: RoomPlayer[]): RoomPlayer[] {
   return [...players].sort((first, second) => {
+    const firstFinish = first.finishMs ?? null;
+    const secondFinish = second.finishMs ?? null;
+
+    if (firstFinish !== secondFinish) {
+      if (firstFinish === null) return 1;
+      if (secondFinish === null) return -1;
+      return firstFinish - secondFinish;
+    }
+
     if (first.ppm !== second.ppm) return second.ppm - first.ppm;
     return second.accuracy - first.accuracy;
   });
@@ -46,6 +56,11 @@ export function formatClock(milliseconds: number): string {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+// Segundos com uma casa decimal, no formato brasileiro (ex.: "23,4 s").
+export function formatSeconds(milliseconds: number): string {
+  return `${(milliseconds / 1000).toFixed(1).replace(".", ",")} s`;
 }
 
 export function buildInviteLink(code: string): string {

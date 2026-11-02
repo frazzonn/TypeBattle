@@ -3,6 +3,7 @@ import EmojiEventsOutlinedIcon from "@mui/icons-material/EmojiEventsOutlined";
 import LinkRoundedIcon from "@mui/icons-material/LinkRounded";
 
 import {
+  formatSeconds,
   getMaximumRounds,
   getPlayerColor,
   getPlayerName,
@@ -50,6 +51,13 @@ export function BattleResult({
   const roundWinner = battle.winnerSocketId;
   const seriesWinner = room.seriesWinnerSocketId ?? null;
   const ranking = rankPlayers(room.players);
+  const isWordsMode = room.settings.mode === "words";
+  const winnerFinishMs = room.players.find(
+    (player) => player.socketId === roundWinner,
+  )?.finishMs;
+  const headers = isWordsMode
+    ? ["#", "JOGADOR", "TEMPO", "PPM", "PRECISÃO", "ERROS"]
+    : ["#", "JOGADOR", "PPM", "PRECISÃO", "ERROS"];
 
   let title: string;
   if (seriesFinished && isSeries) {
@@ -121,6 +129,13 @@ export function BattleResult({
         >
           {title}
         </Typography>
+        {isWordsMode && (
+          <Typography sx={{ color: colors.textSecondary, fontSize: 15 }}>
+            {winnerFinishMs != null
+              ? `Terminou as ${room.settings.wordCount} palavras em ${formatSeconds(winnerFinishMs)}`
+              : "Ninguém terminou a tempo: vale quem foi mais longe."}
+          </Typography>
+        )}
         {isSeries && (
           <Typography sx={{ color: colors.textSecondary, fontSize: 15 }}>
             Placar da série:{" "}
@@ -140,7 +155,7 @@ export function BattleResult({
         >
           <Box component="thead">
             <Box component="tr" sx={{ textAlign: "left" }}>
-              {["#", "JOGADOR", "PPM", "PRECISÃO", "ERROS"].map((header, index) => (
+              {headers.map((header, index) => (
                 <Box
                   component="th"
                   key={header}
@@ -149,7 +164,7 @@ export function BattleResult({
                     ...labelSx,
                     py: 1.75,
                     px: index === 0 ? 2.5 : 1,
-                    pr: index === 4 ? 2.5 : 1,
+                    pr: index === headers.length - 1 ? 2.5 : 1,
                     textAlign: index >= 2 ? "right" : "left",
                   }}
                 >
@@ -202,6 +217,14 @@ export function BattleResult({
                       )}
                     </Box>
                   </Box>
+                  {/* Modo palavras: tempo de quem terminou; progresso dos demais. */}
+                  {isWordsMode && (
+                    <Box component="td" sx={cellSx}>
+                      {player.finishMs != null
+                        ? formatSeconds(player.finishMs)
+                        : `${player.progress}%`}
+                    </Box>
+                  )}
                   <Box
                     component="td"
                     sx={{ ...cellSx, color: "#ffffff", fontWeight: 700, fontSize: 18 }}

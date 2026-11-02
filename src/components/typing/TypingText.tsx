@@ -170,6 +170,19 @@ function TypingTextComponent({
     setCapsLockOn(event.getModifierState("CapsLock"));
   }
 
+  // O espaço só vale no fim da palavra: apertar espaço sem parar não avança
+  // o texto nem soma pontos.
+  function handleChange(value: string) {
+    const typedSpace =
+      value.length === input.length + 1 &&
+      value.startsWith(input) &&
+      value.endsWith(" ");
+
+    if (typedSpace && text[input.length] !== " ") return;
+
+    onInputChange(value);
+  }
+
   return (
     <Box
       sx={{
@@ -398,7 +411,7 @@ function TypingTextComponent({
           }}
           onKeyDown={handleKeyEvent}
           onKeyUp={handleKeyEvent}
-          onChange={(event) => onInputChange(event.target.value)}
+          onChange={(event) => handleChange(event.target.value)}
           aria-label="Digite o texto do teste"
           autoComplete="off"
           autoCapitalize="off"

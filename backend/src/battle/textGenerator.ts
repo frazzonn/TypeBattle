@@ -33,7 +33,8 @@ export function makeText(settings: RoomSettings): string {
   // Sem acentos, eles são removidos; alfabetos não latinos ficam como estão.
   const stripAccents = !settings.accents && language.latin;
   const generatedWords: string[] = [];
-  const wordCount = 80;
+  // No modo palavras o texto tem exatamente as palavras da rodada.
+  const wordCount = settings.mode === "words" ? settings.wordCount : 80;
   const getSentenceLength = () => Math.floor(Math.random() * 5) + 6;
   let wordsInSentence = 0;
   let sentenceLength = getSentenceLength();

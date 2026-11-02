@@ -40,13 +40,34 @@ export function BattleMatch({
     ? Math.max(0, Math.ceil((battle.countdownEndsAt - now) / 1000))
     : 0;
 
+  const isWordsMode = room.settings.mode === "words";
+
   const remaining = isCountdown
     ? room.settings.duration * 1000
     : battle.endsAt != null
       ? Math.max(0, battle.endsAt - now)
       : 0;
 
-  const isRunningOut = !isCountdown && remaining <= 5000;
+  // No modo palavras o relógio conta para cima: o tempo de cada um é o placar.
+  const elapsed =
+    !isCountdown && battle.startedAt != null
+      ? Math.max(0, now - battle.startedAt)
+      : 0;
+
+  const isRunningOut = !isWordsMode && !isCountdown && remaining <= 5000;
+
+  // Chegou ao fim do texto, mas ainda há letras erradas no caminho.
+  const needsFixing =
+    isWordsMode &&
+    typedText.length >= battle.text.length &&
+    typedText !== battle.text;
+
+  const textLength = battle.text.length;
+
+  function handleType(value: string) {
+    // No modo palavras não dá para digitar além do texto.
+    onType(isWordsMode ? value.slice(0, textLength) : value);
+  }
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
@@ -84,7 +105,7 @@ export function BattleMatch({
 
         <Box
           role="timer"
-          aria-label="Tempo restante"
+          aria-label={isWordsMode ? "Tempo da rodada" : "Tempo restante"}
           sx={{
             display: "flex",
             alignItems: "baseline",
@@ -108,10 +129,16 @@ export function BattleMatch({
               color: isRunningOut ? "#f87171" : "#ffffff",
             }}
           >
-            {formatClock(remaining)}
+            {isWordsMode
+              ? formatClock(Math.floor(elapsed / 1000) * 1000)
+              : formatClock(remaining)}
           </Typography>
           <Typography sx={{ color: colors.textSecondary, fontSize: 13 }}>
-            {isCountdown ? "de prova" : "restantes"}
+            {isWordsMode
+              ? `${room.settings.wordCount} palavras`
+              : isCountdown
+                ? "de prova"
+                : "restantes"}
           </Typography>
         </Box>
       </Box>
@@ -291,13 +318,24 @@ export function BattleMatch({
           </Box>
         </Box>
       ) : (
-        <TypingText
-          text={battle.text}
-          input={typedText}
-          isStarted
-          onInputChange={onType}
-          inputRef={inputRef}
-        />
+        <Box>
+          <TypingText
+            text={battle.text}
+            input={typedText}
+            isStarted
+            onInputChange={handleType}
+            inputRef={inputRef}
+          />
+          {needsFixing && (
+            <Typography
+              role="status"
+              sx={{ mt: 1.5, color: "#fbbf24", fontWeight: 700, fontSize: 15 }}
+            >
+              Corrija os erros para terminar: apague até a letra errada e digite
+              de novo.
+            </Typography>
+          )}
+        </Box>
       )}
 
       <Box

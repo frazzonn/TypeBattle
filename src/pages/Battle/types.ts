@@ -6,6 +6,11 @@ export type Duration = 15 | 30 | 60;
 
 export type PlayerLimit = 2 | 3 | 4;
 
+// Tempo: maior PPM no fim do relógio. Palavras: quem terminar o texto primeiro.
+export type BattleMode = "time" | "words";
+
+export type WordCount = 10 | 25 | 50 | 100;
+
 export type RoomStatus = "waiting" | "countdown" | "playing" | "finished";
 
 export interface RoomSettings {
@@ -14,7 +19,9 @@ export interface RoomSettings {
   accents: boolean;
   uppercase: boolean;
   punctuation: boolean;
+  mode: BattleMode;
   duration: Duration;
+  wordCount: WordCount;
   format: MatchFormat;
   playerLimit: PlayerLimit;
 }
@@ -30,6 +37,8 @@ export interface RoomPlayer {
   accuracy: number;
   errors: number;
   progress: number;
+  // Modo palavras: ms até terminar o texto (null = não terminou).
+  finishMs?: number | null;
 }
 
 export interface BattleState {
@@ -67,7 +76,9 @@ export const DEFAULT_SETTINGS: RoomSettings = {
   accents: true,
   uppercase: false,
   punctuation: false,
+  mode: "time",
   duration: 30,
+  wordCount: 25,
   format: "single",
   playerLimit: 2,
 };

@@ -9,19 +9,32 @@ import {
   isLanguageCode,
   makeText,
 } from "../battle/textGenerator.js";
-import type { MatchFormat, RoomSettings, RoomStatus } from "../battle/types.js";
+import type {
+  MatchFormat,
+  RoomSettings,
+  RoomStatus,
+  WordCount,
+} from "../battle/types.js";
 
-// Aceita clientes antigos sem playerLimit ou language e usa os padrões.
-type RoomSettingsInput = Omit<RoomSettings, "playerLimit" | "language"> & {
+// Aceita clientes antigos sem playerLimit, language ou modo e usa os padrões.
+type RoomSettingsInput = Omit<
+  RoomSettings,
+  "playerLimit" | "language" | "mode" | "wordCount"
+> & {
   playerLimit?: unknown;
   language?: string;
+  mode?: unknown;
+  wordCount?: unknown;
 };
 interface PlayerScore {
   ppm: number;
   accuracy: number;
   errors: number;
   progress: number;
+  // Modo palavras: ms desde o início até terminar o texto (null = não terminou).
+  finishMs: number | null;
 }
+const WORD_COUNTS: WordCount[] = [10, 25, 50, 100];
 interface RoomPlayer extends PlayerScore {
   socketId: string;
   nickname: string;
@@ -102,6 +115,10 @@ function isValidSettings(value: unknown): value is RoomSettingsInput {
     typeof settings.uppercase === "boolean" &&
     typeof settings.punctuation === "boolean" &&
     [15, 30, 60].includes(Number(settings.duration)) &&
+    (settings.mode === undefined ||
+      ["time", "words"].includes(String(settings.mode))) &&
+    (settings.wordCount === undefined ||
+      WORD_COUNTS.includes(Number(settings.wordCount) as WordCount)) &&
     ["single", "best-of-3", "best-of-5"].includes(String(settings.format)) &&
     (settings.playerLimit === undefined ||
       [2, 3, 4].includes(Number(settings.playerLimit)))
@@ -109,13 +126,16 @@ function isValidSettings(value: unknown): value is RoomSettingsInput {
 }
 function normalizeRoomSettings(settings: RoomSettingsInput): RoomSettings {
   const limit = Number(settings.playerLimit);
+  const wordCount = Number(settings.wordCount) as WordCount;
   return {
     difficulty: settings.difficulty,
     language: settings.language ?? DEFAULT_LANGUAGE,
     accents: settings.accents,
     uppercase: settings.uppercase,
     punctuation: settings.punctuation,
+    mode: settings.mode === "words" ? "words" : "time",
     duration: settings.duration,
+    wordCount: WORD_COUNTS.includes(wordCount) ? wordCount : 25,
     format: settings.format,
     playerLimit: limit === 3 ? 3 : limit === 4 ? 4 : 2,
   };
@@ -126,7 +146,16 @@ function initialScore(): PlayerScore {
     accuracy: 0,
     errors: 0,
     progress: 0,
+    finishMs: null,
   };
+}
+// Tempo máximo da rodada. No modo palavras é um limite de segurança para
+// quando ninguém termina: 3 s por palavra, no mínimo 1 minuto.
+function getRoundLimitMs(settings: RoomSettings): number {
+  if (settings.mode === "words") {
+    return Math.max(60, settings.wordCount * 3) * 1000;
+  }
+  return settings.duration * 1000;
 }
 function makePlayer(
   socketId: string,
@@ -164,16 +193,26 @@ function publicRoom(room: BattleRoom) {
   const { typedTexts: _typedTexts, userIds: _userIds, ...safeRoom } = room;
   return safeRoom;
 }
-// Ordem da rodada: mais PPM primeiro; empate, maior precisão.
+// Ordem da rodada: no modo palavras, quem terminou primeiro na frente; depois
+// mais PPM e, empatando, maior precisão.
 function rankByScore(players: RoomPlayer[]): RoomPlayer[] {
   return [...players].sort((first, second) => {
+    if (first.finishMs !== second.finishMs) {
+      if (first.finishMs === null) return 1;
+      if (second.finishMs === null) return -1;
+      return first.finishMs - second.finishMs;
+    }
     if (first.ppm !== second.ppm) return second.ppm - first.ppm;
     return second.accuracy - first.accuracy;
   });
 }
 // Guarda no histórico de quem está logado o resultado oficial da rodada.
 // Roda em segundo plano: uma falha no banco não atrapalha a partida.
-function saveRoundResults(room: BattleRoom, roundWinner: string | null) {
+function saveRoundResults(
+  room: BattleRoom,
+  roundWinner: string | null,
+  elapsedMs: number,
+) {
   const ranked = rankByScore(room.players);
   const rows = ranked.flatMap((player, index) => {
     const userId = room.userIds[player.socketId];
@@ -187,7 +226,11 @@ function saveRoundResults(room: BattleRoom, roundWinner: string | null) {
         ppm: player.ppm,
         accuracy: Math.round(player.accuracy),
         errors: player.errors,
-        duration: room.settings.duration,
+        // No modo palavras, quanto tempo o jogador levou.
+        duration:
+          room.settings.mode === "words"
+            ? Math.max(1, Math.round((player.finishMs ?? elapsedMs) / 1000))
+            : room.settings.duration,
         language: room.settings.language,
       },
     ];
@@ -219,16 +262,20 @@ function clearTimers(code: string) {
   clearTimer(lobbyTimers, code);
 }
 // O servidor calcula as estatísticas oficiais da rodada.
+// No modo palavras o progresso vai só até a primeira letra errada.
 function calculateScore(
   typedText: string,
   target: string,
   elapsedMs: number,
-): PlayerScore {
+  progressUntilFirstError = false,
+): Omit<PlayerScore, "finishMs"> {
   let correct = 0;
   let errors = 0;
+  let correctPrefix = 0;
   for (let index = 0; index < typedText.length; index += 1) {
     if (index < target.length && typedText[index] === target[index]) {
       correct += 1;
+      if (errors === 0) correctPrefix += 1;
     } else {
       errors += 1;
     }
@@ -237,9 +284,10 @@ function calculateScore(
     typedText.length > 0 ? (correct / typedText.length) * 100 : 0;
   const minutes = Math.max(elapsedMs, 1000) / 60000;
   const ppm = Math.round(correct / 5 / minutes);
+  const advanced = progressUntilFirstError ? correctPrefix : typedText.length;
   const progress =
     target.length > 0
-      ? Math.min(100, Math.round((typedText.length / target.length) * 100))
+      ? Math.min(100, Math.round((advanced / target.length) * 100))
       : 0;
   return {
     ppm,
@@ -265,6 +313,8 @@ function getRoundWinner(room: BattleRoom): string | null {
   const second = rankedPlayers[1];
   if (!first) return null;
   if (!second) return first.socketId;
+  // Modo palavras: quem terminou o texto primeiro vence.
+  if (first.finishMs !== null) return first.socketId;
   // Se os melhores empatarem em PPM e precisão, a rodada termina empatada.
   if (first.ppm === second.ppm && first.accuracy === second.accuracy) {
     return null;
@@ -298,21 +348,26 @@ function finishBattle(room: BattleRoom) {
   if (startedAt === null) {
     return;
   }
-  const elapsed = Date.now() - startedAt;
+  const elapsed = Math.min(
+    Date.now() - startedAt,
+    getRoundLimitMs(room.settings),
+  );
   // Recalcula os resultados no servidor, evitando confiar só no navegador.
+  // Quem terminou o texto tem o PPM medido até a hora em que terminou.
   for (const player of room.players) {
     Object.assign(
       player,
       calculateScore(
         room.typedTexts[player.socketId] ?? "",
         battle.text,
-        elapsed,
+        player.finishMs ?? elapsed,
+        room.settings.mode === "words",
       ),
     );
   }
   const roundWinner = getRoundWinner(room);
   battle.winnerSocketId = roundWinner;
-  saveRoundResults(room, roundWinner);
+  saveRoundResults(room, roundWinner, elapsed);
   if (roundWinner) {
     room.seriesWins[roundWinner] = (room.seriesWins[roundWinner] ?? 0) + 1;
   }
@@ -410,7 +465,8 @@ function startRound(room: BattleRoom, round: number): boolean {
     const now = Date.now();
     currentRoom.status = "playing";
     currentRoom.battle.startedAt = now;
-    currentRoom.battle.endsAt = now + currentRoom.settings.duration * 1000;
+    const limit = getRoundLimitMs(currentRoom.settings);
+    currentRoom.battle.endsAt = now + limit;
     currentRoom.battle.countdownEndsAt = null;
     sendRoomUpdate(currentRoom);
     io.to(currentRoom.code).emit("battle:started", {
@@ -422,7 +478,7 @@ function startRound(room: BattleRoom, round: number): boolean {
     const finishTimer = setTimeout(() => {
       const roomToFinish = rooms.get(currentRoom.code);
       if (roomToFinish) finishBattle(roomToFinish);
-    }, currentRoom.settings.duration * 1000);
+    }, limit);
     finishTimers.set(currentRoom.code, finishTimer);
     countdownTimers.delete(currentRoom.code);
   }, 3000);
@@ -595,18 +651,29 @@ export function registerBattleSocket(server: Server) {
         return;
       }
       const target = room.battle.text;
+      const isWordsMode = room.settings.mode === "words";
+      // No modo palavras não há o que digitar depois do fim do texto.
       const typedText =
         typeof payload?.typedText === "string"
-          ? payload.typedText.slice(0, target.length + 100)
+          ? payload.typedText.slice(0, target.length + (isWordsMode ? 0 : 100))
           : "";
       room.typedTexts[socket.id] = typedText;
       const elapsed = Math.min(
         Date.now() - room.battle.startedAt,
-        room.settings.duration * 1000,
+        getRoundLimitMs(room.settings),
       );
       const player = room.players.find((item) => item.socketId === socket.id);
       if (player) {
-        Object.assign(player, calculateScore(typedText, target, elapsed));
+        Object.assign(
+          player,
+          calculateScore(typedText, target, elapsed, isWordsMode),
+        );
+        // Terminou o texto sem nenhum erro restante: vence e a rodada acaba.
+        if (isWordsMode && typedText === target) {
+          player.finishMs = elapsed;
+          finishBattle(room);
+          return;
+        }
       }
       sendRoomUpdate(room);
     });

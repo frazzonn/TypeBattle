@@ -445,17 +445,47 @@ export function BattleLobby({
               ]}
             />
           )}
-          <SegmentedControl
-            label="Duração"
-            value={settings.duration}
-            disabled={!canEdit}
-            onChange={(value) => change("duration", value)}
-            options={[
-              { value: 15, label: "15 s" },
-              { value: 30, label: "30 s" },
-              { value: 60, label: "60 s" },
-            ]}
-          />
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            <SegmentedControl
+              label="Modo"
+              value={settings.mode}
+              disabled={!canEdit}
+              onChange={(value) => change("mode", value)}
+              options={[
+                { value: "time", label: "Tempo" },
+                { value: "words", label: "Palavras" },
+              ]}
+            />
+            <Typography sx={{ color: colors.textSecondary, fontSize: 13 }}>
+              {settings.mode === "words"
+                ? "Quem terminar o texto primeiro, sem erros, vence."
+                : "Quem tiver mais PPM quando o tempo acabar vence."}
+            </Typography>
+          </Box>
+          {settings.mode === "words" ? (
+            <SegmentedControl
+              label="Palavras"
+              value={settings.wordCount}
+              disabled={!canEdit}
+              onChange={(value) => change("wordCount", value)}
+              options={([10, 25, 50, 100] as const).map((count) => ({
+                value: count,
+                label: String(count),
+              }))}
+            />
+          ) : (
+            <SegmentedControl
+              label="Duração"
+              value={settings.duration}
+              disabled={!canEdit}
+              onChange={(value) => change("duration", value)}
+              options={[
+                { value: 15, label: "15 s" },
+                { value: 30, label: "30 s" },
+                { value: 60, label: "60 s" },
+              ]}
+            />
+          )}
           <SegmentedControl
             label="Formato"
             value={settings.format}
