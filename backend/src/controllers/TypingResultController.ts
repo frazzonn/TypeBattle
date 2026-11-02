@@ -240,22 +240,23 @@ export async function getRanking(request: Request, response: Response) {
       .sort((a, b) => b.ppm - a.ppm)
       .slice(0, RANKING_LIMIT);
 
-    // Busca só os nomes dos usuários que aparecem no ranking.
+    // Busca só os nomes e fotos dos usuários que aparecem no ranking.
     const userIds = topResults.map((result) => result.userId);
     const users =
       userIds.length > 0
         ? await db.orm.public.User.where((user) => user.id.in(userIds))
-            .select("id", "name")
+            .select("id", "name", "avatarUrl")
             .all()
         : [];
-    const namesById = new Map(users.map((user) => [user.id, user.name]));
+    const usersById = new Map(users.map((user) => [user.id, user]));
 
     // Monta o ranking relacionando resultado e usuário.
     const ranking = topResults.map((result, index) => ({
       // Adiciona a posição do jogador.
       position: index + 1,
       userId: result.userId,
-      name: namesById.get(result.userId) ?? "Usuário",
+      name: usersById.get(result.userId)?.name ?? "Usuário",
+      avatarUrl: usersById.get(result.userId)?.avatarUrl ?? null,
       ppm: result.ppm,
       accuracy: result.accuracy,
     }));

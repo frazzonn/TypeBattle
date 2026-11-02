@@ -1,4 +1,11 @@
-import { memo, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  memo,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { KeyboardEvent } from "react";
 import { Box, Typography } from "@mui/material";
 import KeyboardCapslockRoundedIcon from "@mui/icons-material/KeyboardCapslockRounded";
@@ -8,6 +15,8 @@ interface TypingTextProps {
   input: string;
   isStarted: boolean;
   isPaused?: boolean;
+  // Modo perseguição: quantas letras o perseguidor já andou.
+  chaserPosition?: number | null;
   onInputChange: (value: string) => void;
   inputRef: React.RefObject<HTMLInputElement | null>;
 }
@@ -64,7 +73,7 @@ const Word = memo(function Word({
           <span
             key={index}
             ref={index === caretIndex ? caretRef : null}
-            className={`ch${status}`}
+            className={`ch${status}${character === " " ? " sp" : ""}`}
           >
             {character}
           </span>
@@ -79,6 +88,7 @@ function TypingTextComponent({
   input,
   isStarted,
   isPaused = false,
+  chaserPosition = null,
   onInputChange,
   inputRef,
 }: TypingTextProps) {
@@ -86,6 +96,7 @@ function TypingTextComponent({
   const textContentRef = useRef<HTMLDivElement>(null);
   const currentCharacterRef = useRef<HTMLSpanElement>(null);
   const caretRef = useRef<HTMLDivElement>(null);
+  const chaserRef = useRef<HTMLDivElement>(null);
   const caretPlacedRef = useRef(false);
   const targetScrollOffsetRef = useRef(0);
 
@@ -156,6 +167,29 @@ function TypingTextComponent({
     }
   }, [input, text]);
 
+  // Coloca o perseguidor sobre a letra em que ele está.
+  useLayoutEffect(() => {
+    const chaser = chaserRef.current;
+    const content = textContentRef.current;
+    if (!chaser || !content) return;
+
+    const letters = content.querySelectorAll<HTMLElement>(".ch");
+    const letter =
+      chaserPosition === null ? null : letters[Math.floor(chaserPosition)];
+
+    if (!letter) {
+      chaser.style.opacity = "0";
+      return;
+    }
+
+    const contentRect = content.getBoundingClientRect();
+    const letterRect = letter.getBoundingClientRect();
+    chaser.style.left = `${letterRect.left - contentRect.left}px`;
+    chaser.style.top = `${letterRect.top - contentRect.top}px`;
+    chaser.style.height = `${letterRect.height}px`;
+    chaser.style.opacity = "1";
+  }, [chaserPosition, input, text]);
+
   const showOverlay = !hasFocused && !isStarted && input.length === 0;
   const overlayMessage = isPaused
     ? "Pausado · digite para continuar"
@@ -171,7 +205,44 @@ function TypingTextComponent({
   }
 
   // O espaço só vale no fim da palavra: apertar espaço sem parar não avança
-  // o texto nem soma pontos.
+  // o texto nem soma pontos. Barrar já na tecla evita que o navegador role a
+  // página ao devolver o valor antigo do campo.
+  function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    handleKeyEvent(event);
+
+    if (event.key === " " && text[input.length] !== " ") {
+      event.preventDefault();
+    }
+  }
+
+  // Sem o foco no texto, digitar leva o foco para ele (o espaço não rola a
+  // página). Botões e campos continuam funcionando normalmente.
+  useEffect(() => {
+    function focusOnType(event: globalThis.KeyboardEvent) {
+      const active = document.activeElement;
+      const onPage = !active || active === document.body;
+      const isCharacter = event.key.length === 1;
+
+      if (
+        !onPage ||
+        !isCharacter ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.altKey
+      ) {
+        return;
+      }
+
+      if (event.key === " ") event.preventDefault();
+      setHasFocused(true);
+      inputRef.current?.focus({ preventScroll: true });
+    }
+
+    window.addEventListener("keydown", focusOnType);
+    return () => window.removeEventListener("keydown", focusOnType);
+  }, [inputRef]);
+
+  // Segurança para teclados que não informam a tecla (alguns celulares).
   function handleChange(value: string) {
     const typedSpace =
       value.length === input.length + 1 &&
@@ -247,7 +318,9 @@ function TypingTextComponent({
         sx={{
           position: "relative",
           width: "100%",
-          fontSize: { xs: "1.2rem", md: "1.5rem" },
+          fontFamily:
+            '"JetBrains Mono", ui-monospace, "Cascadia Code", Consolas, monospace',
+          fontSize: { xs: "1.2rem", md: "1.6rem" },
           lineHeight: 1.8,
           height: { xs: "6.48rem", md: "8.1rem" },
           overflow: "hidden",
@@ -281,6 +354,11 @@ function TypingTextComponent({
             },
             "& .ch.ok": { color: "#4ade80" },
             "& .ch.err": { color: "#ff5c75" },
+            // Espaço errado: sem marca, um espaço vermelho seria invisível.
+            "& .ch.err.sp": {
+              backgroundColor: "rgba(255, 92, 117, 0.25)",
+              boxShadow: "inset 0 -2px 0 #ff5c75",
+            },
           }}
         >
           {words.map((word) => {
@@ -317,6 +395,31 @@ function TypingTextComponent({
                 width: 0,
                 height: "1.2em",
                 verticalAlign: "middle",
+              }}
+            />
+          )}
+
+          {/* Perseguidor (modo perseguição): se chegar no seu cursor, acabou. */}
+          {chaserPosition !== null && (
+            <Box
+              ref={chaserRef}
+              aria-hidden="true"
+              sx={{
+                position: "absolute",
+                left: 0,
+                top: 0,
+                width: "3px",
+                height: "24px",
+                opacity: 0,
+                backgroundColor: "#ff5c75",
+                borderRadius: "2px",
+                boxShadow: "0 0 10px rgba(255, 92, 117, 0.75)",
+                pointerEvents: "none",
+                zIndex: 1,
+                transition: "left 100ms linear, top 100ms ease-out",
+                "@media (prefers-reduced-motion: reduce)": {
+                  transition: "none",
+                },
               }}
             />
           )}
@@ -409,7 +512,7 @@ function TypingTextComponent({
               setHasFocused(false);
             }
           }}
-          onKeyDown={handleKeyEvent}
+          onKeyDown={handleKeyDown}
           onKeyUp={handleKeyEvent}
           onChange={(event) => handleChange(event.target.value)}
           aria-label="Digite o texto do teste"

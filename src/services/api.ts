@@ -57,6 +57,7 @@ interface TypingResultsResponse {
 export interface RankingEntry {
   userId: number;
   name: string;
+  avatarUrl?: string | null;
   ppm: number;
   accuracy: number;
   position: number;

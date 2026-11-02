@@ -25,6 +25,7 @@ interface RankingPlayer {
   position: number;
   userId: number;
   name: string;
+  avatarUrl?: string | null;
   ppm: number;
   accuracy: number;
 }
@@ -420,6 +421,8 @@ export function Ranking() {
                     sx={{ display: "flex", justifyContent: "center", mb: 1.5 }}
                   >
                     <Avatar
+                      src={player.avatarUrl ?? undefined}
+                      alt={player.name}
                       sx={{
                         width: 58,
                         height: 58,
@@ -546,6 +549,8 @@ export function Ranking() {
                   </Box>
 
                   <Avatar
+                    src={player.avatarUrl ?? undefined}
+                    alt={player.name}
                     sx={{
                       width: 40,
                       height: 40,

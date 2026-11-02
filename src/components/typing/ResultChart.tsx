@@ -6,6 +6,8 @@ import type { SecondSample } from "../../hooks/useTypingTest";
 
 interface ResultChartProps {
   history: SecondSample[];
+  // Sem cartão nem título, para ficar ao lado dos números do resultado.
+  bare?: boolean;
 }
 
 const WIDTH = 800;
@@ -31,7 +33,7 @@ function formatSecond(second: number) {
 }
 
 // PPM segundo a segundo, com um × nos segundos em que houve erro.
-export function ResultChart({ history }: ResultChartProps) {
+export function ResultChart({ history, bare = false }: ResultChartProps) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
   if (history.length < 2) return null;
@@ -91,27 +93,33 @@ export function ResultChart({ history }: ResultChartProps) {
 
   return (
     <Box
-      sx={{
-        mt: 2.5,
-        p: { xs: 1.5, sm: 2.5 },
-        borderRadius: 3,
-        border: "1px solid #292d36",
-        backgroundColor: "#15171d",
-      }}
+      sx={
+        bare
+          ? undefined
+          : {
+              mt: 2.5,
+              p: { xs: 1.5, sm: 2.5 },
+              borderRadius: 3,
+              border: "1px solid #292d36",
+              backgroundColor: "#15171d",
+            }
+      }
     >
       <Box
         sx={{
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
+          justifyContent: bare ? "flex-end" : "space-between",
           gap: 2,
           mb: 1,
           flexWrap: "wrap",
         }}
       >
-        <Typography sx={{ color: "#ffffff", fontWeight: 700 }}>
-          Velocidade durante o teste
-        </Typography>
+        {!bare && (
+          <Typography sx={{ color: "#ffffff", fontWeight: 700 }}>
+            Velocidade durante o teste
+          </Typography>
+        )}
 
         {/* Legenda */}
         <Box

@@ -5,6 +5,8 @@ interface MissedKeysProps {
   missedKeys: Record<string, number>;
   limit?: number;
   emptyText?: string;
+  // Teclas menores, com a contagem ao lado e sem barra.
+  compact?: boolean;
 }
 
 function keyLabel(key: string) {
@@ -16,6 +18,7 @@ export function MissedKeys({
   missedKeys,
   limit = 6,
   emptyText = "Nenhum erro. Perfeito!",
+  compact = false,
 }: MissedKeysProps) {
   const keys = Object.entries(missedKeys)
     .filter(([, count]) => count > 0)
@@ -31,6 +34,57 @@ export function MissedKeys({
   }
 
   const highest = keys[0][1];
+
+  if (compact) {
+    return (
+      <Box
+        component="ul"
+        sx={{
+          listStyle: "none",
+          m: 0,
+          p: 0,
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 1.25,
+        }}
+      >
+        {keys.map(([key, count]) => (
+          <Box
+            component="li"
+            key={key}
+            aria-label={`${keyLabel(key)}: ${count} ${count === 1 ? "erro" : "erros"}`}
+            sx={{ display: "flex", alignItems: "center", gap: 0.75 }}
+          >
+            <Box
+              sx={{
+                minWidth: 40,
+                height: 40,
+                px: 1,
+                boxSizing: "border-box",
+                display: "grid",
+                placeItems: "center",
+                borderRadius: "8px",
+                border: "1px solid #3a3f4c",
+                borderBottomWidth: 3,
+                backgroundColor: "#20232b",
+                color: "#ffffff",
+                fontWeight: 700,
+                fontSize: key === " " ? 13 : 16,
+                fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+              }}
+            >
+              {keyLabel(key)}
+            </Box>
+            <Typography
+              sx={{ color: "#a0a4ad", fontSize: 13, fontWeight: 700 }}
+            >
+              {count}×
+            </Typography>
+          </Box>
+        ))}
+      </Box>
+    );
+  }
 
   return (
     <Box

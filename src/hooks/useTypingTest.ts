@@ -22,7 +22,27 @@ export const WORD_OPTIONS = [10, 25, 50, 100];
 
 // Tempo: digita até o relógio zerar. Palavras: um número fixo de palavras.
 // Frases: uma frase pronta do idioma, do começo ao fim.
-export type TestMode = "time" | "words" | "quote";
+// Perseguição: um cursor vem atrás de você, cada vez mais rápido.
+export type TestMode = "time" | "words" | "quote" | "chase";
+
+// Perseguição: o perseguidor espera um pouco, sai a 20 PPM e acelera
+// 1,5 PPM por segundo (aos 30 s está a 65 PPM; aos 60 s, a 110 PPM).
+export const CHASE_DELAY_MS = 2000;
+const CHASE_START_PPM = 20;
+const CHASE_ACCELERATION = 1.5;
+
+export function getChaserSpeed(milliseconds: number) {
+  const seconds = Math.max(0, milliseconds - CHASE_DELAY_MS) / 1000;
+  return Math.round(CHASE_START_PPM + CHASE_ACCELERATION * seconds);
+}
+
+// Quantas letras o perseguidor já andou (1 palavra = 5 letras).
+export function getChaserPosition(milliseconds: number) {
+  const seconds = Math.max(0, milliseconds - CHASE_DELAY_MS) / 1000;
+  const words =
+    (CHASE_START_PPM * seconds + (CHASE_ACCELERATION * seconds ** 2) / 2) / 60;
+  return words * 5;
+}
 export type QuoteLengthFilter = QuoteLength | "all";
 
 interface TypingSettings {
@@ -79,18 +99,26 @@ function pick<T>(value: unknown, allowed: readonly T[], fallback: T): T {
 // Configurações da última visita; valores inválidos voltam ao padrão.
 function loadSettings(): TypingSettings {
   try {
-    const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? "{}") as
-      | Record<string, unknown>
-      | null;
+    const saved = JSON.parse(
+      localStorage.getItem(SETTINGS_KEY) ?? "{}",
+    ) as Record<string, unknown> | null;
     if (!saved || typeof saved !== "object") return DEFAULT_SETTINGS;
 
     const flag = (value: unknown, fallback: boolean) =>
       typeof value === "boolean" ? value : fallback;
 
     return {
-      mode: pick(saved.mode, ["time", "words", "quote"], DEFAULT_SETTINGS.mode),
+      mode: pick(
+        saved.mode,
+        ["time", "words", "quote", "chase"],
+        DEFAULT_SETTINGS.mode,
+      ),
       time: pick(saved.time, TIME_OPTIONS, DEFAULT_SETTINGS.time),
-      wordCount: pick(saved.wordCount, WORD_OPTIONS, DEFAULT_SETTINGS.wordCount),
+      wordCount: pick(
+        saved.wordCount,
+        WORD_OPTIONS,
+        DEFAULT_SETTINGS.wordCount,
+      ),
       quoteLength: pick(
         saved.quoteLength,
         ["all", "short", "medium", "long"],
@@ -229,6 +257,8 @@ export function useTypingTest() {
   const [totalCharacters, setTotalCharacters] = useState(0);
   const [totalCorrectCharacters, setTotalCorrectCharacters] = useState(0);
   const [totalErrors, setTotalErrors] = useState(0);
+  // Letras certas desde o começo, até o primeiro erro (posição na perseguição).
+  const [correctPrefix, setCorrectPrefix] = useState(0);
 
   // Usados ao terminar (no relógio ou na última tecla), sem esperar o estado.
   const totalsRef = useRef({ characters: 0, correct: 0, errors: 0 });
@@ -254,6 +284,7 @@ export function useTypingTest() {
     setTotalCharacters(0);
     setTotalCorrectCharacters(0);
     setTotalErrors(0);
+    setCorrectPrefix(0);
 
     totalsRef.current = { characters: 0, correct: 0, errors: 0 };
     missedKeysRef.current = {};
@@ -318,16 +349,19 @@ export function useTypingTest() {
     const { characters, correct, errors } = totalsRef.current;
     const finalPpm = calculatePpm(correct, milliseconds);
     const amount = mode === "time" ? time : mode === "words" ? wordCount : null;
+    const durationSeconds = Math.round(milliseconds / 100) / 10;
+    // Na perseguição o recorde é quanto tempo você aguentou.
+    const recordValue = mode === "chase" ? durationSeconds : finalPpm;
 
     setResult({
       ppm: finalPpm,
       accuracy: calculateAccuracy(correct, characters),
       errors,
       characters,
-      durationSeconds: Math.round(milliseconds / 100) / 10,
+      durationSeconds,
       history: [...historyRef.current],
       missedKeys: { ...missedKeysRef.current },
-      record: registerResult(getRecordKey(mode, amount, language), finalPpm),
+      record: registerResult(getRecordKey(mode, amount, language), recordValue),
       quote: currentQuote,
     });
     setElapsedMs(milliseconds);
@@ -340,6 +374,16 @@ export function useTypingTest() {
 
     if (mode === "time" && milliseconds >= limit) {
       finish(limit);
+      return;
+    }
+
+    // Perseguição: o perseguidor chegou na sua posição.
+    if (
+      mode === "chase" &&
+      milliseconds > CHASE_DELAY_MS &&
+      getChaserPosition(milliseconds) >= correctPrefix
+    ) {
+      finish(milliseconds);
       return;
     }
 
@@ -435,15 +479,22 @@ export function useTypingTest() {
       setTotalErrors(totalsRef.current.errors);
     }
 
-    // No modo tempo, acrescenta palavras no final sem substituir o texto.
-    if (mode === "time" && targetText.length - value.length < 300) {
+    let prefix = 0;
+    while (prefix < value.length && value[prefix] === targetText[prefix]) {
+      prefix += 1;
+    }
+    setCorrectPrefix(prefix);
+
+    // Nos modos sem fim, acrescenta palavras sem substituir o texto.
+    const endless = mode === "time" || mode === "chase";
+    if (endless && targetText.length - value.length < 300) {
       setTargetText((previous) => `${previous} ${buildWords(80)}`);
     }
 
     setInput(value);
 
     // Palavras e frases terminam na última letra do texto.
-    if (mode !== "time" && value.length >= targetText.length) {
+    if (!endless && value.length >= targetText.length) {
       finish(Math.max(getElapsedNow(), 1));
     }
   }
@@ -453,6 +504,10 @@ export function useTypingTest() {
   const ppm =
     elapsedMs < 1000 ? 0 : calculatePpm(totalCorrectCharacters, elapsedMs);
   const accuracy = calculateAccuracy(totalCorrectCharacters, totalCharacters);
+  const chaserPosition =
+    mode === "chase" && (isStarted || isFinished)
+      ? getChaserPosition(elapsedMs)
+      : null;
 
   // Progresso nos modos palavras e frases.
   const totalWords = targetText ? targetText.split(" ").length : 0;
@@ -468,6 +523,9 @@ export function useTypingTest() {
     quoteLength,
     timeLeft,
     elapsedMs,
+    chaserPosition,
+    chaserSpeed: getChaserSpeed(elapsedMs),
+    correctPrefix,
     typedWords,
     totalWords,
     input,

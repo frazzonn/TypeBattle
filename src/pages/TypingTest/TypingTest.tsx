@@ -1,32 +1,22 @@
 import { useEffect, useRef, useState } from "react";
-import type { KeyboardEvent } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
   Box,
   Button,
+  ButtonBase,
   Container,
-  FormControl,
   GlobalStyles,
   IconButton,
   MenuItem,
-  Paper,
   Select,
-  Switch,
-  ToggleButton,
-  ToggleButtonGroup,
   Tooltip,
   Typography,
 } from "@mui/material";
 
 import ReplayIcon from "@mui/icons-material/Replay";
-import AccessTimeRoundedIcon from "@mui/icons-material/AccessTimeRounded";
-import TuneRoundedIcon from "@mui/icons-material/TuneRounded";
-import TextFieldsRoundedIcon from "@mui/icons-material/TextFieldsRounded";
-import FormatSizeRoundedIcon from "@mui/icons-material/FormatSizeRounded";
-import ShortTextRoundedIcon from "@mui/icons-material/ShortTextRounded";
 import QueryStatsRoundedIcon from "@mui/icons-material/QueryStatsRounded";
 import LanguageRoundedIcon from "@mui/icons-material/LanguageRounded";
-import CategoryRoundedIcon from "@mui/icons-material/CategoryRounded";
 import EmojiEventsRoundedIcon from "@mui/icons-material/EmojiEventsRounded";
 import FormatQuoteRoundedIcon from "@mui/icons-material/FormatQuoteRounded";
 
@@ -45,84 +35,166 @@ import {
 import { mergeServerRecords } from "../../utils/typingRecords";
 import { LanguageAutocomplete } from "../../components/LanguageAutocomplete";
 import { TypingText } from "../../components/typing/TypingText";
-import { TypingStats } from "../../components/typing/TypingStats";
 import { ResultChart } from "../../components/typing/ResultChart";
 import { MissedKeys } from "../../components/typing/MissedKeys";
 import { getTypingResults, saveTypingResult } from "../../services/api";
 import { useAuth } from "../../contexts/useAuth";
 
-const panelSx = {
-  backgroundColor: "#181b21",
-  border: "1px solid #292d36",
-  borderRadius: 3,
+const MONO_FONT =
+  '"JetBrains Mono", ui-monospace, "Cascadia Code", Consolas, monospace';
+
+const ACCENT = "#a78bfa";
+const MUTED = "#7d8496";
+
+const labelSx = {
+  color: MUTED,
+  fontSize: 13,
+  fontWeight: 600,
+  letterSpacing: "0.02em",
 };
 
-const switchSx = {
-  "& .MuiSwitch-switchBase.Mui-checked": {
-    color: "#a78bfa",
-  },
-  "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
-    backgroundColor: "#7c4dff",
-  },
-};
-
-const selectSx = {
-  color: "#ffffff",
+const kbdSx = {
+  fontFamily: MONO_FONT,
+  fontSize: 12,
+  color: "#d5d7de",
   backgroundColor: "#20232b",
-  borderRadius: 2,
-  ".MuiOutlinedInput-notchedOutline": {
-    borderColor: "#343844",
-  },
-  "&:hover .MuiOutlinedInput-notchedOutline": {
-    borderColor: "#7c4dff",
-  },
-  ".MuiSvgIcon-root": {
-    color: "#a0a4ad",
-  },
-};
-
-const toggleGroupSx = {
-  "& .MuiToggleButton-root": {
-    color: "#a0a4ad",
-    borderColor: "#343844",
-    px: 2,
-    textTransform: "none",
-    fontWeight: 700,
-  },
-  "& .MuiToggleButton-root.Mui-selected": {
-    color: "#ffffff",
-    backgroundColor: "#6d45d8",
-    borderColor: "#7c4dff",
-  },
-  "& .MuiToggleButton-root.Mui-selected:hover": {
-    backgroundColor: "#7955e8",
-  },
-};
-
-const captionSx = {
-  color: "#a0a4ad",
-  fontWeight: 700,
-  textTransform: "uppercase",
-  letterSpacing: 1,
+  border: "1px solid #343844",
+  borderBottomWidth: 2,
+  borderRadius: "6px",
+  px: 0.85,
+  py: 0.25,
 };
 
 const MODE_OPTIONS: { value: TestMode; label: string }[] = [
-  { value: "time", label: "Tempo" },
-  { value: "words", label: "Palavras" },
-  { value: "quote", label: "Frases" },
+  { value: "time", label: "tempo" },
+  { value: "words", label: "palavras" },
+  { value: "quote", label: "frases" },
+  { value: "chase", label: "perseguição" },
 ];
 
 const QUOTE_LENGTH_OPTIONS: { value: QuoteLengthFilter; label: string }[] = [
-  { value: "all", label: "Todas" },
-  { value: "short", label: "Curtas" },
-  { value: "medium", label: "Médias" },
-  { value: "long", label: "Longas" },
+  { value: "all", label: "todas" },
+  { value: "short", label: "curtas" },
+  { value: "medium", label: "médias" },
+  { value: "long", label: "longas" },
+];
+
+const DIFFICULTY_OPTIONS: { value: TextDifficulty; label: string }[] = [
+  { value: "easy", label: "fácil" },
+  { value: "normal", label: "normal" },
+  { value: "hard", label: "difícil" },
 ];
 
 const LIVE_STATS_KEY = "typebattle_show_live_stats";
 
+// Cor da vantagem sobre o perseguidor: verde, amarelo e vermelho.
+function getLeadColor(lead: number) {
+  if (lead <= 10) return "#ff5c75";
+  if (lead <= 25) return "#fbbf24";
+  return "#4ade80";
+}
+
+// Recorde em PPM ou, na perseguição, em segundos aguentados.
+function formatRecord(value: number, isChase: boolean) {
+  return isChase ? `${value.toLocaleString("pt-BR")} s` : `${value} PPM`;
+}
+
 function getLanguageLabel(code: string) {
   return LANGUAGE_OPTIONS.find((option) => option.code === code)?.label ?? code;
+}
+
+interface ToolbarOptionProps {
+  active?: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+  children: ReactNode;
+  label?: string;
+}
+
+// Opção da barra de configurações: texto cinza, roxo quando ativa.
+function ToolbarOption({
+  active = false,
+  disabled = false,
+  onClick,
+  children,
+  label,
+}: ToolbarOptionProps) {
+  return (
+    <ButtonBase
+      onClick={onClick}
+      disabled={disabled}
+      aria-pressed={active}
+      aria-label={label}
+      sx={{
+        minHeight: 36,
+        px: 1,
+        gap: 0.75,
+        borderRadius: "8px",
+        fontFamily: "inherit",
+        fontSize: 14,
+        fontWeight: 600,
+        color: active ? ACCENT : MUTED,
+        transition: "color 120ms ease",
+        "&:hover": { color: active ? ACCENT : "#d5d7de" },
+        "&.Mui-focusVisible": { outline: `2px solid ${ACCENT}` },
+        "&.Mui-disabled": { opacity: 0.5 },
+      }}
+    >
+      {children}
+    </ButtonBase>
+  );
+}
+
+function ToolbarDivider() {
+  return (
+    <Box
+      aria-hidden="true"
+      sx={{
+        // No celular as opções quebram em linhas e o separador sobraria.
+        display: { xs: "none", sm: "block" },
+        width: "1px",
+        height: 20,
+        bgcolor: "#2a2e38",
+        flexShrink: 0,
+      }}
+    />
+  );
+}
+
+// Símbolo curto antes do nome da opção (@ acentos, Aa maiúsculas...).
+function OptionGlyph({ children }: { children: ReactNode }) {
+  return (
+    <Box component="span" sx={{ fontFamily: MONO_FONT }}>
+      {children}
+    </Box>
+  );
+}
+
+function ResultFigure({
+  label,
+  value,
+  color = "#ffffff",
+}: {
+  label: string;
+  value: ReactNode;
+  color?: string;
+}) {
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+      <Typography sx={labelSx}>{label}</Typography>
+      <Typography
+        sx={{
+          fontFamily: MONO_FONT,
+          fontWeight: 700,
+          fontSize: 22,
+          color,
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {value}
+      </Typography>
+    </Box>
+  );
 }
 
 export function TypingTest() {
@@ -133,6 +205,9 @@ export function TypingTest() {
     quoteLength,
     timeLeft,
     elapsedMs,
+    chaserPosition,
+    chaserSpeed,
+    correctPrefix,
     typedWords,
     totalWords,
     input,
@@ -142,8 +217,6 @@ export function TypingTest() {
     isFinished,
     isPaused,
     result,
-    totalCharacters,
-    totalErrors,
     ppm,
     accuracy,
     inputRef,
@@ -191,6 +264,12 @@ export function TypingTest() {
 
   const controlsDisabled = isStarted;
   const isQuoteMode = mode === "quote";
+  const isChase = mode === "chase";
+  // Quantas letras você está à frente do perseguidor.
+  const chaserLead =
+    chaserPosition === null
+      ? null
+      : Math.max(0, Math.floor(correctPrefix - chaserPosition));
 
   // Recordes de quem está logado valem em qualquer navegador.
   useEffect(() => {
@@ -326,19 +405,15 @@ export function TypingTest() {
     }
   }
 
-  function handleDifficultyChange(value: string) {
-    if (value === "easy" || value === "normal" || value === "hard") {
-      changeDifficulty(value as TextDifficulty);
-    }
-  }
-
   const languageLabel = getLanguageLabel(language);
   const modeSummary =
     mode === "time"
-      ? `Tempo · ${selectedTime}s · ${languageLabel}`
+      ? `tempo ${selectedTime} · ${languageLabel}`
       : mode === "words"
         ? `${wordCount} palavras · ${languageLabel}`
-        : `Frase · ${languageLabel}`;
+        : mode === "chase"
+          ? `perseguição · ${languageLabel}`
+          : `frase · ${languageLabel}`;
 
   // Mensagem de carregamento ou de erro acima do texto.
   const statusMessage = loadError
@@ -351,412 +426,305 @@ export function TypingTest() {
           : "Carregando palavras…"
         : "";
 
+  // Número grande acima do texto: tempo restante, palavras ou tempo corrido.
+  const counter =
+    mode === "time"
+      ? String(timeLeft)
+      : mode === "words"
+        ? `${typedWords}/${totalWords}`
+        : `${Math.floor(elapsedMs / 1000)}s`;
+
+  const hideWhileTyping = focusMode
+    ? { opacity: 0, pointerEvents: "none" as const }
+    : {};
+
   return (
-    <Container maxWidth="lg" sx={{ py: 5 }}>
+    <Container maxWidth="lg" sx={{ py: { xs: 4, md: 5 } }}>
       <GlobalStyles
         styles={{
           "header.MuiAppBar-root, footer": {
             transition: "opacity 300ms ease",
-            ...(focusMode && { opacity: 0, pointerEvents: "none" }),
+            ...hideWhileTyping,
           },
         }}
       />
 
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-        {/* Painel de configurações */}
-        <Paper
-          elevation={0}
-          aria-hidden={focusMode || undefined}
+      <Box
+        sx={{
+          maxWidth: 1100,
+          mx: "auto",
+          display: "flex",
+          flexDirection: "column",
+          gap: { xs: 4, md: 7 },
+        }}
+      >
+        {/* Barra de configurações */}
+        <Box
           sx={{
-            ...panelSx,
-            p: { xs: 2, md: 2.5 },
+            display: "flex",
+            justifyContent: "center",
             transition: "opacity 300ms ease",
-            ...(focusMode && { opacity: 0, pointerEvents: "none" }),
+            ...hideWhileTyping,
           }}
+          aria-hidden={focusMode || undefined}
         >
           <Box
+            role="toolbar"
+            aria-label="Configurações do teste"
             sx={{
               display: "flex",
               flexWrap: "wrap",
-              alignItems: "flex-start",
-              justifyContent: "space-between",
-              gap: 3,
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "4px 2px",
+              px: 1.5,
+              py: 0.75,
+              borderRadius: "14px",
+              bgcolor: "#181b21",
+              border: "1px solid #23262e",
             }}
           >
-            {/* Modo */}
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <CategoryRoundedIcon sx={{ color: "#a78bfa", fontSize: 19 }} />
-                <Typography id="typing-mode" variant="caption" sx={captionSx}>
-                  Modo
-                </Typography>
-              </Box>
+            {/* Opções do texto (as frases já vêm prontas) */}
+            {!isQuoteMode && (
+              <>
+                <ToolbarOption
+                  active={useAccents}
+                  disabled={controlsDisabled}
+                  onClick={() => changeAccents(!useAccents)}
+                >
+                  <OptionGlyph>@</OptionGlyph> acentos
+                </ToolbarOption>
+                <ToolbarOption
+                  active={useUppercase}
+                  disabled={controlsDisabled}
+                  onClick={() => changeUppercase(!useUppercase)}
+                >
+                  <OptionGlyph>Aa</OptionGlyph> maiúsculas
+                </ToolbarOption>
+                <ToolbarOption
+                  active={usePunctuation}
+                  disabled={controlsDisabled}
+                  onClick={() => changePunctuation(!usePunctuation)}
+                >
+                  <OptionGlyph>!?</OptionGlyph> pontuação
+                </ToolbarOption>
+                <ToolbarDivider />
+              </>
+            )}
 
-              <ToggleButtonGroup
-                exclusive
-                value={mode}
-                onChange={(_event, value: TestMode | null) => {
-                  if (value !== null) changeMode(value);
-                }}
+            {MODE_OPTIONS.map((option) => (
+              <ToolbarOption
+                key={option.value}
+                active={mode === option.value}
                 disabled={controlsDisabled}
-                size="small"
-                aria-labelledby="typing-mode"
-                sx={toggleGroupSx}
+                onClick={() => changeMode(option.value)}
               >
-                {MODE_OPTIONS.map((option) => (
-                  <ToggleButton key={option.value} value={option.value}>
-                    {option.label}
-                  </ToggleButton>
-                ))}
-              </ToggleButtonGroup>
-            </Box>
+                {option.label}
+              </ToolbarOption>
+            ))}
 
             {/* Duração, quantidade de palavras ou tamanho da frase */}
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <AccessTimeRoundedIcon
-                  sx={{ color: "#a78bfa", fontSize: 19 }}
-                />
-                <Typography
-                  id="typing-amount"
-                  variant="caption"
-                  sx={captionSx}
-                >
-                  {mode === "time"
-                    ? "Tempo"
-                    : mode === "words"
-                      ? "Palavras"
-                      : "Tamanho"}
-                </Typography>
-              </Box>
-
-              {mode === "time" && (
-                <ToggleButtonGroup
-                  exclusive
-                  value={selectedTime}
-                  onChange={(_event, value: number | null) => {
-                    if (value !== null) changeTime(value);
-                  }}
+            {mode !== "chase" && <ToolbarDivider />}
+            {mode === "time" &&
+              TIME_OPTIONS.map((time) => (
+                <ToolbarOption
+                  key={time}
+                  active={selectedTime === time}
                   disabled={controlsDisabled}
-                  size="small"
-                  aria-labelledby="typing-amount"
-                  sx={toggleGroupSx}
+                  onClick={() => changeTime(time)}
+                  label={`${time} segundos`}
                 >
-                  {TIME_OPTIONS.map((time) => (
-                    <ToggleButton key={time} value={time}>
-                      {time}s
-                    </ToggleButton>
-                  ))}
-                </ToggleButtonGroup>
-              )}
-
-              {mode === "words" && (
-                <ToggleButtonGroup
-                  exclusive
-                  value={wordCount}
-                  onChange={(_event, value: number | null) => {
-                    if (value !== null) changeWordCount(value);
-                  }}
+                  {time}
+                </ToolbarOption>
+              ))}
+            {mode === "words" &&
+              WORD_OPTIONS.map((count) => (
+                <ToolbarOption
+                  key={count}
+                  active={wordCount === count}
                   disabled={controlsDisabled}
-                  size="small"
-                  aria-labelledby="typing-amount"
-                  sx={toggleGroupSx}
+                  onClick={() => changeWordCount(count)}
+                  label={`${count} palavras`}
                 >
-                  {WORD_OPTIONS.map((count) => (
-                    <ToggleButton key={count} value={count}>
-                      {count}
-                    </ToggleButton>
-                  ))}
-                </ToggleButtonGroup>
-              )}
-
-              {mode === "quote" && (
-                <ToggleButtonGroup
-                  exclusive
-                  value={quoteLength}
-                  onChange={(_event, value: QuoteLengthFilter | null) => {
-                    if (value !== null) changeQuoteLength(value);
-                  }}
+                  {count}
+                </ToolbarOption>
+              ))}
+            {mode === "quote" &&
+              QUOTE_LENGTH_OPTIONS.map((option) => (
+                <ToolbarOption
+                  key={option.value}
+                  active={quoteLength === option.value}
                   disabled={controlsDisabled}
-                  size="small"
-                  aria-labelledby="typing-amount"
-                  sx={{
-                    ...toggleGroupSx,
-                    "& .MuiToggleButton-root": {
-                      ...toggleGroupSx["& .MuiToggleButton-root"],
-                      px: 1.5,
-                    },
-                  }}
+                  onClick={() => changeQuoteLength(option.value)}
                 >
-                  {QUOTE_LENGTH_OPTIONS.map((option) => (
-                    <ToggleButton key={option.value} value={option.value}>
-                      {option.label}
-                    </ToggleButton>
-                  ))}
-                </ToggleButtonGroup>
-              )}
-            </Box>
+                  {option.label}
+                </ToolbarOption>
+              ))}
+
+            <ToolbarDivider />
 
             {/* Idioma */}
-            <Box
-              sx={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 1,
-                minWidth: 170,
-              }}
-            >
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <LanguageRoundedIcon sx={{ color: "#a78bfa", fontSize: 19 }} />
-                <Typography
-                  id="typing-language"
-                  variant="caption"
-                  sx={captionSx}
-                >
-                  Idioma
-                </Typography>
-              </Box>
-
+            <Box sx={{ display: "flex", alignItems: "center", color: MUTED }}>
+              <LanguageRoundedIcon sx={{ fontSize: 17, ml: 1 }} />
               <LanguageAutocomplete
                 value={language}
                 onChange={changeLanguage}
                 disabled={controlsDisabled}
-                labelId="typing-language"
+                ariaLabel="Idioma do texto"
                 isOptionDisabled={
                   isQuoteMode ? (option) => !option.hasQuotes : undefined
                 }
-                inputSx={{ "& .MuiOutlinedInput-root": selectSx }}
+                inputSx={{
+                  width: 128,
+                  "& .MuiOutlinedInput-root": {
+                    color: MUTED,
+                    fontSize: 14,
+                    fontWeight: 600,
+                    pl: 0.5,
+                    "&:hover": { color: "#d5d7de" },
+                  },
+                  "& .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "transparent",
+                  },
+                  "& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline":
+                    { borderColor: "transparent" },
+                  "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline":
+                    { borderColor: "#343844" },
+                  "& .MuiSvgIcon-root": { color: MUTED },
+                }}
               />
             </Box>
 
             {/* Dificuldade (alguns idiomas têm uma lista só; frases não usam) */}
             {!isQuoteMode && languageHasDifficulty(language) && (
+              <Select
+                variant="standard"
+                disableUnderline
+                value={difficulty}
+                disabled={controlsDisabled}
+                onChange={(event) =>
+                  changeDifficulty(event.target.value as TextDifficulty)
+                }
+                inputProps={{ "aria-label": "Dificuldade" }}
+                sx={{
+                  px: 1,
+                  color: MUTED,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  "&:hover": { color: "#d5d7de" },
+                  "& .MuiSvgIcon-root": { color: MUTED },
+                }}
+              >
+                {DIFFICULTY_OPTIONS.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            )}
+
+            <ToolbarDivider />
+
+            <Tooltip title="Mostrar PPM e precisão durante o teste">
+              <span>
+                <ToolbarOption
+                  active={showLiveStats}
+                  disabled={isFinished}
+                  onClick={() => setShowLiveStats((current) => !current)}
+                  label="Estatísticas ao vivo"
+                >
+                  <QueryStatsRoundedIcon sx={{ fontSize: 18 }} />
+                  ao vivo
+                </ToolbarOption>
+              </span>
+            </Tooltip>
+          </Box>
+        </Box>
+
+        {/* Teste ou resultado */}
+        <Box ref={testPanelRef} onKeyDown={handleTestKeyDown}>
+          {!isFinished || !result ? (
+            <Box
+              component="section"
+              aria-label="Teste de digitação"
+              sx={{ display: "flex", flexDirection: "column", gap: 1 }}
+            >
+              {/* Contador e informações ao vivo */}
               <Box
                 sx={{
                   display: "flex",
-                  flexDirection: "column",
-                  gap: 1,
-                  minWidth: 150,
+                  alignItems: "baseline",
+                  flexWrap: "wrap",
+                  gap: { xs: 1.5, sm: 2.5 },
+                  minHeight: 44,
                 }}
               >
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <TuneRoundedIcon sx={{ color: "#a78bfa", fontSize: 19 }} />
-                  <Typography variant="caption" sx={captionSx}>
-                    Dificuldade
-                  </Typography>
-                </Box>
-
-                <FormControl size="small" fullWidth>
-                  <Select
-                    value={difficulty}
-                    onChange={(event) =>
-                      handleDifficultyChange(event.target.value)
-                    }
-                    disabled={controlsDisabled}
-                    sx={selectSx}
-                  >
-                    <MenuItem value="easy">Fácil</MenuItem>
-                    <MenuItem value="normal">Normal</MenuItem>
-                    <MenuItem value="hard">Difícil</MenuItem>
-                  </Select>
-                </FormControl>
-              </Box>
-            )}
-
-            {/* Opções do texto (as frases já vêm prontas) */}
-            {!isQuoteMode && (
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <TextFieldsRoundedIcon
-                    sx={{ color: "#a78bfa", fontSize: 19 }}
-                  />
-                  <Typography variant="caption" sx={captionSx}>
-                    Texto
-                  </Typography>
-                </Box>
-
-                <Box
+                <Typography
+                  role="timer"
                   sx={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    alignItems: "center",
-                    gap: { xs: 1, md: 2 },
+                    fontFamily: MONO_FONT,
+                    fontSize: { xs: 28, sm: 34 },
+                    fontWeight: 700,
+                    lineHeight: 1.2,
+                    color:
+                      mode === "time" && isStarted && timeLeft <= 5
+                        ? "#ff6b81"
+                        : ACCENT,
+                    fontVariantNumeric: "tabular-nums",
                   }}
                 >
-                  <Box
-                    sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
-                  >
-                    <FormatSizeRoundedIcon
-                      sx={{ color: "#a0a4ad", fontSize: 18 }}
-                    />
-                    <Typography variant="body2" sx={{ color: "#d5d7de" }}>
-                      Acentos
-                    </Typography>
-                    <Switch
-                      size="small"
-                      checked={useAccents}
-                      onChange={(event) => changeAccents(event.target.checked)}
-                      disabled={controlsDisabled}
-                      sx={switchSx}
-                    />
-                  </Box>
-
-                  <Box
-                    sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
-                  >
-                    <Typography
-                      variant="body2"
-                      sx={{ color: "#d5d7de", fontWeight: 800 }}
-                    >
-                      ABC
-                    </Typography>
-                    <Switch
-                      size="small"
-                      checked={useUppercase}
-                      onChange={(event) =>
-                        changeUppercase(event.target.checked)
-                      }
-                      disabled={controlsDisabled}
-                      sx={switchSx}
-                    />
-                  </Box>
-
-                  <Box
-                    sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
-                  >
-                    <ShortTextRoundedIcon
-                      sx={{ color: "#a0a4ad", fontSize: 18 }}
-                    />
-                    <Typography variant="body2" sx={{ color: "#d5d7de" }}>
-                      Pontuação
-                    </Typography>
-                    <Switch
-                      size="small"
-                      checked={usePunctuation}
-                      onChange={(event) =>
-                        changePunctuation(event.target.checked)
-                      }
-                      disabled={controlsDisabled}
-                      sx={switchSx}
-                    />
-                  </Box>
-                </Box>
-              </Box>
-            )}
-
-            {/* Preferência das estatísticas em tempo real */}
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <QueryStatsRoundedIcon
-                  sx={{ color: "#a78bfa", fontSize: 19 }}
-                />
-                <Typography variant="caption" sx={captionSx}>
-                  Estatísticas ao vivo
+                  {counter}
                 </Typography>
-              </Box>
 
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Typography variant="body2" sx={{ color: "#d5d7de" }}>
-                  {showLiveStats ? "Visíveis" : "Ocultas"}
-                </Typography>
-                <Switch
-                  size="small"
-                  checked={showLiveStats}
-                  onChange={(event) => setShowLiveStats(event.target.checked)}
-                  disabled={isFinished}
-                  slotProps={{
-                    input: {
-                      "aria-label": "Mostrar estatísticas durante o teste",
-                    },
-                  }}
-                  sx={switchSx}
-                />
-              </Box>
-            </Box>
-          </Box>
-        </Paper>
-
-        {/* Painel principal: teste ou resultado final */}
-        <Paper
-          ref={testPanelRef}
-          elevation={0}
-          onKeyDown={handleTestKeyDown}
-          sx={{
-            ...panelSx,
-            p: { xs: 2, md: 3 },
-          }}
-        >
-          {!isFinished || !result ? (
-            <>
-              {/* Cabeçalho do teste */}
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 2,
-                  mb: 3,
-                }}
-              >
-                <Box>
-                  <Typography variant="caption" sx={captionSx}>
-                    {mode === "time"
-                      ? "Tempo restante"
-                      : mode === "words"
-                        ? "Palavras"
-                        : "Tempo"}
-                  </Typography>
+                {showLiveStats && (
                   <Typography
-                    variant="h3"
                     sx={{
-                      color:
-                        mode === "time" && timeLeft <= 5
-                          ? "#ff6b81"
-                          : "#ffffff",
-                      fontWeight: 800,
-                      fontVariantNumeric: "tabular-nums",
+                      fontFamily: MONO_FONT,
+                      fontSize: 18,
+                      color: MUTED,
                     }}
                   >
-                    {mode === "time" ? (
-                      `${timeLeft}s`
-                    ) : mode === "quote" ? (
-                      // Frases: o tempo corre; o PPM aparece ao terminar.
-                      `${Math.floor(elapsedMs / 1000)}s`
+                    {ppm} ppm · {accuracy}%
+                  </Typography>
+                )}
+
+                {/* Perseguição: sua vantagem e a velocidade do perseguidor */}
+                {isChase && (
+                  <Box
+                    role="status"
+                    sx={{
+                      display: "flex",
+                      alignItems: "baseline",
+                      flexWrap: "wrap",
+                      gap: { xs: 1, sm: 2 },
+                    }}
+                  >
+                    {chaserLead === null ? (
+                      <Typography sx={{ color: MUTED, fontSize: 14 }}>
+                        Fuja do cursor vermelho: ele sai 2 s depois da sua
+                        primeira tecla e acelera com o tempo. Letra errada te
+                        segura até você corrigir.
+                      </Typography>
                     ) : (
                       <>
-                        {typedWords}
-                        <Box
-                          component="span"
-                          sx={{ color: "#5d6370", fontSize: "0.6em" }}
+                        <Typography
+                          sx={{
+                            color: getLeadColor(chaserLead),
+                            fontWeight: 700,
+                            fontSize: 16,
+                            fontVariantNumeric: "tabular-nums",
+                          }}
                         >
-                          /{totalWords}
-                        </Box>
+                          {chaserLead} {chaserLead === 1 ? "letra" : "letras"}{" "}
+                          de vantagem
+                        </Typography>
+                        <Typography sx={{ color: MUTED, fontSize: 14 }}>
+                          perseguidor a {chaserSpeed} ppm
+                        </Typography>
                       </>
                     )}
-                  </Typography>
-                </Box>
-
-                <Tooltip title="Reiniciar teste">
-                  <IconButton
-                    ref={replayButtonRef}
-                    onClick={handleReset}
-                    aria-label="Reiniciar teste"
-                    sx={{
-                      color: "#a78bfa",
-                      border: "1px solid #343844",
-                      borderRadius: 2,
-                      "&:hover": {
-                        backgroundColor: "#29223b",
-                      },
-                      "&:focus-visible": {
-                        outline: "2px solid #a78bfa",
-                        outlineOffset: 3,
-                      },
-                    }}
-                  >
-                    <ReplayIcon />
-                  </IconButton>
-                </Tooltip>
+                  </Box>
+                )}
               </Box>
 
               {/* Área de digitação */}
@@ -777,168 +745,200 @@ export function TypingTest() {
                   input={input}
                   isStarted={isStarted}
                   isPaused={isPaused}
+                  chaserPosition={chaserPosition}
                   onInputChange={handleInputChange}
                   inputRef={inputRef}
                 />
               </Box>
 
-              {/* Estatísticas opcionais durante o teste */}
-              {showLiveStats && (
-                <Box sx={{ mt: 3 }}>
-                  <TypingStats
-                    ppm={ppm}
-                    accuracy={accuracy}
-                    errors={totalErrors}
-                    characters={totalCharacters}
-                  />
-                </Box>
-              )}
-            </>
-          ) : (
-            /* Tela de resultados */
-            <Box sx={{ py: { xs: 1, md: 2 } }}>
-              <Box sx={{ textAlign: "center", mb: { xs: 3, md: 3.5 } }}>
-                <Typography
-                  variant="overline"
-                  sx={{
-                    display: "inline-block",
-                    color: "#b69aff",
-                    fontWeight: 800,
-                    letterSpacing: 2.5,
-                    fontSize: "0.7rem",
-                    lineHeight: 1.5,
-                  }}
-                >
-                  TESTE CONCLUÍDO
-                </Typography>
-
-                <Typography
-                  variant="h4"
-                  sx={{
-                    color: "#ffffff",
-                    fontWeight: 800,
-                    letterSpacing: "-0.8px",
-                    fontSize: { xs: "1.8rem", sm: "2.125rem" },
-                    mt: 0.75,
-                  }}
-                >
-                  Seu resultado
-                </Typography>
-
-                <Typography
-                  sx={{
-                    color: "#969bad",
-                    mt: 1,
-                    fontSize: { xs: "0.875rem", sm: "0.95rem" },
-                  }}
-                >
-                  {modeSummary}
-                </Typography>
-              </Box>
-
-              {/* Destaque principal de velocidade */}
+              {/* Reiniciar e atalho */}
               <Box
                 sx={{
-                  textAlign: "center",
-                  py: { xs: 3, md: 4 },
-                  px: 2,
-                  mb: 2.5,
-                  borderRadius: 4,
-                  border: "1px solid",
-                  borderColor: result.record.isNew ? "#a17a1f" : "#493576",
-                  background: result.record.isNew
-                    ? "radial-gradient(ellipse at top, rgba(250,204,21,0.16), transparent 70%), #17150f"
-                    : "radial-gradient(ellipse at top, rgba(124,77,255,0.20), transparent 70%), #15131e",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 2,
+                  mt: 2,
                 }}
               >
+                <Tooltip title="Reiniciar teste">
+                  <IconButton
+                    ref={replayButtonRef}
+                    onClick={handleReset}
+                    aria-label="Reiniciar teste"
+                    sx={{
+                      width: 44,
+                      height: 44,
+                      color: MUTED,
+                      borderRadius: "10px",
+                      "&:hover": { color: "#ffffff", bgcolor: "#1d2027" },
+                      "&:focus-visible": {
+                        color: "#ffffff",
+                        outline: `2px solid ${ACCENT}`,
+                        outlineOffset: 3,
+                      },
+                    }}
+                  >
+                    <ReplayIcon />
+                  </IconButton>
+                </Tooltip>
                 <Typography
                   sx={{
-                    color: "#c4b5fd",
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    letterSpacing: 2,
-                    fontSize: "0.8rem",
+                    fontSize: 13,
+                    color: MUTED,
+                    // Atalho de teclado físico: não aparece no celular.
+                    display: { xs: "none", sm: "flex" },
+                    alignItems: "center",
+                    gap: 1,
                   }}
                 >
-                  Sua velocidade
+                  <Box component="kbd" sx={kbdSx}>
+                    tab
+                  </Box>
+                  +
+                  <Box component="kbd" sx={kbdSx}>
+                    enter
+                  </Box>
+                  reinicia o teste
                 </Typography>
-
+              </Box>
+            </Box>
+          ) : (
+            /* Tela de resultados */
+            <Box
+              component="section"
+              aria-label="Resultado do teste"
+              sx={{ display: "flex", flexDirection: "column", gap: 3.5 }}
+            >
+              <Box
+                sx={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 4,
+                  alignItems: "stretch",
+                }}
+              >
+                {/* Números principais */}
                 <Box
                   sx={{
+                    flex: "0 0 210px",
                     display: "flex",
-                    alignItems: "baseline",
-                    justifyContent: "center",
-                    gap: 1.5,
-                    mt: 1,
+                    flexDirection: "column",
+                    gap: 2.5,
                   }}
                 >
-                  <Typography
-                    sx={{
-                      color: result.record.isNew ? "#fde047" : "#a78bfa",
-                      fontWeight: 900,
-                      fontSize: { xs: "4rem", sm: "5.5rem" },
-                      lineHeight: 1.1,
-                      letterSpacing: "-3px",
-                      fontVariantNumeric: "tabular-nums",
-                    }}
-                  >
-                    {result.ppm}
-                  </Typography>
-                  <Typography
-                    sx={{
-                      color: "#e0d7ff",
-                      fontWeight: 700,
-                      fontSize: { xs: "1rem", sm: "1.25rem" },
-                    }}
-                  >
-                    PPM
-                  </Typography>
+                  <Box>
+                    <Typography sx={labelSx}>
+                      {isChase ? "aguentou" : "ppm"}
+                    </Typography>
+                    <Typography
+                      component="p"
+                      sx={{
+                        fontFamily: MONO_FONT,
+                        fontSize: { xs: 60, sm: 72 },
+                        fontWeight: 700,
+                        lineHeight: 1,
+                        color: result.record.isNew ? "#fde047" : ACCENT,
+                        fontVariantNumeric: "tabular-nums",
+                      }}
+                    >
+                      {isChase
+                        ? `${result.durationSeconds.toLocaleString("pt-BR")}s`
+                        : result.ppm}
+                    </Typography>
+
+                    {/* Recorde pessoal neste modo e idioma */}
+                    <Typography
+                      role={result.record.isNew ? "status" : undefined}
+                      sx={{
+                        mt: 1,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 0.75,
+                        fontSize: 13,
+                        fontWeight: result.record.isNew ? 700 : 500,
+                        color: result.record.isNew ? "#fde047" : MUTED,
+                      }}
+                    >
+                      {result.record.isNew && (
+                        <EmojiEventsRoundedIcon sx={{ fontSize: 16 }} />
+                      )}
+                      {result.record.isNew
+                        ? result.record.previous === null
+                          ? "Primeiro recorde neste modo!"
+                          : `Novo recorde! Antes: ${formatRecord(result.record.previous, isChase)}`
+                        : result.record.previous !== null
+                          ? `Recorde: ${formatRecord(result.record.previous, isChase)}`
+                          : ""}
+                    </Typography>
+                  </Box>
+
+                  <Box>
+                    <Typography sx={labelSx}>
+                      {isChase ? "ppm" : "precisão"}
+                    </Typography>
+                    <Typography
+                      component="p"
+                      sx={{
+                        fontFamily: MONO_FONT,
+                        fontSize: 48,
+                        fontWeight: 700,
+                        lineHeight: 1,
+                        color: ACCENT,
+                        fontVariantNumeric: "tabular-nums",
+                      }}
+                    >
+                      {isChase ? result.ppm : `${result.accuracy}%`}
+                    </Typography>
+                  </Box>
                 </Box>
 
-                {/* Recorde pessoal neste modo e idioma */}
-                {result.record.isNew ? (
-                  <Box
-                    role="status"
-                    sx={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 0.75,
-                      mt: 1.5,
-                      px: 1.5,
-                      py: 0.5,
-                      borderRadius: 5,
-                      backgroundColor: "rgba(250,204,21,0.12)",
-                      border: "1px solid rgba(250,204,21,0.35)",
-                      color: "#fde047",
-                      fontWeight: 800,
-                      fontSize: "0.9rem",
-                    }}
-                  >
-                    <EmojiEventsRoundedIcon sx={{ fontSize: 18 }} />
-                    {result.record.previous === null
-                      ? "Primeiro recorde neste modo!"
-                      : `Novo recorde! Antes: ${result.record.previous} PPM`}
-                  </Box>
-                ) : (
-                  <Typography
-                    sx={{ color: "#969bad", fontSize: "0.9rem", mt: 1 }}
-                  >
-                    {result.record.previous !== null
-                      ? `Seu recorde neste modo: ${result.record.previous} PPM`
-                      : "Palavras por minuto"}
-                  </Typography>
-                )}
+                {/* Gráfico de velocidade */}
+                <Box sx={{ flex: "999 1 520px", minWidth: 0 }}>
+                  <ResultChart history={result.history} bare />
+                </Box>
               </Box>
 
-              {/* Estatísticas complementares */}
-              <TypingStats
-                ppm={result.ppm}
-                accuracy={result.accuracy}
-                errors={result.errors}
-                characters={result.characters}
-                showPpm={false}
-                duration={result.durationSeconds}
-              />
+              {/* Detalhes da rodada */}
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: {
+                    xs: "repeat(2, minmax(0, 1fr))",
+                    md: "repeat(4, minmax(0, 1fr))",
+                  },
+                  gap: 2,
+                  py: 2.5,
+                  borderTop: "1px solid #22252d",
+                  borderBottom: "1px solid #22252d",
+                }}
+              >
+                <Box
+                  sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}
+                >
+                  <Typography sx={labelSx}>teste</Typography>
+                  <Typography sx={{ fontSize: 17, fontWeight: 700 }}>
+                    {modeSummary}
+                  </Typography>
+                </Box>
+                <ResultFigure label="caracteres" value={result.characters} />
+                <ResultFigure
+                  label="erros"
+                  value={result.errors}
+                  color={result.errors > 0 ? "#ff7a8f" : "#ffffff"}
+                />
+                {isChase ? (
+                  <ResultFigure
+                    label="precisão"
+                    value={`${result.accuracy}%`}
+                  />
+                ) : (
+                  <ResultFigure
+                    label="tempo"
+                    value={`${result.durationSeconds.toLocaleString("pt-BR")}s`}
+                  />
+                )}
+              </Box>
 
               {/* Autor da frase */}
               {result.quote && (
@@ -947,12 +947,12 @@ export function TypingTest() {
                     display: "flex",
                     alignItems: "center",
                     gap: 1,
-                    mt: 2.5,
+                    mt: -1.5,
                     color: "#a0a4ad",
                   }}
                 >
                   <FormatQuoteRoundedIcon
-                    sx={{ color: "#a78bfa", fontSize: 20 }}
+                    sx={{ color: ACCENT, fontSize: 20 }}
                   />
                   <Typography sx={{ fontSize: 14 }}>
                     {result.quote.source || "Autor desconhecido"}
@@ -960,46 +960,103 @@ export function TypingTest() {
                 </Box>
               )}
 
-              <ResultChart history={result.history} />
-
-              {/* Teclas mais erradas nesta rodada */}
+              {/* Teclas mais erradas e jogar de novo */}
               <Box
                 sx={{
-                  mt: 2.5,
-                  p: { xs: 1.5, sm: 2.5 },
-                  borderRadius: 3,
-                  border: "1px solid #292d36",
-                  backgroundColor: "#15171d",
+                  display: "flex",
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 2.5,
                 }}
               >
-                <Typography sx={{ color: "#ffffff", fontWeight: 700, mb: 1.5 }}>
-                  Teclas que você mais errou
-                </Typography>
-                <MissedKeys missedKeys={result.missedKeys} />
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: 1.75,
+                  }}
+                >
+                  <Typography sx={labelSx}>teclas que mais errou</Typography>
+                  <MissedKeys
+                    missedKeys={result.missedKeys}
+                    limit={5}
+                    compact
+                  />
+                </Box>
+
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 2,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <Typography
+                    sx={{
+                      fontSize: 13,
+                      color: MUTED,
+                      display: { xs: "none", sm: "flex" },
+                      alignItems: "center",
+                      gap: 1,
+                    }}
+                  >
+                    <Box component="kbd" sx={kbdSx}>
+                      tab
+                    </Box>
+                    +
+                    <Box component="kbd" sx={kbdSx}>
+                      enter
+                    </Box>
+                  </Typography>
+                  <Button
+                    ref={replayButtonRef}
+                    variant="contained"
+                    startIcon={<ReplayIcon />}
+                    onClick={handleReset}
+                    sx={{
+                      minHeight: 44,
+                      px: 3.5,
+                      borderRadius: "12px",
+                      backgroundColor: "#7c4dff",
+                      color: "#ffffff",
+                      fontWeight: 800,
+                      fontSize: 15,
+                      textTransform: "none",
+                      boxShadow: "none",
+                      "&:hover": {
+                        backgroundColor: "#906cff",
+                        boxShadow: "none",
+                      },
+                      "&:focus-visible": {
+                        outline: `2px solid ${ACCENT}`,
+                        outlineOffset: 3,
+                      },
+                    }}
+                  >
+                    Jogar novamente
+                  </Button>
+                </Box>
               </Box>
 
               {/* Informações da rodada */}
               <Typography
-                variant="body2"
-                sx={{
-                  color: "#777d8b",
-                  lineHeight: 1.7,
-                  mt: 2.5,
-                  textAlign: "center",
-                }}
+                sx={{ fontSize: 13, color: MUTED, textAlign: "center" }}
               >
                 {!isAuthenticated ? (
                   <>
                     <Link
                       to="/login"
                       style={{
-                        color: "#a78bfa",
+                        color: ACCENT,
                         fontWeight: 600,
                         textDecoration: "none",
                       }}
                     >
-                      Entre na sua conta{" "}
-                    </Link>
+                      Entre na sua conta
+                    </Link>{" "}
                     para salvar e acompanhar seu histórico.
                   </>
                 ) : (
@@ -1007,43 +1064,9 @@ export function TypingTest() {
                   "Só o modo tempo entra no ranking e no histórico do perfil."
                 )}
               </Typography>
-
-              {/* Ação principal */}
-              <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
-                <Button
-                  ref={replayButtonRef}
-                  variant="contained"
-                  size="large"
-                  startIcon={<ReplayIcon />}
-                  onClick={handleReset}
-                  sx={{
-                    width: { xs: "100%", sm: "auto" },
-                    minWidth: { sm: 240 },
-                    px: 4,
-                    py: 1.5,
-                    borderRadius: 2.5,
-                    backgroundColor: "#7c4dff",
-                    color: "#ffffff",
-                    fontWeight: 800,
-                    fontSize: "1rem",
-                    textTransform: "none",
-                    boxShadow: "0 8px 24px rgba(124,77,255,0.22)",
-                    "&:hover": {
-                      backgroundColor: "#906cff",
-                      boxShadow: "0 10px 28px rgba(124,77,255,0.32)",
-                    },
-                    "&:focus-visible": {
-                      outline: "2px solid #a78bfa",
-                      outlineOffset: 3,
-                    },
-                  }}
-                >
-                  Jogar novamente
-                </Button>
-              </Box>
             </Box>
           )}
-        </Paper>
+        </Box>
       </Box>
     </Container>
   );
