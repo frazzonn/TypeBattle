@@ -1,4 +1,11 @@
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   DEFAULT_LANGUAGE,
   LANGUAGE_OPTIONS,
@@ -388,7 +395,15 @@ export function useTypingTest() {
     }
 
     recordSamples(milliseconds);
-    setElapsedMs(milliseconds);
+
+    // A tela só precisa mudar quando vira o segundo (o contador e o PPM ao
+    // vivo são por segundo). Renderizar 10 vezes por segundo disputava com a
+    // animação do cursor. Na perseguição, a vantagem muda 4 vezes por
+    // segundo; o perseguidor em si é desenhado a cada quadro pelo texto.
+    const step = mode === "chase" ? 250 : 1000;
+    if (Math.floor(milliseconds / step) !== Math.floor(elapsedMs / step)) {
+      setElapsedMs(milliseconds);
+    }
   });
 
   // Conta o tempo em trechos: cada pausa fecha um trecho e guarda o total.
@@ -499,6 +514,26 @@ export function useTypingTest() {
     }
   }
 
+  // Função estável para o texto: o componente de digitação é memorizado e
+  // só renderiza de novo quando o texto ou o que foi digitado mudam.
+  const inputHandlerRef = useRef(handleInputChange);
+  useLayoutEffect(() => {
+    inputHandlerRef.current = handleInputChange;
+  });
+  const onInputChange = useCallback(
+    (value: string) => inputHandlerRef.current(value),
+    [],
+  );
+
+  // Posição do perseguidor agora (lê o relógio, sem esperar o estado).
+  const getChaserNow = useCallback(() => {
+    const segmentStart = segmentStartRef.current;
+    const milliseconds =
+      elapsedBeforeRef.current +
+      (segmentStart === null ? 0 : Date.now() - segmentStart);
+    return getChaserPosition(milliseconds);
+  }, []);
+
   const timeLeft = Math.max(0, Math.ceil((time * 1000 - elapsedMs) / 1000));
   // Abaixo de 1 s o PPM ao vivo oscila demais.
   const ppm =
@@ -524,6 +559,7 @@ export function useTypingTest() {
     timeLeft,
     elapsedMs,
     chaserPosition,
+    getChaserNow,
     chaserSpeed: getChaserSpeed(elapsedMs),
     correctPrefix,
     typedWords,
@@ -542,7 +578,7 @@ export function useTypingTest() {
     accuracy,
     inputRef,
     resetTest,
-    handleInputChange,
+    handleInputChange: onInputChange,
     difficulty,
     language,
     isLoadingWords: !sourceReady && !loadError,

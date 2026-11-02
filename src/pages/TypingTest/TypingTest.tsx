@@ -87,6 +87,16 @@ const DIFFICULTY_OPTIONS: { value: TextDifficulty; label: string }[] = [
 
 const LIVE_STATS_KEY = "typebattle_show_live_stats";
 
+// Modo foco: uma classe no body esconde o menu e o rodapé. O estilo é fixo
+// para não ser reinserido na página a cada renderização.
+const FOCUS_MODE_STYLES = {
+  "header.MuiAppBar-root, footer": { transition: "opacity 300ms ease" },
+  "body.typing-focus header.MuiAppBar-root, body.typing-focus footer": {
+    opacity: 0,
+    pointerEvents: "none",
+  },
+} as const;
+
 // Cor da vantagem sobre o perseguidor: verde, amarelo e vermelho.
 function getLeadColor(lead: number) {
   if (lead <= 10) return "#ff5c75";
@@ -206,6 +216,7 @@ export function TypingTest() {
     timeLeft,
     elapsedMs,
     chaserPosition,
+    getChaserNow,
     chaserSpeed,
     correctPrefix,
     typedWords,
@@ -319,6 +330,11 @@ export function TypingTest() {
   const [mouseRevealed, setMouseRevealed] = useState(false);
   const isTyping = isStarted && !isPaused;
   const focusMode = isTyping && !mouseRevealed;
+
+  useEffect(() => {
+    document.body.classList.toggle("typing-focus", focusMode);
+    return () => document.body.classList.remove("typing-focus");
+  }, [focusMode]);
 
   useEffect(() => {
     if (!isTyping) return;
@@ -440,14 +456,7 @@ export function TypingTest() {
 
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 4, md: 5 } }}>
-      <GlobalStyles
-        styles={{
-          "header.MuiAppBar-root, footer": {
-            transition: "opacity 300ms ease",
-            ...hideWhileTyping,
-          },
-        }}
-      />
+      <GlobalStyles styles={FOCUS_MODE_STYLES} />
 
       <Box
         sx={{
@@ -745,7 +754,7 @@ export function TypingTest() {
                   input={input}
                   isStarted={isStarted}
                   isPaused={isPaused}
-                  chaserPosition={chaserPosition}
+                  getChaserPosition={isChase && isStarted ? getChaserNow : null}
                   onInputChange={handleInputChange}
                   inputRef={inputRef}
                 />

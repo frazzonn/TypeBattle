@@ -15,8 +15,9 @@ interface TypingTextProps {
   input: string;
   isStarted: boolean;
   isPaused?: boolean;
-  // Modo perseguição: quantas letras o perseguidor já andou.
-  chaserPosition?: number | null;
+  // Modo perseguição: diz, a qualquer momento, quantas letras o perseguidor
+  // já andou (null = sem perseguidor).
+  getChaserPosition?: (() => number) | null;
   onInputChange: (value: string) => void;
   inputRef: React.RefObject<HTMLInputElement | null>;
 }
@@ -88,7 +89,7 @@ function TypingTextComponent({
   input,
   isStarted,
   isPaused = false,
-  chaserPosition = null,
+  getChaserPosition = null,
   onInputChange,
   inputRef,
 }: TypingTextProps) {
@@ -167,28 +168,45 @@ function TypingTextComponent({
     }
   }, [input, text]);
 
-  // Coloca o perseguidor sobre a letra em que ele está.
-  useLayoutEffect(() => {
+  // Desenha o perseguidor a cada quadro da tela, direto no DOM, pela posição
+  // fracionária (no meio da letra): ele desliza sem pular de letra em letra
+  // e sem precisar que o React renderize a página.
+  useEffect(() => {
     const chaser = chaserRef.current;
     const content = textContentRef.current;
-    if (!chaser || !content) return;
+    if (!getChaserPosition || !chaser || !content) return;
 
-    const letters = content.querySelectorAll<HTMLElement>(".ch");
-    const letter =
-      chaserPosition === null ? null : letters[Math.floor(chaserPosition)];
+    // Coleção "viva": acompanha as letras novas sem buscar de novo.
+    const letters = content.getElementsByClassName("ch");
+    let frame = 0;
 
-    if (!letter) {
-      chaser.style.opacity = "0";
-      return;
+    function draw() {
+      const position = getChaserPosition!();
+      const index = Math.floor(position);
+      const letter = letters[index] as HTMLElement | undefined;
+
+      if (letter && chaser && content) {
+        const contentRect = content.getBoundingClientRect();
+        const letterRect = letter.getBoundingClientRect();
+        const left =
+          letterRect.left -
+          contentRect.left +
+          (position - index) * letterRect.width;
+        const top = letterRect.top - contentRect.top;
+
+        chaser.style.transform = `translate(${left}px, ${top}px)`;
+        chaser.style.height = `${letterRect.height}px`;
+        chaser.style.opacity = "1";
+      } else if (chaser) {
+        chaser.style.opacity = "0";
+      }
+
+      frame = requestAnimationFrame(draw);
     }
 
-    const contentRect = content.getBoundingClientRect();
-    const letterRect = letter.getBoundingClientRect();
-    chaser.style.left = `${letterRect.left - contentRect.left}px`;
-    chaser.style.top = `${letterRect.top - contentRect.top}px`;
-    chaser.style.height = `${letterRect.height}px`;
-    chaser.style.opacity = "1";
-  }, [chaserPosition, input, text]);
+    frame = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(frame);
+  }, [getChaserPosition]);
 
   const showOverlay = !hasFocused && !isStarted && input.length === 0;
   const overlayMessage = isPaused
@@ -400,7 +418,7 @@ function TypingTextComponent({
           )}
 
           {/* Perseguidor (modo perseguição): se chegar no seu cursor, acabou. */}
-          {chaserPosition !== null && (
+          {getChaserPosition && (
             <Box
               ref={chaserRef}
               aria-hidden="true"
@@ -413,12 +431,21 @@ function TypingTextComponent({
                 opacity: 0,
                 backgroundColor: "#ff5c75",
                 borderRadius: "2px",
-                boxShadow: "0 0 10px rgba(255, 92, 117, 0.75)",
+                boxShadow: "0 0 12px rgba(255, 92, 117, 0.85)",
                 pointerEvents: "none",
                 zIndex: 1,
-                transition: "left 100ms linear, top 100ms ease-out",
-                "@media (prefers-reduced-motion: reduce)": {
-                  transition: "none",
+                willChange: "transform",
+                // Rastro atrás do perseguidor: dá a sensação de velocidade.
+                "&::before": {
+                  content: '""',
+                  position: "absolute",
+                  top: "15%",
+                  bottom: "15%",
+                  right: "3px",
+                  width: "48px",
+                  borderRadius: "999px 0 0 999px",
+                  background:
+                    "linear-gradient(to right, rgba(255, 92, 117, 0), rgba(255, 92, 117, 0.45))",
                 },
               }}
             />
