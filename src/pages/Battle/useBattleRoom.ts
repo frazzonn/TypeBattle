@@ -32,6 +32,8 @@ export function useBattleRoom() {
   const [room, setRoom] = useState<BattleRoom | null>(null);
   const [typedText, setTypedText] = useState("");
   const [finishedAt, setFinishedAt] = useState<number | null>(null);
+  // Quando a rodada começou, pelo relógio deste navegador (perseguição).
+  const [playStartedAt, setPlayStartedAt] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
@@ -105,11 +107,13 @@ export function useBattleRoom() {
 
     socket.on("battle:countdown", () => {
       setTypedText("");
+      setPlayStartedAt(null);
       setNotice("");
     });
 
     socket.on("battle:started", () => {
       setTypedText("");
+      setPlayStartedAt(Date.now());
     });
 
     socket.on("battle:finished", (payload: unknown) => {
@@ -283,6 +287,7 @@ export function useBattleRoom() {
     now,
     typedText,
     finishedAt,
+    playStartedAt,
     error,
     notice,
     isCreating: pendingAction === "create",

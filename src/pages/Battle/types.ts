@@ -7,7 +7,8 @@ export type Duration = 15 | 30 | 60;
 export type PlayerLimit = 2 | 3 | 4;
 
 // Tempo: maior PPM no fim do relógio. Palavras: quem terminar o texto primeiro.
-export type BattleMode = "time" | "words";
+// Perseguição: um cursor alcança um por um; quem sobrar por último vence.
+export type BattleMode = "time" | "words" | "chase";
 
 export type WordCount = 10 | 25 | 50 | 100;
 
@@ -39,6 +40,8 @@ export interface RoomPlayer {
   progress: number;
   // Modo palavras: ms até terminar o texto (null = não terminou).
   finishMs?: number | null;
+  // Perseguição: ms até ser alcançado (null = ainda na disputa).
+  caughtMs?: number | null;
 }
 
 export interface BattleState {

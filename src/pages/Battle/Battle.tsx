@@ -92,6 +92,7 @@ export function Battle() {
         myId={battle.myId}
         typedText={battle.typedText}
         now={now}
+        playStartedAt={battle.playStartedAt}
         inputRef={typingInputRef}
         onType={battle.sendProgress}
       />

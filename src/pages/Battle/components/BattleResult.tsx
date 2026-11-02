@@ -52,11 +52,13 @@ export function BattleResult({
   const seriesWinner = room.seriesWinnerSocketId ?? null;
   const ranking = rankPlayers(room.players);
   const isWordsMode = room.settings.mode === "words";
+  const isChase = room.settings.mode === "chase";
+  const showTime = isWordsMode || isChase;
   const winnerFinishMs = room.players.find(
     (player) => player.socketId === roundWinner,
   )?.finishMs;
-  const headers = isWordsMode
-    ? ["#", "JOGADOR", "TEMPO", "PPM", "PRECISÃO", "ERROS"]
+  const headers = showTime
+    ? ["#", "JOGADOR", isChase ? "AGUENTOU" : "TEMPO", "PPM", "PRECISÃO", "ERROS"]
     : ["#", "JOGADOR", "PPM", "PRECISÃO", "ERROS"];
 
   let title: string;
@@ -129,6 +131,13 @@ export function BattleResult({
         >
           {title}
         </Typography>
+        {isChase && (
+          <Typography sx={{ color: colors.textSecondary, fontSize: 15 }}>
+            {roundWinner
+              ? "Foi o último que o perseguidor não alcançou."
+              : "O perseguidor alcançou todos ao mesmo tempo."}
+          </Typography>
+        )}
         {isWordsMode && (
           <Typography sx={{ color: colors.textSecondary, fontSize: 15 }}>
             {winnerFinishMs != null
@@ -218,11 +227,15 @@ export function BattleResult({
                     </Box>
                   </Box>
                   {/* Modo palavras: tempo de quem terminou; progresso dos demais. */}
-                  {isWordsMode && (
+                  {showTime && (
                     <Box component="td" sx={cellSx}>
-                      {player.finishMs != null
-                        ? formatSeconds(player.finishMs)
-                        : `${player.progress}%`}
+                      {isChase
+                        ? player.caughtMs != null
+                          ? formatSeconds(player.caughtMs)
+                          : "não foi alcançado"
+                        : player.finishMs != null
+                          ? formatSeconds(player.finishMs)
+                          : `${player.progress}%`}
                     </Box>
                   )}
                   <Box

@@ -32,10 +32,19 @@ export function getPlayerName(room: BattleRoom, socketId: string | null) {
   );
 }
 
-// Mesmo critério do servidor: no modo palavras, quem terminou primeiro;
-// depois maior PPM e maior precisão.
+// Mesmo critério do servidor: na perseguição, quem aguentou mais; no modo
+// palavras, quem terminou primeiro; depois maior PPM e maior precisão.
 export function rankPlayers(players: RoomPlayer[]): RoomPlayer[] {
   return [...players].sort((first, second) => {
+    const firstCaught = first.caughtMs ?? null;
+    const secondCaught = second.caughtMs ?? null;
+
+    if (firstCaught !== secondCaught) {
+      if (firstCaught === null) return -1;
+      if (secondCaught === null) return 1;
+      return secondCaught - firstCaught;
+    }
+
     const firstFinish = first.finishMs ?? null;
     const secondFinish = second.finishMs ?? null;
 

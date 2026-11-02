@@ -454,15 +454,18 @@ export function BattleLobby({
               options={[
                 { value: "time", label: "Tempo" },
                 { value: "words", label: "Palavras" },
+                { value: "chase", label: "Perseguição" },
               ]}
             />
             <Typography sx={{ color: colors.textSecondary, fontSize: 13 }}>
               {settings.mode === "words"
                 ? "Quem terminar o texto primeiro, sem erros, vence."
-                : "Quem tiver mais PPM quando o tempo acabar vence."}
+                : settings.mode === "chase"
+                  ? "Um cursor vermelho acelera atrás de todos. Quem for alcançado sai; o último que sobrar vence."
+                  : "Quem tiver mais PPM quando o tempo acabar vence."}
             </Typography>
           </Box>
-          {settings.mode === "words" ? (
+          {settings.mode === "chase" ? null : settings.mode === "words" ? (
             <SegmentedControl
               label="Palavras"
               value={settings.wordCount}

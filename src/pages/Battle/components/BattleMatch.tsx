@@ -1,8 +1,14 @@
+import { useCallback } from "react";
 import { Box, Typography } from "@mui/material";
 
 import { TypingText } from "../../../components/typing/TypingText";
 import {
+  getChaserPosition,
+  getChaserSpeed,
+} from "../../../hooks/useTypingTest";
+import {
   formatClock,
+  formatSeconds,
   getMaximumRounds,
   getPlayerColor,
 } from "../battleUtils";
@@ -16,6 +22,8 @@ interface BattleMatchProps {
   myId: string | null;
   typedText: string;
   now: number;
+  // Início da rodada pelo relógio deste navegador (perseguição).
+  playStartedAt: number | null;
   inputRef: React.RefObject<HTMLInputElement | null>;
   onType: (value: string) => void;
 }
@@ -26,9 +34,22 @@ export function BattleMatch({
   myId,
   typedText,
   now,
+  playStartedAt,
   inputRef,
   onType,
 }: BattleMatchProps) {
+  const isChase = room.settings.mode === "chase";
+  // Relógio do perseguidor: o início visto aqui ou, se perdeu o aviso
+  // (reconexão), o do servidor.
+  const chaseStart =
+    isChase && room.status === "playing"
+      ? (playStartedAt ?? room.battle?.startedAt ?? null)
+      : null;
+  const getChaserNow = useCallback(
+    () => (chaseStart === null ? 0 : getChaserPosition(Date.now() - chaseStart)),
+    [chaseStart],
+  );
+
   const battle = room.battle;
   if (!battle) return null;
 
@@ -54,7 +75,20 @@ export function BattleMatch({
       ? Math.max(0, now - battle.startedAt)
       : 0;
 
-  const isRunningOut = !isWordsMode && !isCountdown && remaining <= 5000;
+  // Palavras e perseguição: o relógio conta para cima.
+  const countsUp = isWordsMode || isChase;
+  const isRunningOut = !countsUp && !isCountdown && remaining <= 5000;
+
+  // Perseguição: onde o perseguidor está nas pistas (em % do texto).
+  const chaseElapsed = chaseStart === null ? 0 : Math.max(0, now - chaseStart);
+  const chaserPercent =
+    chaseStart === null
+      ? null
+      : Math.min(
+          100,
+          (getChaserPosition(chaseElapsed) / battle.text.length) * 100,
+        );
+  const myCaughtMs = isChase ? (me?.caughtMs ?? null) : null;
 
   // Chegou ao fim do texto, mas ainda há letras erradas no caminho.
   const needsFixing =
@@ -65,8 +99,10 @@ export function BattleMatch({
   const textLength = battle.text.length;
 
   function handleType(value: string) {
-    // No modo palavras não dá para digitar além do texto.
-    onType(isWordsMode ? value.slice(0, textLength) : value);
+    // Alcançado pelo perseguidor: fora da rodada.
+    if (myCaughtMs !== null) return;
+    // Palavras e perseguição não deixam digitar além do texto.
+    onType(countsUp ? value.slice(0, textLength) : value);
   }
 
   return (
@@ -105,7 +141,7 @@ export function BattleMatch({
 
         <Box
           role="timer"
-          aria-label={isWordsMode ? "Tempo da rodada" : "Tempo restante"}
+          aria-label={countsUp ? "Tempo da rodada" : "Tempo restante"}
           sx={{
             display: "flex",
             alignItems: "baseline",
@@ -129,12 +165,14 @@ export function BattleMatch({
               color: isRunningOut ? "#f87171" : "#ffffff",
             }}
           >
-            {isWordsMode
+            {countsUp
               ? formatClock(Math.floor(elapsed / 1000) * 1000)
               : formatClock(remaining)}
           </Typography>
           <Typography sx={{ color: colors.textSecondary, fontSize: 13 }}>
-            {isWordsMode
+            {isChase
+              ? `perseguidor a ${getChaserSpeed(chaseElapsed)} PPM`
+              : isWordsMode
               ? `${room.settings.wordCount} palavras`
               : isCountdown
                 ? "de prova"
@@ -157,14 +195,16 @@ export function BattleMatch({
           const isMe = player.socketId === myId;
           const color = getPlayerColor(room, player.socketId);
           const progress = Math.min(100, Math.max(0, player.progress ?? 0));
+          const caughtMs = isChase ? (player.caughtMs ?? null) : null;
 
           return (
             <Box
               key={player.socketId}
               title={player.connected === false ? "Reconectando…" : undefined}
               sx={{
-                // Conexão caiu: a pista fica apagada até o jogador voltar.
-                opacity: player.connected === false ? 0.45 : 1,
+                // Conexão caiu ou foi alcançado: a pista fica apagada.
+                opacity:
+                  player.connected === false || caughtMs !== null ? 0.45 : 1,
                 display: "grid",
                 gridTemplateColumns: {
                   xs: "84px minmax(0, 1fr) 64px",
@@ -225,6 +265,22 @@ export function BattleMatch({
                     transition: "width 200ms ease-out",
                   }}
                 />
+                {/* Perseguição: onde o perseguidor está */}
+                {chaserPercent !== null && caughtMs === null && (
+                  <Box
+                    aria-hidden="true"
+                    sx={{
+                      position: "absolute",
+                      top: 0,
+                      bottom: 0,
+                      left: `${chaserPercent}%`,
+                      width: "3px",
+                      bgcolor: "#ff5c75",
+                      boxShadow: "0 0 8px rgba(255, 92, 117, 0.8)",
+                      transition: "left 100ms linear",
+                    }}
+                  />
+                )}
                 <Typography
                   component="span"
                   sx={{
@@ -238,7 +294,9 @@ export function BattleMatch({
                     color: colors.textSecondary,
                   }}
                 >
-                  {progress}%
+                  {caughtMs !== null
+                    ? `alcançado · ${formatSeconds(caughtMs)}`
+                    : `${progress}%`}
                 </Typography>
               </Box>
 
@@ -323,9 +381,19 @@ export function BattleMatch({
             text={battle.text}
             input={typedText}
             isStarted
+            getChaserPosition={chaseStart === null ? null : getChaserNow}
             onInputChange={handleType}
             inputRef={inputRef}
           />
+          {myCaughtMs !== null && (
+            <Typography
+              role="status"
+              sx={{ mt: 1.5, color: "#ff5c75", fontWeight: 700, fontSize: 15 }}
+            >
+              O perseguidor te alcançou! Você aguentou{" "}
+              {formatSeconds(myCaughtMs)}. Agora é torcer pelos outros.
+            </Typography>
+          )}
           {needsFixing && (
             <Typography
               role="status"
