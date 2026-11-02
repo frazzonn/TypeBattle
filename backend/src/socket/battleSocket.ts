@@ -7,7 +7,8 @@ import { db } from "../prisma/db.js";
 import {
   CHASE_DELAY_MS,
   getChaserPosition,
-  getCorrectPrefix,
+  CHASE_PENALTY_LETTERS,
+  getWrongWordStarts,
 } from "../battle/chase.js";
 import {
   DEFAULT_LANGUAGE,
@@ -40,6 +41,8 @@ interface PlayerScore {
   finishMs: number | null;
   // Perseguição: ms até ser alcançado (null = ainda na disputa).
   caughtMs: number | null;
+  // Perseguição: letras extras do perseguidor pelas palavras erradas.
+  chasePenalty: number;
 }
 const WORD_COUNTS: WordCount[] = [10, 25, 50, 100];
 interface RoomPlayer extends PlayerScore {
@@ -86,6 +89,9 @@ interface BattleRoom {
   lastSeriesResult: SeriesResult | null;
   // Conta de cada jogador logado (por socket id). Não vai para os clientes.
   userIds: Record<string, number>;
+  // Perseguição: palavras que já custaram a penalidade, por jogador. Cada
+  // palavra só pune uma vez, mesmo que o jogador volte e corrija.
+  penalizedWords: Record<string, Set<number>>;
 }
 const rooms = new Map<string, BattleRoom>();
 const countdownTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -160,6 +166,7 @@ function initialScore(): PlayerScore {
     progress: 0,
     finishMs: null,
     caughtMs: null,
+    chasePenalty: 0,
   };
 }
 // Tempo máximo da rodada. No modo palavras é um limite de segurança para
@@ -205,7 +212,12 @@ async function getPlayerAccount(token: unknown): Promise<PlayerAccount> {
 }
 // Não envia os textos digitados nem as contas dos jogadores para os clientes.
 function publicRoom(room: BattleRoom) {
-  const { typedTexts: _typedTexts, userIds: _userIds, ...safeRoom } = room;
+  const {
+    typedTexts: _typedTexts,
+    userIds: _userIds,
+    penalizedWords: _penalizedWords,
+    ...safeRoom
+  } = room;
   return safeRoom;
 }
 // Ordem da rodada: na perseguição, quem aguentou mais na frente (não
@@ -295,7 +307,7 @@ function calculateScore(
   target: string,
   elapsedMs: number,
   progressUntilFirstError = false,
-): Omit<PlayerScore, "finishMs" | "caughtMs"> {
+): Omit<PlayerScore, "finishMs" | "caughtMs" | "chasePenalty"> {
   let correct = 0;
   let errors = 0;
   let correctPrefix = 0;
@@ -391,7 +403,7 @@ function finishBattle(room: BattleRoom) {
         room.typedTexts[player.socketId] ?? "",
         battle.text,
         player.finishMs ?? player.caughtMs ?? elapsed,
-        room.settings.mode !== "time",
+        room.settings.mode === "words",
       ),
     );
   }
@@ -467,6 +479,7 @@ function startRound(room: BattleRoom, round: number): boolean {
   clearTimers(room.code);
   room.status = "countdown";
   room.typedTexts = {};
+  room.penalizedWords = {};
   for (const player of room.players) {
     Object.assign(player, initialScore());
     room.typedTexts[player.socketId] = "";
@@ -538,11 +551,10 @@ function checkChase(room: BattleRoom) {
 
   for (const player of room.players) {
     if (player.caughtMs !== null) continue;
-    const prefix = getCorrectPrefix(
-      room.typedTexts[player.socketId] ?? "",
-      room.battle.text,
-    );
-    if (chaser >= prefix) {
+    // A posição é onde o cursor do jogador está; as palavras erradas
+    // aproximam o perseguidor só dele.
+    const position = (room.typedTexts[player.socketId] ?? "").length;
+    if (chaser + player.chasePenalty >= position) {
       player.caughtMs = elapsed;
       Object.assign(
         player,
@@ -550,7 +562,6 @@ function checkChase(room: BattleRoom) {
           room.typedTexts[player.socketId] ?? "",
           room.battle.text,
           elapsed,
-          true,
         ),
       );
       changed = true;
@@ -619,6 +630,7 @@ export function registerBattleSocket(server: Server) {
           status: "waiting",
           battle: null,
           typedTexts: {},
+          penalizedWords: {},
           seriesWins: { [socket.id]: 0 },
           userIds:
             account.userId === null ? {} : { [socket.id]: account.userId },
@@ -763,8 +775,15 @@ export function registerBattleSocket(server: Server) {
       if (player) {
         Object.assign(
           player,
-          calculateScore(typedText, target, elapsed, isFixedText),
+          calculateScore(typedText, target, elapsed, isWordsMode),
         );
+        if (room.settings.mode === "chase") {
+          const penalized = (room.penalizedWords[socket.id] ??= new Set());
+          for (const start of getWrongWordStarts(typedText, target)) {
+            penalized.add(start);
+          }
+          player.chasePenalty = penalized.size * CHASE_PENALTY_LETTERS;
+        }
         // Terminou o texto sem nenhum erro restante: vence e a rodada acaba.
         if (isWordsMode && typedText === target) {
           player.finishMs = elapsed;
@@ -833,6 +852,7 @@ function removePlayer(code: string, socketId: string) {
   if (!room.players.some((player) => player.socketId === socketId)) return;
   room.players = room.players.filter((player) => player.socketId !== socketId);
   delete room.typedTexts[socketId];
+  delete room.penalizedWords[socketId];
   delete room.seriesWins[socketId];
   delete room.userIds[socketId];
   if (room.players.length === 0) {

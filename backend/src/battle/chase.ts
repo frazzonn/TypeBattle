@@ -12,11 +12,27 @@ export function getChaserPosition(milliseconds: number): number {
   return words * 5;
 }
 
-// Posição do jogador: letras certas desde o começo, até o primeiro erro.
-export function getCorrectPrefix(typedText: string, target: string): number {
-  let prefix = 0;
-  while (prefix < typedText.length && typedText[prefix] === target[prefix]) {
-    prefix += 1;
+// Palavra terminada com erro (seguiu com espaço): o perseguidor avança uma
+// palavra (5 letras, a mesma medida do PPM).
+export const CHASE_PENALTY_LETTERS = 5;
+
+// Início de cada palavra que o jogador encerrou com espaço e tinha erro.
+export function getWrongWordStarts(
+  typedText: string,
+  target: string,
+): number[] {
+  const starts: number[] = [];
+  let wordStart = 0;
+
+  for (let index = 0; index < typedText.length; index += 1) {
+    if (target[index] !== " ") continue;
+
+    const wrong =
+      typedText[index] === " " &&
+      typedText.slice(wordStart, index) !== target.slice(wordStart, index);
+    if (wrong) starts.push(wordStart);
+    wordStart = index + 1;
   }
-  return prefix;
+
+  return starts;
 }

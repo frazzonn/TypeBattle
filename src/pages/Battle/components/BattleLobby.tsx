@@ -461,7 +461,7 @@ export function BattleLobby({
               {settings.mode === "words"
                 ? "Quem terminar o texto primeiro, sem erros, vence."
                 : settings.mode === "chase"
-                  ? "Um cursor vermelho acelera atrás de todos. Quem for alcançado sai; o último que sobrar vence."
+                  ? "Um cursor vermelho acelera atrás de todos. Quem for alcançado sai; o último que sobrar vence. Seguir com uma palavra errada faz ele avançar uma palavra em você."
                   : "Quem tiver mais PPM quando o tempo acabar vence."}
             </Typography>
           </Box>

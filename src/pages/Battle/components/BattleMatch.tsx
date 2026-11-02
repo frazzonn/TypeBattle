@@ -45,9 +45,15 @@ export function BattleMatch({
     isChase && room.status === "playing"
       ? (playStartedAt ?? room.battle?.startedAt ?? null)
       : null;
+  // Cada um vê o perseguidor com as próprias penalidades (palavras erradas).
+  const myPenalty =
+    room.players.find((player) => player.socketId === myId)?.chasePenalty ?? 0;
   const getChaserNow = useCallback(
-    () => (chaseStart === null ? 0 : getChaserPosition(Date.now() - chaseStart)),
-    [chaseStart],
+    () =>
+      chaseStart === null
+        ? 0
+        : getChaserPosition(Date.now() - chaseStart) + myPenalty,
+    [chaseStart, myPenalty],
   );
 
   const battle = room.battle;
@@ -79,15 +85,15 @@ export function BattleMatch({
   const countsUp = isWordsMode || isChase;
   const isRunningOut = !countsUp && !isCountdown && remaining <= 5000;
 
-  // Perseguição: onde o perseguidor está nas pistas (em % do texto).
+  // Perseguição: onde o perseguidor está em cada pista (em % do texto),
+  // somando as palavras erradas de cada jogador.
   const chaseElapsed = chaseStart === null ? 0 : Math.max(0, now - chaseStart);
-  const chaserPercent =
-    chaseStart === null
-      ? null
-      : Math.min(
-          100,
-          (getChaserPosition(chaseElapsed) / battle.text.length) * 100,
-        );
+  const chaserLetters =
+    chaseStart === null ? null : getChaserPosition(chaseElapsed);
+  function getChaserPercent(penalty = 0) {
+    if (chaserLetters === null) return null;
+    return Math.min(100, ((chaserLetters + penalty) / battle!.text.length) * 100);
+  }
   const myCaughtMs = isChase ? (me?.caughtMs ?? null) : null;
 
   // Chegou ao fim do texto, mas ainda há letras erradas no caminho.
@@ -196,6 +202,7 @@ export function BattleMatch({
           const color = getPlayerColor(room, player.socketId);
           const progress = Math.min(100, Math.max(0, player.progress ?? 0));
           const caughtMs = isChase ? (player.caughtMs ?? null) : null;
+          const chaserPercent = getChaserPercent(player.chasePenalty);
 
           return (
             <Box

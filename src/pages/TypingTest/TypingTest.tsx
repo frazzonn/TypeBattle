@@ -218,7 +218,7 @@ export function TypingTest() {
     chaserPosition,
     getChaserNow,
     chaserSpeed,
-    correctPrefix,
+    chasePenalty,
     typedWords,
     totalWords,
     input,
@@ -280,7 +280,7 @@ export function TypingTest() {
   const chaserLead =
     chaserPosition === null
       ? null
-      : Math.max(0, Math.floor(correctPrefix - chaserPosition));
+      : Math.max(0, Math.floor(input.length - chaserPosition));
 
   // Recordes de quem está logado valem em qualquer navegador.
   useEffect(() => {
@@ -726,8 +726,8 @@ export function TypingTest() {
                     {chaserLead === null ? (
                       <Typography sx={{ color: MUTED, fontSize: 14 }}>
                         Fuja do cursor vermelho: ele sai 2 s depois da sua
-                        primeira tecla e acelera com o tempo. Letra errada te
-                        segura até você corrigir.
+                        primeira tecla e acelera com o tempo. Seguir para a
+                        próxima palavra com erro faz ele avançar uma palavra.
                       </Typography>
                     ) : (
                       <>
@@ -745,6 +745,15 @@ export function TypingTest() {
                         <Typography sx={{ color: MUTED, fontSize: 14 }}>
                           perseguidor a {chaserSpeed} ppm
                         </Typography>
+                        {chasePenalty > 0 && (
+                          <Typography sx={{ color: "#ff7a8f", fontSize: 14 }}>
+                            {chasePenalty / 5}{" "}
+                            {chasePenalty === 5
+                              ? "palavra errada"
+                              : "palavras erradas"}
+                            : +{chasePenalty} letras pra ele
+                          </Typography>
+                        )}
                       </>
                     )}
                   </Box>

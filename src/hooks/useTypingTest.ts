@@ -43,6 +43,10 @@ export function getChaserSpeed(milliseconds: number) {
   return Math.round(CHASE_START_PPM + CHASE_ACCELERATION * seconds);
 }
 
+// Palavra terminada com erro (seguiu com espaço): o perseguidor avança uma
+// palavra (5 letras, a mesma medida do PPM).
+export const CHASE_PENALTY_LETTERS = 5;
+
 // Quantas letras o perseguidor já andou (1 palavra = 5 letras).
 export function getChaserPosition(milliseconds: number) {
   const seconds = Math.max(0, milliseconds - CHASE_DELAY_MS) / 1000;
@@ -264,8 +268,11 @@ export function useTypingTest() {
   const [totalCharacters, setTotalCharacters] = useState(0);
   const [totalCorrectCharacters, setTotalCorrectCharacters] = useState(0);
   const [totalErrors, setTotalErrors] = useState(0);
-  // Letras certas desde o começo, até o primeiro erro (posição na perseguição).
-  const [correctPrefix, setCorrectPrefix] = useState(0);
+  // Perseguição: letras extras do perseguidor pelas palavras erradas.
+  const [chasePenalty, setChasePenalty] = useState(0);
+  const chasePenaltyRef = useRef(0);
+  // Palavras (pela posição de início) que já custaram a penalidade.
+  const penalizedWordsRef = useRef(new Set<number>());
 
   // Usados ao terminar (no relógio ou na última tecla), sem esperar o estado.
   const totalsRef = useRef({ characters: 0, correct: 0, errors: 0 });
@@ -291,7 +298,9 @@ export function useTypingTest() {
     setTotalCharacters(0);
     setTotalCorrectCharacters(0);
     setTotalErrors(0);
-    setCorrectPrefix(0);
+    setChasePenalty(0);
+    chasePenaltyRef.current = 0;
+    penalizedWordsRef.current = new Set();
 
     totalsRef.current = { characters: 0, correct: 0, errors: 0 };
     missedKeysRef.current = {};
@@ -388,7 +397,7 @@ export function useTypingTest() {
     if (
       mode === "chase" &&
       milliseconds > CHASE_DELAY_MS &&
-      getChaserPosition(milliseconds) >= correctPrefix
+      getChaserPosition(milliseconds) + chasePenalty >= input.length
     ) {
       finish(milliseconds);
       return;
@@ -494,11 +503,23 @@ export function useTypingTest() {
       setTotalErrors(totalsRef.current.errors);
     }
 
-    let prefix = 0;
-    while (prefix < value.length && value[prefix] === targetText[prefix]) {
-      prefix += 1;
+    // Perseguição: apertou espaço depois de uma palavra com erro. Cada
+    // palavra só pune uma vez, mesmo que volte e corrija.
+    const typedSpace =
+      value.length === previousLength + 1 && value.endsWith(" ");
+    if (mode === "chase" && typedSpace) {
+      const wordEnd = value.length - 1;
+      const wordStart = value.lastIndexOf(" ", wordEnd - 1) + 1;
+      const wrongWord =
+        value.slice(wordStart, wordEnd) !==
+        targetText.slice(wordStart, wordEnd);
+
+      if (wrongWord && !penalizedWordsRef.current.has(wordStart)) {
+        penalizedWordsRef.current.add(wordStart);
+        chasePenaltyRef.current += CHASE_PENALTY_LETTERS;
+        setChasePenalty(chasePenaltyRef.current);
+      }
     }
-    setCorrectPrefix(prefix);
 
     // Nos modos sem fim, acrescenta palavras sem substituir o texto.
     const endless = mode === "time" || mode === "chase";
@@ -531,7 +552,7 @@ export function useTypingTest() {
     const milliseconds =
       elapsedBeforeRef.current +
       (segmentStart === null ? 0 : Date.now() - segmentStart);
-    return getChaserPosition(milliseconds);
+    return getChaserPosition(milliseconds) + chasePenaltyRef.current;
   }, []);
 
   const timeLeft = Math.max(0, Math.ceil((time * 1000 - elapsedMs) / 1000));
@@ -541,7 +562,7 @@ export function useTypingTest() {
   const accuracy = calculateAccuracy(totalCorrectCharacters, totalCharacters);
   const chaserPosition =
     mode === "chase" && (isStarted || isFinished)
-      ? getChaserPosition(elapsedMs)
+      ? getChaserPosition(elapsedMs) + chasePenalty
       : null;
 
   // Progresso nos modos palavras e frases.
@@ -561,7 +582,7 @@ export function useTypingTest() {
     chaserPosition,
     getChaserNow,
     chaserSpeed: getChaserSpeed(elapsedMs),
-    correctPrefix,
+    chasePenalty,
     typedWords,
     totalWords,
     input,

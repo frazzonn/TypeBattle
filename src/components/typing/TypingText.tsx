@@ -28,6 +28,7 @@ interface WordChunk {
 }
 
 interface WordProps {
+  start: number;
   text: string;
   typed: string;
   caretIndex: number;
@@ -55,13 +56,14 @@ function splitWords(text: string): WordChunk[] {
 // Só a palavra que está sendo digitada muda a cada tecla; as outras
 // recebem as mesmas props e não renderizam de novo.
 const Word = memo(function Word({
+  start,
   text,
   typed,
   caretIndex,
   caretRef,
 }: WordProps) {
   return (
-    <span>
+    <span data-start={start}>
       {text.split("").map((character, index) => {
         const status =
           index >= typed.length
@@ -103,6 +105,25 @@ function TypingTextComponent({
 
   const words = useMemo(() => splitWords(text), [text]);
 
+  // Primeira letra mostrada: as linhas já digitadas que ficaram bem para
+  // cima saem da página, senão o texto (que na perseguição não acaba) só
+  // cresce e tudo fica mais lento com o tempo.
+  const [trimStart, setTrimStart] = useState(0);
+  const trimStartRef = useRef(0);
+  const [previousText, setPreviousText] = useState(text);
+
+  // Texto novo (outro teste ou outra rodada): mostra desde o começo de novo.
+  // Palavras acrescentadas no fim mantêm o corte.
+  if (text !== previousText) {
+    setPreviousText(text);
+    if (!text.startsWith(previousText)) setTrimStart(0);
+  }
+
+  const visibleWords = useMemo(
+    () => words.filter((word) => word.start >= trimStart),
+    [words, trimStart],
+  );
+
   const [scrollOffset, setScrollOffset] = useState(0);
   const [hasFocused, setHasFocused] = useState(false);
   const [capsLockOn, setCapsLockOn] = useState(false);
@@ -126,6 +147,7 @@ function TypingTextComponent({
     const caret = caretRef.current;
 
     if (!caret) return;
+    trimStartRef.current = trimStart;
 
     if (!container || !content || !target) {
       caret.style.opacity = "0";
@@ -157,6 +179,32 @@ function TypingTextComponent({
     // Descobre em qual linha está o cursor.
     const cursorLine = Math.max(0, Math.round(top / lineHeight));
 
+    // Com 4 linhas ou mais acima, tira as que já não aparecem (mantém duas
+    // acima do cursor). A rolagem é compensada na mesma pintura, sem animar,
+    // então nada se mexe na tela.
+    if (cursorLine >= 4) {
+      const cutTop = (cursorLine - 2) * lineHeight - 1;
+      const firstKept = Array.from(content.children).find(
+        (child): child is HTMLElement =>
+          child instanceof HTMLElement &&
+          child.dataset.start !== undefined &&
+          child.offsetTop >= cutTop,
+      );
+      const nextStart = Number(firstKept?.dataset.start);
+
+      if (Number.isFinite(nextStart) && nextStart > trimStart) {
+        content.style.transition = "none";
+        caretPlacedRef.current = false;
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => {
+            content.style.transition = "";
+          }),
+        );
+        setTrimStart(nextStart);
+        return;
+      }
+    }
+
     // Mantém a linha atual próxima da segunda linha visível.
     const nextOffset =
       input.length === 0 ? 0 : Math.max(0, (cursorLine - 1) * lineHeight);
@@ -166,40 +214,63 @@ function TypingTextComponent({
       targetScrollOffsetRef.current = nextOffset;
       setScrollOffset(nextOffset);
     }
-  }, [input, text]);
+  }, [input, text, trimStart]);
 
   // Desenha o perseguidor a cada quadro da tela, direto no DOM, pela posição
   // fracionária (no meio da letra): ele desliza sem pular de letra em letra
-  // e sem precisar que o React renderize a página.
+  // e sem precisar que o React renderize a página. Numa linha que já subiu
+  // da área visível, ele fica preso na borda de cima, com uma seta.
   useEffect(() => {
     const chaser = chaserRef.current;
     const content = textContentRef.current;
-    if (!getChaserPosition || !chaser || !content) return;
+    const container = containerRef.current;
+    if (!getChaserPosition || !chaser || !content || !container) return;
 
-    // Coleção "viva": acompanha as letras novas sem buscar de novo.
+    // Coleção "viva": acompanha as letras novas e as que saem.
     const letters = content.getElementsByClassName("ch");
     let frame = 0;
+    let letterHeight = 24;
 
     function draw() {
-      const position = getChaserPosition!();
-      const index = Math.floor(position);
-      const letter = letters[index] as HTMLElement | undefined;
+      if (!chaser || !content || !container) return;
 
-      if (letter && chaser && content) {
-        const contentRect = content.getBoundingClientRect();
+      const position = getChaserPosition!();
+      const index = Math.floor(position) - trimStartRef.current;
+      const letter = index >= 0 ? (letters[index] as HTMLElement) : undefined;
+      const contentRect = content.getBoundingClientRect();
+      const visibleTop =
+        container.getBoundingClientRect().top - contentRect.top;
+
+      let left = 0;
+      let top = visibleTop;
+      let height = 0;
+
+      if (letter) {
         const letterRect = letter.getBoundingClientRect();
-        const left =
+        left =
           letterRect.left -
           contentRect.left +
-          (position - index) * letterRect.width;
-        const top = letterRect.top - contentRect.top;
-
-        chaser.style.transform = `translate(${left}px, ${top}px)`;
-        chaser.style.height = `${letterRect.height}px`;
-        chaser.style.opacity = "1";
-      } else if (chaser) {
+          (position - Math.floor(position)) * letterRect.width;
+        top = letterRect.top - contentRect.top;
+        height = letterRect.height;
+      } else if (index >= 0) {
+        // Ainda sem letras na página (texto carregando).
         chaser.style.opacity = "0";
+        frame = requestAnimationFrame(draw);
+        return;
       }
+
+      const offscreen = top < visibleTop - 1;
+      if (offscreen) top = visibleTop;
+
+      if (height > 0) letterHeight = height;
+
+      // Fora da tela: metade da altura, colado na borda de cima, para não
+      // parecer que está na primeira linha visível.
+      chaser.dataset.offscreen = String(offscreen);
+      chaser.style.transform = `translate(${left}px, ${top}px)`;
+      chaser.style.height = `${offscreen ? letterHeight / 2 : letterHeight}px`;
+      chaser.style.opacity = offscreen ? "0.75" : "1";
 
       frame = requestAnimationFrame(draw);
     }
@@ -379,7 +450,7 @@ function TypingTextComponent({
             },
           }}
         >
-          {words.map((word) => {
+          {visibleWords.map((word) => {
             const end = word.start + word.text.length;
             const caretIndex =
               input.length >= word.start && input.length < end
@@ -395,6 +466,7 @@ function TypingTextComponent({
             return (
               <Word
                 key={word.start}
+                start={word.start}
                 text={word.text}
                 typed={typed}
                 caretIndex={caretIndex}
@@ -446,6 +518,18 @@ function TypingTextComponent({
                   borderRadius: "999px 0 0 999px",
                   background:
                     "linear-gradient(to right, rgba(255, 92, 117, 0), rgba(255, 92, 117, 0.45))",
+                },
+                // Fora da área visível (linha acima): seta indicando que ele
+                // vem atrás.
+                '&[data-offscreen="true"]::after': {
+                  content: '"↑"',
+                  position: "absolute",
+                  left: "7px",
+                  top: "-1px",
+                  color: "#ff5c75",
+                  fontSize: "18px",
+                  fontWeight: 800,
+                  lineHeight: 1,
                 },
               }}
             />

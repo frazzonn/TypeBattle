@@ -42,6 +42,8 @@ export interface RoomPlayer {
   finishMs?: number | null;
   // Perseguição: ms até ser alcançado (null = ainda na disputa).
   caughtMs?: number | null;
+  // Perseguição: letras extras do perseguidor pelas palavras erradas.
+  chasePenalty?: number;
 }
 
 export interface BattleState {
