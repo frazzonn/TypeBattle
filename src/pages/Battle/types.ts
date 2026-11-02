@@ -24,6 +24,8 @@ export interface RoomPlayer {
   nickname: string;
   isGuest?: boolean;
   avatarUrl?: string | null;
+  // false enquanto a conexão do jogador caiu e ele ainda pode voltar.
+  connected?: boolean;
   ppm: number;
   accuracy: number;
   errors: number;

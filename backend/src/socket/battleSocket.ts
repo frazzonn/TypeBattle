@@ -27,10 +27,13 @@ interface RoomPlayer extends PlayerScore {
   nickname: string;
   isGuest: boolean;
   avatarUrl: string | null;
+  // false enquanto a conexão caiu e o jogador ainda pode voltar.
+  connected: boolean;
 }
 interface PlayerAccount {
   isGuest: boolean;
   avatarUrl: string | null;
+  userId: number | null;
 }
 interface BattleState {
   round: number;
@@ -61,11 +64,17 @@ interface BattleRoom {
   seriesWinnerSocketId: string | null;
   seriesFinished: boolean;
   lastSeriesResult: SeriesResult | null;
+  // Conta de cada jogador logado (por socket id). Não vai para os clientes.
+  userIds: Record<string, number>;
 }
 const rooms = new Map<string, BattleRoom>();
 const countdownTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const finishTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const nextRoundTimers = new Map<string, ReturnType<typeof setTimeout>>();
+// Jogadores que perderam a conexão e ainda podem voltar (por socket id).
+const reconnectTimers = new Map<string, ReturnType<typeof setTimeout>>();
+// Mesmo valor de connectionStateRecovery.maxDisconnectionDuration (server.ts).
+const RECONNECT_GRACE_MS = 20_000;
 const lobbyTimers = new Map<string, ReturnType<typeof setTimeout>>();
 // Instância do Socket.IO, definida em registerBattleSocket.
 let io: Server;
@@ -127,11 +136,13 @@ function makePlayer(
   return {
     socketId,
     nickname,
-    ...account,
+    isGuest: account.isGuest,
+    avatarUrl: account.avatarUrl,
+    connected: true,
     ...initialScore(),
   };
 }
-const GUEST: PlayerAccount = { isGuest: true, avatarUrl: null };
+const GUEST: PlayerAccount = { isGuest: true, avatarUrl: null, userId: null };
 // Quem está logado manda o token; a foto vem do banco, nunca do cliente.
 // Token ausente, inválido ou expirado entra como convidado.
 async function getPlayerAccount(token: unknown): Promise<PlayerAccount> {
@@ -143,15 +154,50 @@ async function getPlayerAccount(token: unknown): Promise<PlayerAccount> {
       id: userId,
     });
     if (!user) return GUEST;
-    return { isGuest: false, avatarUrl: user.avatarUrl ?? null };
+    return { isGuest: false, avatarUrl: user.avatarUrl ?? null, userId };
   } catch {
     return GUEST;
   }
 }
-// Não envia os textos digitados individualmente para os outros clientes.
+// Não envia os textos digitados nem as contas dos jogadores para os clientes.
 function publicRoom(room: BattleRoom) {
-  const { typedTexts: _typedTexts, ...safeRoom } = room;
+  const { typedTexts: _typedTexts, userIds: _userIds, ...safeRoom } = room;
   return safeRoom;
+}
+// Ordem da rodada: mais PPM primeiro; empate, maior precisão.
+function rankByScore(players: RoomPlayer[]): RoomPlayer[] {
+  return [...players].sort((first, second) => {
+    if (first.ppm !== second.ppm) return second.ppm - first.ppm;
+    return second.accuracy - first.accuracy;
+  });
+}
+// Guarda no histórico de quem está logado o resultado oficial da rodada.
+// Roda em segundo plano: uma falha no banco não atrapalha a partida.
+function saveRoundResults(room: BattleRoom, roundWinner: string | null) {
+  const ranked = rankByScore(room.players);
+  const rows = ranked.flatMap((player, index) => {
+    const userId = room.userIds[player.socketId];
+    if (userId === undefined) return [];
+    return [
+      {
+        userId,
+        won: player.socketId === roundWinner,
+        placement: index + 1,
+        players: ranked.length,
+        ppm: player.ppm,
+        accuracy: Math.round(player.accuracy),
+        errors: player.errors,
+        duration: room.settings.duration,
+        language: room.settings.language,
+      },
+    ];
+  });
+  if (rows.length === 0) return;
+  void Promise.all(
+    rows.map((row) => db.orm.public.BattleResult.create(row)),
+  ).catch((error: unknown) => {
+    console.error("ERRO AO SALVAR RESULTADO DA BATTLE:", error);
+  });
 }
 function sendRoomUpdate(room: BattleRoom) {
   io.to(room.code).emit("room:updated", publicRoom(room));
@@ -214,12 +260,7 @@ function getMaximumRounds(format: MatchFormat): number {
 }
 function getRoundWinner(room: BattleRoom): string | null {
   if (room.players.length < 2) return null;
-  const rankedPlayers = [...room.players].sort((first, second) => {
-    if (first.ppm !== second.ppm) return second.ppm - first.ppm;
-    if (first.accuracy !== second.accuracy)
-      return second.accuracy - first.accuracy;
-    return 0;
-  });
+  const rankedPlayers = rankByScore(room.players);
   const first = rankedPlayers[0];
   const second = rankedPlayers[1];
   if (!first) return null;
@@ -271,6 +312,7 @@ function finishBattle(room: BattleRoom) {
   }
   const roundWinner = getRoundWinner(room);
   battle.winnerSocketId = roundWinner;
+  saveRoundResults(room, roundWinner);
   if (roundWinner) {
     room.seriesWins[roundWinner] = (room.seriesWins[roundWinner] ?? 0) + 1;
   }
@@ -407,6 +449,8 @@ export function registerBattleSocket(server: Server) {
   io = server;
   io.on("connection", (socket) => {
     console.log(`Socket conectado: ${socket.id}`);
+    // Voltou dentro do prazo: mesmo id, mesma sala; só marca como conectado.
+    if (socket.recovered) restoreReconnectedPlayer(socket);
     socket.on(
       "room:create",
       async (payload: {
@@ -437,6 +481,7 @@ export function registerBattleSocket(server: Server) {
           battle: null,
           typedTexts: {},
           seriesWins: { [socket.id]: 0 },
+          userIds: account.userId === null ? {} : { [socket.id]: account.userId },
           seriesWinnerSocketId: null,
           seriesFinished: false,
           lastSeriesResult: null,
@@ -482,6 +527,7 @@ export function registerBattleSocket(server: Server) {
         removePlayerFromRoom(socket);
         room.players.push(makePlayer(socket.id, nickname, account));
         room.seriesWins[socket.id] = 0;
+        if (account.userId !== null) room.userIds[socket.id] = account.userId;
         socket.join(code);
         socket.data.roomCode = code;
         socket.emit("room:joined", publicRoom(room));
@@ -531,6 +577,10 @@ export function registerBattleSocket(server: Server) {
         );
         return;
       }
+      if (room.players.some((player) => !player.connected)) {
+        socket.emit("room:error", "Aguarde todos os jogadores reconectarem.");
+        return;
+      }
       if (!startBattle(room)) {
         socket.emit("room:error", "A partida não pode ser iniciada agora.");
       }
@@ -563,22 +613,64 @@ export function registerBattleSocket(server: Server) {
     socket.on("room:leave", () => {
       removePlayerFromRoom(socket);
     });
-    socket.on("disconnect", () => {
-      console.log(`Socket desconectado: ${socket.id}`);
-      removePlayerFromRoom(socket);
+    socket.on("disconnect", (reason) => {
+      console.log(`Socket desconectado: ${socket.id} (${reason})`);
+      // Fechou a aba ou saiu de propósito: remove na hora.
+      if (
+        reason === "client namespace disconnect" ||
+        reason === "server namespace disconnect"
+      ) {
+        removePlayerFromRoom(socket);
+        return;
+      }
+      holdPlayerForReconnect(socket);
     });
   });
+}
+// Conexão caiu (rede, celular trocou de app): mantém o jogador na sala por
+// alguns segundos para ele poder voltar sem perder o lugar nem o placar.
+function holdPlayerForReconnect(socket: Socket) {
+  const code = socket.data.roomCode as string | undefined;
+  const room = code ? rooms.get(code) : undefined;
+  const player = room?.players.find((item) => item.socketId === socket.id);
+  if (!code || !room || !player) return;
+  player.connected = false;
+  sendRoomUpdate(room);
+  const socketId = socket.id;
+  clearTimer(reconnectTimers, socketId);
+  reconnectTimers.set(
+    socketId,
+    setTimeout(() => {
+      reconnectTimers.delete(socketId);
+      removePlayer(code, socketId);
+    }, RECONNECT_GRACE_MS),
+  );
+}
+function restoreReconnectedPlayer(socket: Socket) {
+  clearTimer(reconnectTimers, socket.id);
+  const code = socket.data.roomCode as string | undefined;
+  const room = code ? rooms.get(code) : undefined;
+  const player = room?.players.find((item) => item.socketId === socket.id);
+  if (!room || !player) return;
+  player.connected = true;
+  sendRoomUpdate(room);
 }
 function removePlayerFromRoom(socket: Socket) {
   const code = socket.data.roomCode as string | undefined;
   if (!code) return;
-  const room = rooms.get(code);
+  clearTimer(reconnectTimers, socket.id);
   socket.leave(code);
   socket.data.roomCode = undefined;
+  removePlayer(code, socket.id);
+}
+function removePlayer(code: string, socketId: string) {
+  const room = rooms.get(code);
   if (!room) return;
-  room.players = room.players.filter((player) => player.socketId !== socket.id);
-  delete room.typedTexts[socket.id];
-  delete room.seriesWins[socket.id];
+  if (!room.players.some((player) => player.socketId === socketId)) return;
+  room.players = room.players.filter((player) => player.socketId !== socketId);
+  delete room.typedTexts[socketId];
+  delete room.seriesWins[socketId];
+  delete room.userIds[socketId];
   if (room.players.length === 0) {
     clearTimers(code);
     rooms.delete(code);
@@ -599,7 +691,7 @@ function removePlayerFromRoom(socket: Socket) {
       Object.assign(player, initialScore());
     }
   }
-  if (room.hostSocketId === socket.id) {
+  if (room.hostSocketId === socketId) {
     room.hostSocketId = room.players[0].socketId;
   }
   sendRoomUpdate(room);

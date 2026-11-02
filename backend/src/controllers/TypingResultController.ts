@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 
+import { DEFAULT_LANGUAGE, isLanguageCode } from "../battle/textGenerator.js";
 import { db } from "../prisma/db.js";
 
 const ALLOWED_DURATIONS = [15, 30, 60];
@@ -16,10 +17,48 @@ interface TypingResultInput {
   errors: number;
   characters: number;
   duration: number;
+  language: string;
+  // JSON com a letra esperada e quantas vezes errou nela.
+  missedKeys: string;
 }
+
+// Mais que isso não cabe num teste de 60 s.
+const MAX_MISSED_KEYS = 100;
 
 function isNonNegativeInteger(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 0;
+}
+
+// Cada chave é um único caractere; a soma não pode passar do total de erros.
+function validateMissedKeys(
+  value: unknown,
+  errors: number,
+): Record<string, number> | null {
+  if (value === undefined) return {};
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+
+  const entries = Object.entries(value);
+  if (entries.length > MAX_MISSED_KEYS) return null;
+
+  let total = 0;
+  for (const [key, count] of entries) {
+    if ([...key].length !== 1 || !isNonNegativeInteger(count)) return null;
+    total += count;
+  }
+
+  return total <= errors ? Object.fromEntries(entries) : null;
+}
+
+// Lê o JSON salvo; dados antigos ou inválidos viram objeto vazio.
+function parseMissedKeys(value: string): Record<string, number> {
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, number>)
+      : {};
+  } catch {
+    return {};
+  }
 }
 
 // Confere tipos, limites e se os números batem entre si.
@@ -28,10 +67,8 @@ export function validateTypingResult(body: unknown): TypingResultInput | string 
     return "Todos os dados do resultado são obrigatórios.";
   }
 
-  const { ppm, accuracy, errors, characters, duration } = body as Record<
-    string,
-    unknown
-  >;
+  const { ppm, accuracy, errors, characters, duration, language, missedKeys } =
+    body as Record<string, unknown>;
 
   if (
     ppm === undefined ||
@@ -57,6 +94,11 @@ export function validateTypingResult(body: unknown): TypingResultInput | string 
     return "A duração deve ser 15, 30 ou 60 segundos.";
   }
 
+  // Clientes antigos não mandam o idioma: conta como português.
+  if (language !== undefined && !isLanguageCode(language)) {
+    return "Idioma inválido.";
+  }
+
   if (ppm > MAX_PPM || accuracy > 100 || errors > characters) {
     return "Resultado inválido.";
   }
@@ -74,7 +116,21 @@ export function validateTypingResult(body: unknown): TypingResultInput | string 
     return "Resultado inválido.";
   }
 
-  return { ppm, accuracy, errors, characters, duration };
+  // Clientes antigos não mandam as teclas erradas.
+  const validMissedKeys = validateMissedKeys(missedKeys, errors);
+  if (!validMissedKeys) {
+    return "Resultado inválido.";
+  }
+
+  return {
+    ppm,
+    accuracy,
+    errors,
+    characters,
+    duration,
+    language: language ?? DEFAULT_LANGUAGE,
+    missedKeys: JSON.stringify(validMissedKeys),
+  };
 }
 
 // Salva o resultado de um teste de digitação
@@ -133,7 +189,10 @@ export async function getTypingResults(request: Request, response: Response) {
       .all();
 
     return response.status(200).json({
-      results,
+      results: results.map((result) => ({
+        ...result,
+        missedKeys: parseMissedKeys(result.missedKeys),
+      })),
     });
   } catch (error) {
     console.error("ERRO AO BUSCAR RESULTADOS:", error);
@@ -144,10 +203,11 @@ export async function getTypingResults(request: Request, response: Response) {
   }
 }
 
-// Busca o ranking dos jogadores por duração
+// Busca o ranking dos jogadores por duração e idioma
 export async function getRanking(request: Request, response: Response) {
   try {
     const duration = Number(request.query.duration);
+    const language = request.query.language ?? DEFAULT_LANGUAGE;
 
     // Somente essas três durações são permitidas.
     if (!ALLOWED_DURATIONS.includes(duration)) {
@@ -156,9 +216,15 @@ export async function getRanking(request: Request, response: Response) {
       });
     }
 
+    if (!isLanguageCode(language)) {
+      return response.status(400).json({
+        message: "Idioma inválido.",
+      });
+    }
+
     // Melhor resultado de cada usuário (DISTINCT ON userId), calculado no banco.
     // Em caso de empate no PPM, vale o resultado mais antigo.
-    const bestResults = await db.orm.public.TypingResult.where({ duration })
+    const bestResults = await db.orm.public.TypingResult.where({ duration, language })
       .orderBy([
         (result) => result.userId.asc(),
         (result) => result.ppm.desc(),
@@ -196,6 +262,7 @@ export async function getRanking(request: Request, response: Response) {
 
     return response.status(200).json({
       duration,
+      language,
       ranking,
     });
   } catch (error) {

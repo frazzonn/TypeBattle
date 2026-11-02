@@ -15,7 +15,11 @@ interface LanguageAutocompleteProps {
   onChange: (code: string) => void;
   // Mesmo uso de aria-labelledby: aponta para o rótulo visível do campo.
   labelId?: string;
+  // Nome acessível quando não há rótulo visível.
+  ariaLabel?: string;
   inputSx?: SxProps<Theme>;
+  // Idiomas que aparecem na lista mas não podem ser escolhidos agora.
+  isOptionDisabled?: (option: LanguageInfo) => boolean;
 }
 
 // Busca pelo nome no idioma e em português, ignorando acentos
@@ -29,7 +33,9 @@ export function LanguageAutocomplete({
   disabled = false,
   onChange,
   labelId,
+  ariaLabel,
   inputSx,
+  isOptionDisabled,
 }: LanguageAutocompleteProps) {
   const selected =
     LANGUAGE_OPTIONS.find((option) => option.code === value) ??
@@ -46,6 +52,7 @@ export function LanguageAutocomplete({
       autoHighlight
       filterOptions={filterOptions}
       getOptionLabel={(option) => option.label}
+      getOptionDisabled={isOptionDisabled}
       isOptionEqualToValue={(option, current) => option.code === current.code}
       onChange={(_, option) => {
         if (option && option.code !== value) onChange(option.code);
@@ -74,6 +81,7 @@ export function LanguageAutocomplete({
             htmlInput: {
               ...params.slotProps.htmlInput,
               "aria-labelledby": labelId,
+              "aria-label": labelId ? undefined : ariaLabel,
             },
           }}
           sx={inputSx}

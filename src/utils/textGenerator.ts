@@ -18,6 +18,21 @@ export function languageHasDifficulty(code: string): boolean {
   return LANGUAGES.find((item) => item.code === code)?.hasDifficulty ?? true;
 }
 
+export function languageHasQuotes(code: string): boolean {
+  return LANGUAGES.find((item) => item.code === code)?.hasQuotes ?? false;
+}
+
+export const QUOTE_LANGUAGE_OPTIONS = LANGUAGES.filter((item) => item.hasQuotes);
+
+// Curta = até 100 caracteres, média = até 300, longa = acima disso.
+export type QuoteLength = "short" | "medium" | "long";
+
+export interface Quote {
+  text: string;
+  source: string;
+  length: QuoteLength;
+}
+
 export interface TextGeneratorOptions {
   bank: WordBank;
   language?: string;
@@ -47,6 +62,39 @@ export function loadWordBank(language: string): Promise<WordBank> {
   promise.catch(() => bankCache.delete(language));
   bankCache.set(language, promise);
   return promise;
+}
+
+const quoteLoaders = import.meta.glob<Quote[]>("../data/quotes/*.json", {
+  import: "default",
+});
+const quoteCache = new Map<string, Promise<Quote[]>>();
+
+// Frases do idioma; lista vazia para idiomas sem frases.
+export function loadQuotes(language: string): Promise<Quote[]> {
+  const cached = quoteCache.get(language);
+  if (cached) return cached;
+
+  const loader = quoteLoaders[`../data/quotes/${language}.json`];
+  const promise = loader ? loader() : Promise.resolve([]);
+
+  promise.catch(() => quoteCache.delete(language));
+  quoteCache.set(language, promise);
+  return promise;
+}
+
+// Sorteia uma frase (do tamanho pedido, se houver), evitando repetir a anterior.
+export function pickQuote(
+  quotes: readonly Quote[],
+  length: QuoteLength | "all",
+  previousText?: string,
+): Quote | null {
+  const sized =
+    length === "all" ? quotes : quotes.filter((quote) => quote.length === length);
+  const pool = sized.length > 0 ? sized : quotes;
+  const fresh =
+    pool.length > 1 ? pool.filter((quote) => quote.text !== previousText) : pool;
+
+  return fresh[Math.floor(Math.random() * fresh.length)] ?? null;
 }
 
 function removeAccents(word: string): string {

@@ -10,6 +10,7 @@ import {
 } from "../battleUtils";
 import { cardSx, colors, ghostButtonSx, labelSx, monoFont } from "../styles";
 import type { BattleRoom } from "../types";
+import { PlayerAvatar } from "./PlayerAvatar";
 
 // Tempo que o servidor espera antes da próxima rodada / de voltar ao lobby.
 const NEXT_ROUND_DELAY = 2500;
@@ -187,13 +188,11 @@ export function BattleResult({
                     <Box
                       sx={{ display: "inline-flex", alignItems: "center", gap: 1.25, fontWeight: 700 }}
                     >
-                      <Box
-                        sx={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: "50%",
-                          bgcolor: getPlayerColor(room, player.socketId),
-                        }}
+                      <PlayerAvatar
+                        nickname={player.nickname}
+                        avatarUrl={player.avatarUrl}
+                        color={getPlayerColor(room, player.socketId)}
+                        size={30}
                       />
                       {player.nickname}
                       {isMe && (

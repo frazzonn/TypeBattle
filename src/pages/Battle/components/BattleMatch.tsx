@@ -8,6 +8,7 @@ import {
 } from "../battleUtils";
 import { cardSx, colors, labelSx, monoFont } from "../styles";
 import type { BattleRoom } from "../types";
+import { PlayerAvatar } from "./PlayerAvatar";
 import { SeriesScore } from "./SeriesScore";
 
 interface BattleMatchProps {
@@ -133,7 +134,10 @@ export function BattleMatch({
           return (
             <Box
               key={player.socketId}
+              title={player.connected === false ? "Reconectando…" : undefined}
               sx={{
+                // Conexão caiu: a pista fica apagada até o jogador voltar.
+                opacity: player.connected === false ? 0.45 : 1,
                 display: "grid",
                 gridTemplateColumns: {
                   xs: "84px minmax(0, 1fr) 64px",
@@ -143,21 +147,30 @@ export function BattleMatch({
                 gap: { xs: 1.25, sm: 2 },
               }}
             >
-              <Typography
-                noWrap
-                sx={{
-                  fontSize: 14,
-                  fontWeight: isMe ? 800 : 600,
-                  color: isMe ? "#ffffff" : colors.textMuted,
-                }}
-              >
-                {player.nickname}
-                {isMe && (
-                  <Box component="span" sx={{ color: colors.textSecondary, fontWeight: 500 }}>
-                    {" "}(você)
-                  </Box>
-                )}
-              </Typography>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
+                <PlayerAvatar
+                  nickname={player.nickname}
+                  avatarUrl={player.avatarUrl}
+                  color={color}
+                  size={24}
+                />
+                <Typography
+                  noWrap
+                  sx={{
+                    minWidth: 0,
+                    fontSize: 14,
+                    fontWeight: isMe ? 800 : 600,
+                    color: isMe ? "#ffffff" : colors.textMuted,
+                  }}
+                >
+                  {player.nickname}
+                  {isMe && (
+                    <Box component="span" sx={{ color: colors.textSecondary, fontWeight: 500 }}>
+                      {" "}(você)
+                    </Box>
+                  )}
+                </Typography>
+              </Box>
 
               <Box
                 role="progressbar"

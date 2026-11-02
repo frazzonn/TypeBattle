@@ -10,6 +10,8 @@ import {
 
 import { useAuth } from "../../contexts/useAuth";
 import { getTypingResults, type TypingResult } from "../../services/api";
+import { BattleStats } from "./components/BattleStats";
+import { MissedKeysCard } from "./components/MissedKeysCard";
 import { ProfileHeader } from "./components/ProfileHeader";
 import { ProfileOverview } from "./components/ProfileOverview";
 import { ResultsHistory } from "./components/ResultsHistory";
@@ -91,6 +93,10 @@ export function Profile() {
         )}
 
         {hasResults && <ProfileOverview results={results} />}
+
+        {hasResults && <MissedKeysCard results={results} />}
+
+        {token && <BattleStats token={token} />}
 
         <Box>
           {hasResults && <ResultsHistory results={results} />}

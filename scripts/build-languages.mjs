@@ -9,9 +9,13 @@
 // suficientes: juntam todas as palavras numa lista só (salva em "easy") e o
 // seletor de dificuldade some.
 //
+// Frases (modo "frases"): scripts/quotes/<código>.json (provérbios, versionados)
+// mais src/quotes/<código>.json, no formato da pasta quotes do Monkeytype, se existir.
+//
 // Saídas:
 //   src/data/languages.ts           idiomas disponíveis (sem as palavras)
 //   src/data/wordBanks/<código>.json palavras de cada idioma, carregadas sob demanda no front
+//   src/data/quotes/<código>.json    frases de cada idioma, também sob demanda
 //   backend/src/battle/languageWords.ts tudo junto, para o servidor das batalhas
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -20,6 +24,8 @@ const ROOT = new URL("..", import.meta.url).pathname.replace(/^\/(\w:)/, "$1");
 const SOURCE_DIR = join(ROOT, "src/languages");
 const FRONT_LIST = join(ROOT, "src/data/languages.ts");
 const FRONT_BANKS = join(ROOT, "src/data/wordBanks");
+const QUOTE_SOURCES = [join(ROOT, "scripts/quotes"), join(ROOT, "src/quotes")];
+const FRONT_QUOTES = join(ROOT, "src/data/quotes");
 const BACK_FILE = join(ROOT, "backend/src/battle/languageWords.ts");
 
 const LANGUAGES = [
@@ -144,14 +150,65 @@ const banks = LANGUAGES.map(({ files, noDifficulty, ...language }) => {
   return { ...language, latin: language.latin ?? true, hasDifficulty: !noDifficulty, ...bank };
 });
 
+// Tamanho da frase pelo número de caracteres (mesmos cortes do Monkeytype).
+function quoteLength(text) {
+  if (text.length <= 100) return "short";
+  if (text.length <= 300) return "medium";
+  return "long";
+}
+
+// Troca aspas curvas, travessões e afins pelo que existe no teclado.
+function cleanQuoteText(text) {
+  return String(text)
+    .replace(/[‘’‛′]/g, "'")
+    .replace(/[“”‟″«»]/g, '"')
+    .replace(/[–—―]/g, "-")
+    .replace(/…/g, "...")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function readQuotes(code) {
+  const seen = new Set();
+  const quotes = [];
+
+  for (const dir of QUOTE_SOURCES) {
+    const file = join(dir, `${code}.json`);
+    if (!existsSync(file)) continue;
+
+    for (const quote of JSON.parse(readFileSync(file, "utf8")).quotes ?? []) {
+      const text = cleanQuoteText(quote.text);
+      // Frases muito curtas, enormes ou com caracteres fora do teclado ficam de fora.
+      if (text.length < 15 || text.length > 600 ||/[^\p{L}\p{M}\p{N}\p{P} $+<=>^`|~]/u.test(text)) continue;
+      if (seen.has(text)) continue;
+      seen.add(text);
+      quotes.push({ text, source: cleanQuoteText(quote.source ?? ""), length: quoteLength(text) });
+    }
+  }
+
+  return quotes;
+}
+
+if (!existsSync(FRONT_QUOTES)) mkdirSync(FRONT_QUOTES, { recursive: true });
+
+for (const language of banks) {
+  const quotes = readQuotes(language.code);
+  language.hasQuotes = quotes.length > 0;
+  if (quotes.length) {
+    writeFileSync(join(FRONT_QUOTES, `${language.code}.json`), JSON.stringify(quotes));
+    console.log(`${language.code}: ${quotes.length} frases`);
+  }
+}
+
 const header = "// Arquivo gerado por scripts/build-languages.mjs. Não edite à mão.\n";
-const languageInfo = banks.map(({ code, label, name, locale, latin, hasDifficulty }) => ({
+const languageInfo = banks.map(({ code, label, name, locale, latin, hasDifficulty, hasQuotes }) => ({
   code,
   label,
   name,
   locale,
   latin,
   hasDifficulty,
+  hasQuotes,
 }));
 
 if (!existsSync(FRONT_BANKS)) mkdirSync(FRONT_BANKS, { recursive: true });
@@ -173,6 +230,8 @@ export interface LanguageInfo {
   latin: boolean;
   // false: o idioma tem uma lista só e o seletor de dificuldade some.
   hasDifficulty: boolean;
+  // true: há frases prontas para o modo "frases".
+  hasQuotes: boolean;
 }
 
 export const DEFAULT_LANGUAGE = "portuguese";
@@ -199,6 +258,6 @@ export interface LanguageWordList {
 
 export const DEFAULT_LANGUAGE = "portuguese";
 
-export const LANGUAGE_WORDS: readonly LanguageWordList[] = ${JSON.stringify(banks)};
+export const LANGUAGE_WORDS: readonly LanguageWordList[] = ${JSON.stringify(banks.map(({ hasQuotes, ...bank }) => bank))};
 `,
 );

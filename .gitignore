@@ -37,3 +37,6 @@ Thumbs.db
 
 # Listas brutas de idiomas (geradas em src/data/languageWords.ts)
 src/languages/
+
+# Frases brutas no formato do Monkeytype (geradas em src/data/quotes)
+src/quotes/

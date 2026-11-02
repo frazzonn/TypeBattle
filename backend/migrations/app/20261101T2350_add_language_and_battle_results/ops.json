@@ -1,0 +1,164 @@
+[
+  {
+    "id": "table.BattleResult",
+    "label": "Create table \"BattleResult\"",
+    "summary": "Creates table \"BattleResult\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "BattleResult"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"BattleResult\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"BattleResult\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"BattleResult\"",
+        "sql": "CREATE TABLE \"public\".\"BattleResult\" (\n  \"accuracy\" int4 NOT NULL,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"duration\" int4 NOT NULL,\n  \"errors\" int4 NOT NULL,\n  \"id\" SERIAL NOT NULL,\n  \"language\" text NOT NULL,\n  \"placement\" int4 NOT NULL,\n  \"players\" int4 NOT NULL,\n  \"ppm\" int4 NOT NULL,\n  \"userId\" int4 NOT NULL,\n  \"won\" bool NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"BattleResult\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"BattleResult\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.TypingResult.language",
+    "label": "Add column \"language\" to \"TypingResult\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "language",
+        "table": "TypingResult"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"language\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "TypingResult",
+          "language"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"language\"",
+        "sql": "ALTER TABLE \"public\".\"TypingResult\" ADD COLUMN \"language\" text DEFAULT 'portuguese' NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"language\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "TypingResult",
+          "language"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.BattleResult.BattleResult_userId_idx_a489d58a",
+    "label": "Create index \"BattleResult_userId_idx_a489d58a\" on \"BattleResult\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "BattleResult_userId_idx_a489d58a",
+        "table": "BattleResult"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"BattleResult_userId_idx_a489d58a\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"BattleResult_userId_idx_a489d58a\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"BattleResult_userId_idx_a489d58a\"",
+        "sql": "CREATE INDEX \"BattleResult_userId_idx_a489d58a\" ON \"public\".\"BattleResult\" (\"userId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"BattleResult_userId_idx_a489d58a\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"BattleResult_userId_idx_a489d58a\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.BattleResult.BattleResult_userId_fkey",
+    "label": "Add foreign key \"BattleResult_userId_fkey\" on \"BattleResult\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "BattleResult_userId_fkey",
+        "table": "BattleResult"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"BattleResult_userId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "BattleResult_userId_fkey",
+          "public",
+          "\"public\".\"BattleResult\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"BattleResult_userId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"BattleResult\"\nADD CONSTRAINT \"BattleResult_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"BattleResult_userId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "BattleResult_userId_fkey",
+          "public",
+          "\"public\".\"BattleResult\""
+        ]
+      }
+    ]
+  }
+]

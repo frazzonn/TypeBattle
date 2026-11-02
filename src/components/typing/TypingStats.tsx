@@ -59,7 +59,7 @@ export function TypingStats({
       ? [
           {
             label: "Duração",
-            value: `${duration}s`,
+            value: `${duration.toLocaleString("pt-BR")}s`,
             description: "Tempo do teste",
             icon: <AccessTimeRoundedIcon />,
             color: "#c4b5fd",

@@ -32,6 +32,9 @@ interface TypingResultData {
   errors: number;
   characters: number;
   duration: number;
+  language: string;
+  // Letra esperada -> quantas vezes errou nela.
+  missedKeys?: Record<string, number>;
 }
 
 export interface TypingResult {
@@ -42,6 +45,8 @@ export interface TypingResult {
   errors: number;
   characters: number;
   duration: number;
+  language?: string;
+  missedKeys?: Record<string, number>;
   createdAt: string;
 }
 
@@ -59,7 +64,35 @@ export interface RankingEntry {
 
 export interface RankingResponse {
   duration: number;
+  language?: string;
   ranking: RankingEntry[];
+}
+
+export interface BattleResult {
+  id: number;
+  won: boolean;
+  placement: number;
+  players: number;
+  ppm: number;
+  accuracy: number;
+  errors: number;
+  duration: number;
+  language: string;
+  createdAt: string;
+}
+
+export interface BattleSummary {
+  played: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+  bestPpm: number;
+  averagePpm: number;
+}
+
+export interface BattleResultsResponse {
+  summary: BattleSummary;
+  recent: BattleResult[];
 }
 
 interface UploadAvatarResponse {
@@ -208,11 +241,27 @@ export async function getTypingResults(
   return handleResponse<TypingResultsResponse>(response);
 }
 
-// Busca o ranking para uma duração específica.
-export async function getRanking(duration: number): Promise<RankingResponse> {
-  const response = await fetch(
-    `${API_URL}/typing-results/ranking?duration=${duration}`,
-  );
+// Busca o ranking para uma duração e um idioma.
+export async function getRanking(
+  duration: number,
+  language: string,
+): Promise<RankingResponse> {
+  const params = new URLSearchParams({ duration: String(duration), language });
+  const response = await fetch(`${API_URL}/typing-results/ranking?${params}`);
 
   return handleResponse<RankingResponse>(response);
+}
+
+// Resumo e partidas recentes da battle do usuário autenticado.
+export async function getBattleResults(
+  token: string,
+): Promise<BattleResultsResponse> {
+  const response = await fetch(`${API_URL}/battle-results`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  return handleResponse<BattleResultsResponse>(response);
 }

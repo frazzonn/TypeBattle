@@ -17,7 +17,9 @@ import MilitaryTechRoundedIcon from "@mui/icons-material/MilitaryTechRounded";
 import SpeedRoundedIcon from "@mui/icons-material/SpeedRounded";
 import TrackChangesRoundedIcon from "@mui/icons-material/TrackChangesRounded";
 
+import { LanguageAutocomplete } from "../../components/LanguageAutocomplete";
 import { getRanking } from "../../services/api";
+import { DEFAULT_LANGUAGE, LANGUAGE_OPTIONS } from "../../utils/textGenerator";
 
 interface RankingPlayer {
   position: number;
@@ -38,6 +40,8 @@ const BORDER_COLOR = "rgba(167, 139, 250, 0.16)";
 
 export function Ranking() {
   const [duration, setDuration] = useState<number>(15);
+  // Cada idioma tem seu próprio ranking; começa no português.
+  const [language, setLanguage] = useState(DEFAULT_LANGUAGE);
   const [ranking, setRanking] = useState<RankingPlayer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -51,7 +55,7 @@ export function Ranking() {
         setIsLoading(true);
         setError("");
 
-        const response: RankingResponse = await getRanking(duration);
+        const response: RankingResponse = await getRanking(duration, language);
 
         if (isActive) {
           setRanking(response.ranking);
@@ -75,7 +79,7 @@ export function Ranking() {
     return () => {
       isActive = false;
     };
-  }, [duration]);
+  }, [duration, language]);
 
   function handleDurationChange(
     _event: React.MouseEvent<HTMLElement>,
@@ -91,6 +95,10 @@ export function Ranking() {
     if (duration === 30) return "30 segundos";
     return "60 segundos";
   }
+
+  const languageLabel =
+    LANGUAGE_OPTIONS.find((option) => option.code === language)?.label ??
+    "Português";
 
   function getInitials(name: string) {
     return name
@@ -195,45 +203,75 @@ export function Ranking() {
           >
             <Box>
               <Typography sx={{ fontWeight: 700, color: "#f5f3ff", mb: 0.5 }}>
-                Duração do teste
+                Idioma e duração
               </Typography>
 
               <Typography variant="body2" sx={{ color: "#969bad" }}>
-                Compare os resultados de cada modalidade.
+                Cada idioma tem seu próprio ranking.
               </Typography>
             </Box>
 
-            <ToggleButtonGroup
-              value={duration}
-              exclusive
-              onChange={handleDurationChange}
-              aria-label="Duração do teste"
+            <Box
               sx={{
-                "& .MuiToggleButton-root": {
-                  px: { xs: 1.5, sm: 2.5 },
-                  py: 1,
-                  color: "#b7bac8",
-                  borderColor: "rgba(255,255,255,0.1)",
-                  fontWeight: 700,
-                  textTransform: "none",
-                  "&:hover": {
-                    backgroundColor: "rgba(167, 139, 250, 0.08)",
-                  },
-                  "&.Mui-selected": {
-                    color: "#eee7ff",
-                    backgroundColor: "rgba(124, 77, 255, 0.2)",
-                    borderColor: "rgba(167, 139, 250, 0.5)",
-                  },
-                  "&.Mui-selected:hover": {
-                    backgroundColor: "rgba(124, 77, 255, 0.28)",
-                  },
-                },
+                display: "flex",
+                flexDirection: { xs: "column", sm: "row" },
+                gap: 1.5,
+                alignItems: { xs: "stretch", sm: "center" },
               }}
             >
-              <ToggleButton value={15}>15s</ToggleButton>
-              <ToggleButton value={30}>30s</ToggleButton>
-              <ToggleButton value={60}>60s</ToggleButton>
-            </ToggleButtonGroup>
+              <Box sx={{ minWidth: { sm: 200 } }}>
+                <LanguageAutocomplete
+                  value={language}
+                  onChange={setLanguage}
+                  ariaLabel="Idioma do ranking"
+                  inputSx={{
+                    "& .MuiOutlinedInput-root": {
+                      color: "#eee7ff",
+                      fontWeight: 700,
+                      borderRadius: 2,
+                      backgroundColor: "rgba(255,255,255,0.02)",
+                    },
+                    "& .MuiOutlinedInput-notchedOutline": {
+                      borderColor: "rgba(255,255,255,0.1)",
+                    },
+                    "& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline":
+                      { borderColor: "rgba(167, 139, 250, 0.5)" },
+                  }}
+                />
+              </Box>
+
+              <ToggleButtonGroup
+                value={duration}
+                exclusive
+                onChange={handleDurationChange}
+                aria-label="Duração do teste"
+                sx={{
+                  "& .MuiToggleButton-root": {
+                    px: { xs: 1.5, sm: 2.5 },
+                    py: 1,
+                    color: "#b7bac8",
+                    borderColor: "rgba(255,255,255,0.1)",
+                    fontWeight: 700,
+                    textTransform: "none",
+                    "&:hover": {
+                      backgroundColor: "rgba(167, 139, 250, 0.08)",
+                    },
+                    "&.Mui-selected": {
+                      color: "#eee7ff",
+                      backgroundColor: "rgba(124, 77, 255, 0.2)",
+                      borderColor: "rgba(167, 139, 250, 0.5)",
+                    },
+                    "&.Mui-selected:hover": {
+                      backgroundColor: "rgba(124, 77, 255, 0.28)",
+                    },
+                  },
+                }}
+              >
+                <ToggleButton value={15}>15s</ToggleButton>
+                <ToggleButton value={30}>30s</ToggleButton>
+                <ToggleButton value={60}>60s</ToggleButton>
+              </ToggleButtonGroup>
+            </Box>
           </Box>
         </Paper>
 
@@ -251,7 +289,7 @@ export function Ranking() {
           </Typography>
 
           <Typography variant="body2" sx={{ color: "#969bad", mt: 0.5 }}>
-            Resultados para testes de {getDurationLabel()}.
+            Resultados em {languageLabel} para testes de {getDurationLabel()}.
           </Typography>
         </Box>
 

@@ -9,6 +9,8 @@ export interface LanguageInfo {
   latin: boolean;
   // false: o idioma tem uma lista só e o seletor de dificuldade some.
   hasDifficulty: boolean;
+  // true: há frases prontas para o modo "frases".
+  hasQuotes: boolean;
 }
 
 export const DEFAULT_LANGUAGE = "portuguese";
@@ -20,7 +22,8 @@ export const LANGUAGES: readonly LanguageInfo[] = [
     "name": "Português",
     "locale": "pt-BR",
     "latin": true,
-    "hasDifficulty": true
+    "hasDifficulty": true,
+    "hasQuotes": true
   },
   {
     "code": "english",
@@ -28,7 +31,8 @@ export const LANGUAGES: readonly LanguageInfo[] = [
     "name": "Inglês",
     "locale": "en-US",
     "latin": true,
-    "hasDifficulty": true
+    "hasDifficulty": true,
+    "hasQuotes": true
   },
   {
     "code": "spanish",
@@ -36,7 +40,8 @@ export const LANGUAGES: readonly LanguageInfo[] = [
     "name": "Espanhol",
     "locale": "es-ES",
     "latin": true,
-    "hasDifficulty": true
+    "hasDifficulty": true,
+    "hasQuotes": true
   },
   {
     "code": "french",
@@ -44,7 +49,8 @@ export const LANGUAGES: readonly LanguageInfo[] = [
     "name": "Francês",
     "locale": "fr-FR",
     "latin": true,
-    "hasDifficulty": true
+    "hasDifficulty": true,
+    "hasQuotes": true
   },
   {
     "code": "german",
@@ -52,7 +58,8 @@ export const LANGUAGES: readonly LanguageInfo[] = [
     "name": "Alemão",
     "locale": "de-DE",
     "latin": true,
-    "hasDifficulty": true
+    "hasDifficulty": true,
+    "hasQuotes": true
   },
   {
     "code": "italian",
@@ -60,7 +67,8 @@ export const LANGUAGES: readonly LanguageInfo[] = [
     "name": "Italiano",
     "locale": "it-IT",
     "latin": true,
-    "hasDifficulty": true
+    "hasDifficulty": true,
+    "hasQuotes": true
   },
   {
     "code": "dutch",
@@ -68,7 +76,8 @@ export const LANGUAGES: readonly LanguageInfo[] = [
     "name": "Holandês",
     "locale": "nl-NL",
     "latin": true,
-    "hasDifficulty": true
+    "hasDifficulty": true,
+    "hasQuotes": true
   },
   {
     "code": "polish",
@@ -76,7 +85,8 @@ export const LANGUAGES: readonly LanguageInfo[] = [
     "name": "Polonês",
     "locale": "pl-PL",
     "latin": true,
-    "hasDifficulty": true
+    "hasDifficulty": true,
+    "hasQuotes": true
   },
   {
     "code": "swedish",
@@ -84,7 +94,8 @@ export const LANGUAGES: readonly LanguageInfo[] = [
     "name": "Sueco",
     "locale": "sv-SE",
     "latin": true,
-    "hasDifficulty": false
+    "hasDifficulty": false,
+    "hasQuotes": true
   },
   {
     "code": "turkish",
@@ -92,7 +103,8 @@ export const LANGUAGES: readonly LanguageInfo[] = [
     "name": "Turco",
     "locale": "tr-TR",
     "latin": true,
-    "hasDifficulty": false
+    "hasDifficulty": false,
+    "hasQuotes": true
   },
   {
     "code": "indonesian",
@@ -100,7 +112,8 @@ export const LANGUAGES: readonly LanguageInfo[] = [
     "name": "Indonésio",
     "locale": "id-ID",
     "latin": true,
-    "hasDifficulty": true
+    "hasDifficulty": true,
+    "hasQuotes": true
   },
   {
     "code": "russian",
@@ -108,6 +121,7 @@ export const LANGUAGES: readonly LanguageInfo[] = [
     "name": "Russo",
     "locale": "ru-RU",
     "latin": false,
-    "hasDifficulty": true
+    "hasDifficulty": true,
+    "hasQuotes": true
   }
 ];

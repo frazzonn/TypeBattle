@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import type { MouseEvent, KeyboardEvent } from "react";
+import type { KeyboardEvent } from "react";
 import { Link } from "react-router-dom";
 import {
   Box,
   Button,
   Container,
   FormControl,
+  GlobalStyles,
   IconButton,
   MenuItem,
   Paper,
@@ -25,16 +26,29 @@ import FormatSizeRoundedIcon from "@mui/icons-material/FormatSizeRounded";
 import ShortTextRoundedIcon from "@mui/icons-material/ShortTextRounded";
 import QueryStatsRoundedIcon from "@mui/icons-material/QueryStatsRounded";
 import LanguageRoundedIcon from "@mui/icons-material/LanguageRounded";
+import CategoryRoundedIcon from "@mui/icons-material/CategoryRounded";
+import EmojiEventsRoundedIcon from "@mui/icons-material/EmojiEventsRounded";
+import FormatQuoteRoundedIcon from "@mui/icons-material/FormatQuoteRounded";
 
-import { TIME_OPTIONS, useTypingTest } from "../../hooks/useTypingTest";
 import {
+  TIME_OPTIONS,
+  WORD_OPTIONS,
+  useTypingTest,
+  type QuoteLengthFilter,
+  type TestMode,
+} from "../../hooks/useTypingTest";
+import {
+  LANGUAGE_OPTIONS,
   languageHasDifficulty,
   type TextDifficulty,
 } from "../../utils/textGenerator";
+import { mergeServerRecords } from "../../utils/typingRecords";
 import { LanguageAutocomplete } from "../../components/LanguageAutocomplete";
 import { TypingText } from "../../components/typing/TypingText";
 import { TypingStats } from "../../components/typing/TypingStats";
-import { saveTypingResult } from "../../services/api";
+import { ResultChart } from "../../components/typing/ResultChart";
+import { MissedKeys } from "../../components/typing/MissedKeys";
+import { getTypingResults, saveTypingResult } from "../../services/api";
 import { useAuth } from "../../contexts/useAuth";
 
 const panelSx = {
@@ -67,22 +81,71 @@ const selectSx = {
   },
 };
 
+const toggleGroupSx = {
+  "& .MuiToggleButton-root": {
+    color: "#a0a4ad",
+    borderColor: "#343844",
+    px: 2,
+    textTransform: "none",
+    fontWeight: 700,
+  },
+  "& .MuiToggleButton-root.Mui-selected": {
+    color: "#ffffff",
+    backgroundColor: "#6d45d8",
+    borderColor: "#7c4dff",
+  },
+  "& .MuiToggleButton-root.Mui-selected:hover": {
+    backgroundColor: "#7955e8",
+  },
+};
+
+const captionSx = {
+  color: "#a0a4ad",
+  fontWeight: 700,
+  textTransform: "uppercase",
+  letterSpacing: 1,
+};
+
+const MODE_OPTIONS: { value: TestMode; label: string }[] = [
+  { value: "time", label: "Tempo" },
+  { value: "words", label: "Palavras" },
+  { value: "quote", label: "Frases" },
+];
+
+const QUOTE_LENGTH_OPTIONS: { value: QuoteLengthFilter; label: string }[] = [
+  { value: "all", label: "Todas" },
+  { value: "short", label: "Curtas" },
+  { value: "medium", label: "Médias" },
+  { value: "long", label: "Longas" },
+];
+
 const LIVE_STATS_KEY = "typebattle_show_live_stats";
+
+function getLanguageLabel(code: string) {
+  return LANGUAGE_OPTIONS.find((option) => option.code === code)?.label ?? code;
+}
 
 export function TypingTest() {
   const {
+    mode,
     selectedTime,
+    wordCount,
+    quoteLength,
     timeLeft,
+    typedWords,
+    totalWords,
     input,
     targetText,
+    noQuotes,
     isStarted,
     isFinished,
+    isPaused,
+    result,
     totalCharacters,
     totalErrors,
     ppm,
     accuracy,
     inputRef,
-    changeTime,
     resetTest,
     handleInputChange,
     difficulty,
@@ -92,6 +155,10 @@ export function TypingTest() {
     useAccents,
     useUppercase,
     usePunctuation,
+    changeMode,
+    changeTime,
+    changeWordCount,
+    changeQuoteLength,
     changeDifficulty,
     changeLanguage,
     changeAccents,
@@ -122,10 +189,29 @@ export function TypingTest() {
   }, [showLiveStats]);
 
   const controlsDisabled = isStarted;
+  const isQuoteMode = mode === "quote";
 
-  // Salva o resultado quando o teste termina.
+  // Recordes de quem está logado valem em qualquer navegador.
   useEffect(() => {
-    if (!isFinished || !isAuthenticated || !token || resultSavedRef.current) {
+    if (!token) return;
+
+    getTypingResults(token)
+      .then((response) => mergeServerRecords(response.results))
+      .catch((error: unknown) => {
+        console.error("Erro ao carregar recordes:", error);
+      });
+  }, [token]);
+
+  // Salva o resultado quando o teste termina. Só o modo tempo entra no
+  // ranking e no histórico (os outros têm duração variável).
+  useEffect(() => {
+    if (
+      !result ||
+      mode !== "time" ||
+      !isAuthenticated ||
+      !token ||
+      resultSavedRef.current
+    ) {
       return;
     }
 
@@ -133,27 +219,41 @@ export function TypingTest() {
 
     void saveTypingResult(
       {
-        ppm,
-        accuracy,
-        errors: totalErrors,
-        characters: totalCharacters,
+        ppm: result.ppm,
+        accuracy: result.accuracy,
+        errors: result.errors,
+        characters: result.characters,
         duration: selectedTime,
+        language,
+        missedKeys: result.missedKeys,
       },
       token,
     ).catch((error: unknown) => {
       resultSavedRef.current = false;
       console.error("Erro ao salvar resultado:", error);
     });
-  }, [
-    isFinished,
-    isAuthenticated,
-    token,
-    ppm,
-    accuracy,
-    totalErrors,
-    totalCharacters,
-    selectedTime,
-  ]);
+  }, [result, mode, isAuthenticated, token, selectedTime, language]);
+
+  // Modo foco: durante o teste, menu, rodapé e configurações somem.
+  // Mexer o mouse mostra de novo; voltar a digitar esconde.
+  const [mouseRevealed, setMouseRevealed] = useState(false);
+  const isTyping = isStarted && !isPaused;
+  const focusMode = isTyping && !mouseRevealed;
+
+  useEffect(() => {
+    if (!isTyping) return;
+
+    const reveal = () => setMouseRevealed(true);
+    const hide = () => setMouseRevealed(false);
+
+    window.addEventListener("mousemove", reveal);
+    window.addEventListener("keydown", hide);
+
+    return () => {
+      window.removeEventListener("mousemove", reveal);
+      window.removeEventListener("keydown", hide);
+    };
+  }, [isTyping]);
 
   // Durante o teste, Tab leva ao botão Reiniciar teste.
   useEffect(() => {
@@ -231,84 +331,169 @@ export function TypingTest() {
     }
   }
 
-  function handleTimeChange(
-    _event: MouseEvent<HTMLElement>,
-    value: number | null,
-  ) {
-    if (value !== null) {
-      changeTime(value);
-    }
-  }
+  const languageLabel = getLanguageLabel(language);
+  const modeSummary =
+    mode === "time"
+      ? `Tempo · ${selectedTime}s · ${languageLabel}`
+      : mode === "words"
+        ? `${wordCount} palavras · ${languageLabel}`
+        : `Frase · ${languageLabel}`;
+
+  // Mensagem de carregamento ou de erro acima do texto.
+  const statusMessage = loadError
+    ? "Não foi possível carregar o texto. Verifique sua conexão e troque o idioma para tentar de novo."
+    : noQuotes
+      ? `Ainda não há frases em ${languageLabel}. Escolha outro idioma.`
+      : isLoadingWords
+        ? isQuoteMode
+          ? "Carregando frases…"
+          : "Carregando palavras…"
+        : "";
 
   return (
     <Container maxWidth="lg" sx={{ py: 5 }}>
+      <GlobalStyles
+        styles={{
+          "header.MuiAppBar-root, footer": {
+            transition: "opacity 300ms ease",
+            ...(focusMode && { opacity: 0, pointerEvents: "none" }),
+          },
+        }}
+      />
+
       <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
         {/* Painel de configurações */}
         <Paper
           elevation={0}
+          aria-hidden={focusMode || undefined}
           sx={{
             ...panelSx,
             p: { xs: 2, md: 2.5 },
+            transition: "opacity 300ms ease",
+            ...(focusMode && { opacity: 0, pointerEvents: "none" }),
           }}
         >
           <Box
             sx={{
               display: "flex",
               flexWrap: "wrap",
-              alignItems: "center",
+              alignItems: "flex-start",
               justifyContent: "space-between",
               gap: 3,
             }}
           >
-            {/* Duração */}
+            {/* Modo */}
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <CategoryRoundedIcon sx={{ color: "#a78bfa", fontSize: 19 }} />
+                <Typography id="typing-mode" variant="caption" sx={captionSx}>
+                  Modo
+                </Typography>
+              </Box>
+
+              <ToggleButtonGroup
+                exclusive
+                value={mode}
+                onChange={(_event, value: TestMode | null) => {
+                  if (value !== null) changeMode(value);
+                }}
+                disabled={controlsDisabled}
+                size="small"
+                aria-labelledby="typing-mode"
+                sx={toggleGroupSx}
+              >
+                {MODE_OPTIONS.map((option) => (
+                  <ToggleButton key={option.value} value={option.value}>
+                    {option.label}
+                  </ToggleButton>
+                ))}
+              </ToggleButtonGroup>
+            </Box>
+
+            {/* Duração, quantidade de palavras ou tamanho da frase */}
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <AccessTimeRoundedIcon
                   sx={{ color: "#a78bfa", fontSize: 19 }}
                 />
                 <Typography
+                  id="typing-amount"
                   variant="caption"
-                  sx={{
-                    color: "#a0a4ad",
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    letterSpacing: 1,
-                  }}
+                  sx={captionSx}
                 >
-                  Tempo
+                  {mode === "time"
+                    ? "Tempo"
+                    : mode === "words"
+                      ? "Palavras"
+                      : "Tamanho"}
                 </Typography>
               </Box>
 
-              <ToggleButtonGroup
-                exclusive
-                value={selectedTime}
-                onChange={handleTimeChange}
-                disabled={controlsDisabled}
-                size="small"
-                sx={{
-                  "& .MuiToggleButton-root": {
-                    color: "#a0a4ad",
-                    borderColor: "#343844",
-                    px: 2,
-                    textTransform: "none",
-                    fontWeight: 700,
-                  },
-                  "& .MuiToggleButton-root.Mui-selected": {
-                    color: "#ffffff",
-                    backgroundColor: "#6d45d8",
-                    borderColor: "#7c4dff",
-                  },
-                  "& .MuiToggleButton-root.Mui-selected:hover": {
-                    backgroundColor: "#7955e8",
-                  },
-                }}
-              >
-                {TIME_OPTIONS.map((time) => (
-                  <ToggleButton key={time} value={time}>
-                    {time}s
-                  </ToggleButton>
-                ))}
-              </ToggleButtonGroup>
+              {mode === "time" && (
+                <ToggleButtonGroup
+                  exclusive
+                  value={selectedTime}
+                  onChange={(_event, value: number | null) => {
+                    if (value !== null) changeTime(value);
+                  }}
+                  disabled={controlsDisabled}
+                  size="small"
+                  aria-labelledby="typing-amount"
+                  sx={toggleGroupSx}
+                >
+                  {TIME_OPTIONS.map((time) => (
+                    <ToggleButton key={time} value={time}>
+                      {time}s
+                    </ToggleButton>
+                  ))}
+                </ToggleButtonGroup>
+              )}
+
+              {mode === "words" && (
+                <ToggleButtonGroup
+                  exclusive
+                  value={wordCount}
+                  onChange={(_event, value: number | null) => {
+                    if (value !== null) changeWordCount(value);
+                  }}
+                  disabled={controlsDisabled}
+                  size="small"
+                  aria-labelledby="typing-amount"
+                  sx={toggleGroupSx}
+                >
+                  {WORD_OPTIONS.map((count) => (
+                    <ToggleButton key={count} value={count}>
+                      {count}
+                    </ToggleButton>
+                  ))}
+                </ToggleButtonGroup>
+              )}
+
+              {mode === "quote" && (
+                <ToggleButtonGroup
+                  exclusive
+                  value={quoteLength}
+                  onChange={(_event, value: QuoteLengthFilter | null) => {
+                    if (value !== null) changeQuoteLength(value);
+                  }}
+                  disabled={controlsDisabled}
+                  size="small"
+                  aria-labelledby="typing-amount"
+                  sx={{
+                    ...toggleGroupSx,
+                    "& .MuiToggleButton-root": {
+                      ...toggleGroupSx["& .MuiToggleButton-root"],
+                      px: 1.5,
+                    },
+                  }}
+                >
+                  {QUOTE_LENGTH_OPTIONS.map((option) => (
+                    <ToggleButton key={option.value} value={option.value}>
+                      {option.label}
+                    </ToggleButton>
+                  ))}
+                </ToggleButtonGroup>
+              )}
             </Box>
 
             {/* Idioma */}
@@ -325,12 +510,7 @@ export function TypingTest() {
                 <Typography
                   id="typing-language"
                   variant="caption"
-                  sx={{
-                    color: "#a0a4ad",
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    letterSpacing: 1,
-                  }}
+                  sx={captionSx}
                 >
                   Idioma
                 </Typography>
@@ -341,12 +521,15 @@ export function TypingTest() {
                 onChange={changeLanguage}
                 disabled={controlsDisabled}
                 labelId="typing-language"
+                isOptionDisabled={
+                  isQuoteMode ? (option) => !option.hasQuotes : undefined
+                }
                 inputSx={{ "& .MuiOutlinedInput-root": selectSx }}
               />
             </Box>
 
-            {/* Dificuldade (alguns idiomas têm uma lista só) */}
-            {languageHasDifficulty(language) && (
+            {/* Dificuldade (alguns idiomas têm uma lista só; frases não usam) */}
+            {!isQuoteMode && languageHasDifficulty(language) && (
               <Box
                 sx={{
                   display: "flex",
@@ -357,15 +540,7 @@ export function TypingTest() {
               >
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                   <TuneRoundedIcon sx={{ color: "#a78bfa", fontSize: 19 }} />
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color: "#a0a4ad",
-                      fontWeight: 700,
-                      textTransform: "uppercase",
-                      letterSpacing: 1,
-                    }}
-                  >
+                  <Typography variant="caption" sx={captionSx}>
                     Dificuldade
                   </Typography>
                 </Box>
@@ -387,84 +562,86 @@ export function TypingTest() {
               </Box>
             )}
 
-            {/* Opções do texto */}
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <TextFieldsRoundedIcon
-                  sx={{ color: "#a78bfa", fontSize: 19 }}
-                />
-                <Typography
-                  variant="caption"
+            {/* Opções do texto (as frases já vêm prontas) */}
+            {!isQuoteMode && (
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <TextFieldsRoundedIcon
+                    sx={{ color: "#a78bfa", fontSize: 19 }}
+                  />
+                  <Typography variant="caption" sx={captionSx}>
+                    Texto
+                  </Typography>
+                </Box>
+
+                <Box
                   sx={{
-                    color: "#a0a4ad",
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    letterSpacing: 1,
+                    display: "flex",
+                    flexWrap: "wrap",
+                    alignItems: "center",
+                    gap: { xs: 1, md: 2 },
                   }}
                 >
-                  Texto
-                </Typography>
-              </Box>
-
-              <Box
-                sx={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  alignItems: "center",
-                  gap: { xs: 1, md: 2 },
-                }}
-              >
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  <FormatSizeRoundedIcon
-                    sx={{ color: "#a0a4ad", fontSize: 18 }}
-                  />
-                  <Typography variant="body2" sx={{ color: "#d5d7de" }}>
-                    Acentos
-                  </Typography>
-                  <Switch
-                    size="small"
-                    checked={useAccents}
-                    onChange={(event) => changeAccents(event.target.checked)}
-                    disabled={controlsDisabled}
-                    sx={switchSx}
-                  />
-                </Box>
-
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  <Typography
-                    variant="body2"
-                    sx={{ color: "#d5d7de", fontWeight: 800 }}
+                  <Box
+                    sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
                   >
-                    ABC
-                  </Typography>
-                  <Switch
-                    size="small"
-                    checked={useUppercase}
-                    onChange={(event) => changeUppercase(event.target.checked)}
-                    disabled={controlsDisabled}
-                    sx={switchSx}
-                  />
-                </Box>
+                    <FormatSizeRoundedIcon
+                      sx={{ color: "#a0a4ad", fontSize: 18 }}
+                    />
+                    <Typography variant="body2" sx={{ color: "#d5d7de" }}>
+                      Acentos
+                    </Typography>
+                    <Switch
+                      size="small"
+                      checked={useAccents}
+                      onChange={(event) => changeAccents(event.target.checked)}
+                      disabled={controlsDisabled}
+                      sx={switchSx}
+                    />
+                  </Box>
 
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  <ShortTextRoundedIcon
-                    sx={{ color: "#a0a4ad", fontSize: 18 }}
-                  />
-                  <Typography variant="body2" sx={{ color: "#d5d7de" }}>
-                    Pontuação
-                  </Typography>
-                  <Switch
-                    size="small"
-                    checked={usePunctuation}
-                    onChange={(event) =>
-                      changePunctuation(event.target.checked)
-                    }
-                    disabled={controlsDisabled}
-                    sx={switchSx}
-                  />
+                  <Box
+                    sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
+                  >
+                    <Typography
+                      variant="body2"
+                      sx={{ color: "#d5d7de", fontWeight: 800 }}
+                    >
+                      ABC
+                    </Typography>
+                    <Switch
+                      size="small"
+                      checked={useUppercase}
+                      onChange={(event) =>
+                        changeUppercase(event.target.checked)
+                      }
+                      disabled={controlsDisabled}
+                      sx={switchSx}
+                    />
+                  </Box>
+
+                  <Box
+                    sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
+                  >
+                    <ShortTextRoundedIcon
+                      sx={{ color: "#a0a4ad", fontSize: 18 }}
+                    />
+                    <Typography variant="body2" sx={{ color: "#d5d7de" }}>
+                      Pontuação
+                    </Typography>
+                    <Switch
+                      size="small"
+                      checked={usePunctuation}
+                      onChange={(event) =>
+                        changePunctuation(event.target.checked)
+                      }
+                      disabled={controlsDisabled}
+                      sx={switchSx}
+                    />
+                  </Box>
                 </Box>
               </Box>
-            </Box>
+            )}
 
             {/* Preferência das estatísticas em tempo real */}
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
@@ -472,15 +649,7 @@ export function TypingTest() {
                 <QueryStatsRoundedIcon
                   sx={{ color: "#a78bfa", fontSize: 19 }}
                 />
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: "#a0a4ad",
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    letterSpacing: 1,
-                  }}
-                >
+                <Typography variant="caption" sx={captionSx}>
                   Estatísticas ao vivo
                 </Typography>
               </Box>
@@ -516,7 +685,7 @@ export function TypingTest() {
             p: { xs: 2, md: 3 },
           }}
         >
-          {!isFinished ? (
+          {!isFinished || !result ? (
             <>
               {/* Cabeçalho do teste */}
               <Box
@@ -529,26 +698,33 @@ export function TypingTest() {
                 }}
               >
                 <Box>
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color: "#a0a4ad",
-                      textTransform: "uppercase",
-                      letterSpacing: 1,
-                      fontWeight: 700,
-                    }}
-                  >
-                    Tempo restante
+                  <Typography variant="caption" sx={captionSx}>
+                    {mode === "time" ? "Tempo restante" : "Palavras"}
                   </Typography>
                   <Typography
                     variant="h3"
                     sx={{
-                      color: timeLeft <= 5 ? "#ff6b81" : "#ffffff",
+                      color:
+                        mode === "time" && timeLeft <= 5
+                          ? "#ff6b81"
+                          : "#ffffff",
                       fontWeight: 800,
                       fontVariantNumeric: "tabular-nums",
                     }}
                   >
-                    {timeLeft}s
+                    {mode === "time" ? (
+                      `${timeLeft}s`
+                    ) : (
+                      <>
+                        {typedWords}
+                        <Box
+                          component="span"
+                          sx={{ color: "#5d6370", fontSize: "0.6em" }}
+                        >
+                          /{totalWords}
+                        </Box>
+                      </>
+                    )}
                   </Typography>
                 </Box>
 
@@ -577,20 +753,22 @@ export function TypingTest() {
 
               {/* Área de digitação */}
               <Box sx={{ minHeight: 150 }}>
-                {(isLoadingWords || loadError) && (
+                {statusMessage && (
                   <Typography
                     role="status"
-                    sx={{ color: loadError ? "#f87171" : "#a0a4ad", mb: 1 }}
+                    sx={{
+                      color: loadError || noQuotes ? "#f87171" : "#a0a4ad",
+                      mb: 1,
+                    }}
                   >
-                    {loadError
-                      ? "Não foi possível carregar as palavras. Verifique sua conexão e troque o idioma para tentar de novo."
-                      : "Carregando palavras…"}
+                    {statusMessage}
                   </Typography>
                 )}
                 <TypingText
                   text={targetText}
                   input={input}
                   isStarted={isStarted}
+                  isPaused={isPaused}
                   onInputChange={handleInputChange}
                   inputRef={inputRef}
                 />
@@ -646,7 +824,7 @@ export function TypingTest() {
                     fontSize: { xs: "0.875rem", sm: "0.95rem" },
                   }}
                 >
-                  Confira seu desempenho nesta rodada.
+                  {modeSummary}
                 </Typography>
               </Box>
 
@@ -658,9 +836,11 @@ export function TypingTest() {
                   px: 2,
                   mb: 2.5,
                   borderRadius: 4,
-                  border: "1px solid #493576",
-                  background:
-                    "radial-gradient(ellipse at top, rgba(124,77,255,0.20), transparent 70%), #15131e",
+                  border: "1px solid",
+                  borderColor: result.record.isNew ? "#a17a1f" : "#493576",
+                  background: result.record.isNew
+                    ? "radial-gradient(ellipse at top, rgba(250,204,21,0.16), transparent 70%), #17150f"
+                    : "radial-gradient(ellipse at top, rgba(124,77,255,0.20), transparent 70%), #15131e",
                 }}
               >
                 <Typography
@@ -686,7 +866,7 @@ export function TypingTest() {
                 >
                   <Typography
                     sx={{
-                      color: "#a78bfa",
+                      color: result.record.isNew ? "#fde047" : "#a78bfa",
                       fontWeight: 900,
                       fontSize: { xs: "4rem", sm: "5.5rem" },
                       lineHeight: 1.1,
@@ -694,7 +874,7 @@ export function TypingTest() {
                       fontVariantNumeric: "tabular-nums",
                     }}
                   >
-                    {ppm}
+                    {result.ppm}
                   </Typography>
                   <Typography
                     sx={{
@@ -707,22 +887,88 @@ export function TypingTest() {
                   </Typography>
                 </Box>
 
-                <Typography
-                  sx={{ color: "#969bad", fontSize: "0.9rem", mt: 1 }}
-                >
-                  Palavras por minuto
-                </Typography>
+                {/* Recorde pessoal neste modo e idioma */}
+                {result.record.isNew ? (
+                  <Box
+                    role="status"
+                    sx={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 0.75,
+                      mt: 1.5,
+                      px: 1.5,
+                      py: 0.5,
+                      borderRadius: 5,
+                      backgroundColor: "rgba(250,204,21,0.12)",
+                      border: "1px solid rgba(250,204,21,0.35)",
+                      color: "#fde047",
+                      fontWeight: 800,
+                      fontSize: "0.9rem",
+                    }}
+                  >
+                    <EmojiEventsRoundedIcon sx={{ fontSize: 18 }} />
+                    {result.record.previous === null
+                      ? "Primeiro recorde neste modo!"
+                      : `Novo recorde! Antes: ${result.record.previous} PPM`}
+                  </Box>
+                ) : (
+                  <Typography
+                    sx={{ color: "#969bad", fontSize: "0.9rem", mt: 1 }}
+                  >
+                    {result.record.previous !== null
+                      ? `Seu recorde neste modo: ${result.record.previous} PPM`
+                      : "Palavras por minuto"}
+                  </Typography>
+                )}
               </Box>
 
               {/* Estatísticas complementares */}
               <TypingStats
-                ppm={ppm}
-                accuracy={accuracy}
-                errors={totalErrors}
-                characters={totalCharacters}
+                ppm={result.ppm}
+                accuracy={result.accuracy}
+                errors={result.errors}
+                characters={result.characters}
                 showPpm={false}
-                duration={selectedTime}
+                duration={result.durationSeconds}
               />
+
+              {/* Autor da frase */}
+              {result.quote && (
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    mt: 2.5,
+                    color: "#a0a4ad",
+                  }}
+                >
+                  <FormatQuoteRoundedIcon
+                    sx={{ color: "#a78bfa", fontSize: 20 }}
+                  />
+                  <Typography sx={{ fontSize: 14 }}>
+                    {result.quote.source || "Autor desconhecido"}
+                  </Typography>
+                </Box>
+              )}
+
+              <ResultChart history={result.history} />
+
+              {/* Teclas mais erradas nesta rodada */}
+              <Box
+                sx={{
+                  mt: 2.5,
+                  p: { xs: 1.5, sm: 2.5 },
+                  borderRadius: 3,
+                  border: "1px solid #292d36",
+                  backgroundColor: "#15171d",
+                }}
+              >
+                <Typography sx={{ color: "#ffffff", fontWeight: 700, mb: 1.5 }}>
+                  Teclas que você mais errou
+                </Typography>
+                <MissedKeys missedKeys={result.missedKeys} />
+              </Box>
 
               {/* Informações da rodada */}
               <Typography
@@ -734,7 +980,7 @@ export function TypingTest() {
                   textAlign: "center",
                 }}
               >
-                {!isAuthenticated && (
+                {!isAuthenticated ? (
                   <>
                     <Link
                       to="/login"
@@ -748,6 +994,9 @@ export function TypingTest() {
                     </Link>
                     para salvar e acompanhar seu histórico.
                   </>
+                ) : (
+                  mode !== "time" &&
+                  "Só o modo tempo entra no ranking e no histórico do perfil."
                 )}
               </Typography>
 

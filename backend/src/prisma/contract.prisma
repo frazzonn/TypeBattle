@@ -10,6 +10,9 @@ model User {
 
   // Resultados dos testes de digitação
   typingResults TypingResult[]
+
+  // Partidas multiplayer (uma linha por rodada)
+  battleResults BattleResult[]
 }
 model TypingResult {
   id         Int      @id @default(autoincrement())
@@ -19,9 +22,36 @@ model TypingResult {
   errors     Int
   characters Int
   duration   Int
+  // Idioma do texto; o ranking é separado por idioma
+  language   String   @default("portuguese")
+  // Letras em que errou e quantas vezes, em JSON (ex.: {"a":2," ":1})
+  missedKeys String   @default("{}")
   createdAt  DateTime @default(now())
 
   // Relaciona o resultado ao usuário
+  user User @relation(
+    fields: [userId],
+    references: [id],
+    onDelete: Cascade
+  )
+}
+
+// Resultado de um jogador logado numa rodada da battle.
+// Os números vêm do servidor, que calcula a pontuação da partida.
+model BattleResult {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  won       Boolean
+  // Posição na rodada (1 = primeiro) e quantos jogaram
+  placement Int
+  players   Int
+  ppm       Int
+  accuracy  Int
+  errors    Int
+  duration  Int
+  language  String
+  createdAt DateTime @default(now())
+
   user User @relation(
     fields: [userId],
     references: [id],

@@ -7,6 +7,7 @@ interface TypingTextProps {
   text: string;
   input: string;
   isStarted: boolean;
+  isPaused?: boolean;
   onInputChange: (value: string) => void;
   inputRef: React.RefObject<HTMLInputElement | null>;
 }
@@ -77,6 +78,7 @@ function TypingTextComponent({
   text,
   input,
   isStarted,
+  isPaused = false,
   onInputChange,
   inputRef,
 }: TypingTextProps) {
@@ -155,6 +157,9 @@ function TypingTextComponent({
   }, [input, text]);
 
   const showOverlay = !hasFocused && !isStarted && input.length === 0;
+  const overlayMessage = isPaused
+    ? "Pausado · digite para continuar"
+    : "Clique aqui para começar a digitar";
 
   function activateTyping() {
     setHasFocused(true);
@@ -242,9 +247,11 @@ function TypingTextComponent({
           ref={textContentRef}
           sx={{
             position: "relative",
-            opacity: showOverlay ? 0.25 : 1,
+            opacity: showOverlay ? 0.25 : isPaused ? 0.4 : 1,
+            // Pausado, o texto fica borrado para não dar para ler adiante.
+            filter: isPaused ? "blur(6px)" : "none",
             transition:
-              "opacity 250ms ease, transform 260ms cubic-bezier(0.22, 1, 0.36, 1)",
+              "opacity 250ms ease, filter 250ms ease, transform 260ms cubic-bezier(0.22, 1, 0.36, 1)",
             transform: `translate3d(0, -${scrollOffset}px, 0)`,
             willChange: scrollOffset > 0 ? "transform" : "auto",
             "@media (prefers-reduced-motion: reduce)": {
@@ -327,9 +334,10 @@ function TypingTextComponent({
           />
         </Box>
 
-        {/* Mensagem inicial original. */}
-        {showOverlay && (
+        {/* Mensagem inicial ou de pausa. */}
+        {(showOverlay || isPaused) && (
           <Box
+            role={isPaused ? "status" : undefined}
             sx={{
               position: "absolute",
               inset: 0,
@@ -372,7 +380,7 @@ function TypingTextComponent({
                   textAlign: "center",
                 }}
               >
-                Clique aqui para começar a digitar
+                {overlayMessage}
               </Typography>
             </Box>
           </Box>

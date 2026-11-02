@@ -25,7 +25,8 @@ export function PlayerAvatar({
     flexShrink: 0,
     width: size,
     height: size,
-    borderRadius: "10px",
+    // Cantos proporcionais: 10px no tamanho padrão de 40.
+    borderRadius: `${Math.round(size / 4)}px`,
   };
 
   if (showPhoto) {

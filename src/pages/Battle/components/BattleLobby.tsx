@@ -90,6 +90,9 @@ export function BattleLobby({
   const canEdit = isHost && connected;
   const emptySlots = Math.max(0, settings.playerLimit - room.players.length);
   const roomIsFull = emptySlots === 0;
+  const someoneReconnecting = room.players.some(
+    (player) => player.connected === false,
+  );
 
   function change<K extends keyof RoomSettings>(
     key: K,
@@ -263,6 +266,7 @@ export function BattleLobby({
           {room.players.map((player) => {
             const isMe = player.socketId === myId;
             const color = getPlayerColor(room, player.socketId);
+            const isReconnecting = player.connected === false;
 
             return (
               <Box
@@ -276,6 +280,8 @@ export function BattleLobby({
                   borderRadius: "12px",
                   bgcolor: colors.background,
                   border: `1px solid ${isMe ? "rgba(167,139,250,0.45)" : colors.border}`,
+                  // Conexão caiu: fica apagado até voltar ou sair da sala.
+                  opacity: isReconnecting ? 0.55 : 1,
                 }}
               >
                 <PlayerAvatar
@@ -283,21 +289,25 @@ export function BattleLobby({
                   avatarUrl={player.avatarUrl}
                   color={color}
                 />
-                <Typography
-                  noWrap
-                  sx={{ flex: 1, minWidth: 0, fontWeight: 700, fontSize: 15 }}
-                >
-                  {player.nickname}
-                  {isMe && (
-                    <Box
-                      component="span"
-                      sx={{ color: colors.textSecondary, fontWeight: 500 }}
-                    >
-                      {" "}
-                      (você)
-                    </Box>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography noWrap sx={{ fontWeight: 700, fontSize: 15 }}>
+                    {player.nickname}
+                    {isMe && (
+                      <Box
+                        component="span"
+                        sx={{ color: colors.textSecondary, fontWeight: 500 }}
+                      >
+                        {" "}
+                        (você)
+                      </Box>
+                    )}
+                  </Typography>
+                  {isReconnecting && (
+                    <Typography sx={{ color: colors.textSecondary, fontSize: 12 }}>
+                      Reconectando…
+                    </Typography>
                   )}
-                </Typography>
+                </Box>
                 {player.socketId === room.hostSocketId && (
                   <Box
                     sx={{
@@ -518,6 +528,8 @@ export function BattleLobby({
               </Box>{" "}
               para iniciar.
             </>
+          ) : someoneReconnecting ? (
+            "Aguardando um jogador reconectar…"
           ) : isHost ? (
             "Todo mundo chegou. Pode começar!"
           ) : (
@@ -529,7 +541,7 @@ export function BattleLobby({
           <Button
             variant="contained"
             onClick={onStart}
-            disabled={!connected || !roomIsFull}
+            disabled={!connected || !roomIsFull || someoneReconnecting}
             sx={{ ...primaryButtonSx, minWidth: 240, px: 3 }}
           >
             {roomIsFull

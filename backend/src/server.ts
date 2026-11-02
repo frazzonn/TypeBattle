@@ -3,6 +3,7 @@ import express from "express";
 import { createServer } from "node:http";
 import { Server } from "socket.io";
 import { authRoutes } from "./routes/authRoutes.js";
+import { battleResultRoutes } from "./routes/battleResultRoutes.js";
 import { typingResultRoutes } from "./routes/typingResultRoutes.js";
 import { userRoutes } from "./routes/userRoutes.js";
 import { registerBattleSocket } from "./socket/battleSocket.js";
@@ -48,6 +49,12 @@ const io = new Server(httpServer, {
     origin: allowedOrigins,
     methods: ["GET", "POST"],
   },
+  // Se a conexão cair e voltar em até 20 s, o jogador recupera o mesmo id,
+  // as salas e socket.data. O battleSocket espera esse tempo antes de removê-lo.
+  connectionStateRecovery: {
+    maxDisconnectionDuration: 20_000,
+    skipMiddlewares: true,
+  },
 });
 // Rotas HTTP.
 app.get("/api/health", (_request, response) => {
@@ -59,6 +66,7 @@ app.get("/api/health", (_request, response) => {
 app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/typing-results", typingResultRoutes);
+app.use("/api/battle-results", battleResultRoutes);
 
 registerBattleSocket(io);
 
