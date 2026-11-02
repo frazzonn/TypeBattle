@@ -382,6 +382,21 @@ export function TypingTest() {
     };
   }, [isFinished]);
 
+  // Na tela de resultados o campo de digitação some: sem isto, o espaço
+  // cairia na página e o navegador rolaria a tela para baixo.
+  useEffect(() => {
+    if (!isFinished) return;
+
+    function blockSpaceScroll(event: globalThis.KeyboardEvent) {
+      const active = document.activeElement;
+      const onPage = !active || active === document.body;
+      if (event.key === " " && onPage) event.preventDefault();
+    }
+
+    window.addEventListener("keydown", blockSpaceScroll);
+    return () => window.removeEventListener("keydown", blockSpaceScroll);
+  }, [isFinished]);
+
   // Na tela de resultados, Tab seleciona Jogar novamente.
   useEffect(() => {
     if (!isFinished) return;
