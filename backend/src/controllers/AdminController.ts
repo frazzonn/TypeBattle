@@ -2,7 +2,8 @@ import { or } from "@prisma/orm-postgres/orm-client";
 import type { Request, Response } from "express";
 
 import { db } from "../prisma/db.js";
-import { getTagsForUsers, isAdminEmail } from "../tags/userTags.js";
+import { isTagIcon, isTagStyle } from "../tags/tagStyles.js";
+import { getTagsForUsers, isAdminEmail, TAG_COLUMNS } from "../tags/userTags.js";
 import { validateName } from "../users/validation.js";
 import { deleteStoredAvatar } from "./UserController.js";
 
@@ -15,10 +16,60 @@ function parseId(value: unknown): number | null {
   return Number.isInteger(id) && id > 0 ? id : null;
 }
 
+interface TagFields {
+  name?: string;
+  color?: string;
+  style?: string;
+  icon?: string | null;
+}
+
+// Lê e valida os campos da tag. Na edição (partial) todos são opcionais.
+function readTagFields(body: unknown, partial: boolean): TagFields | string {
+  const input = (body ?? {}) as Record<string, unknown>;
+  const fields: TagFields = {};
+
+  if (input.name !== undefined || !partial) {
+    const name = typeof input.name === "string" ? input.name.trim() : "";
+    if (!name || name.length > TAG_NAME_MAX) {
+      return `O nome da tag deve ter entre 1 e ${TAG_NAME_MAX} caracteres.`;
+    }
+    fields.name = name;
+  }
+
+  if (input.color !== undefined || !partial) {
+    const color =
+      typeof input.color === "string" && input.color.trim() ? input.color.trim() : "#a78bfa";
+    if (!COLOR_PATTERN.test(color)) return "Cor inválida. Use o formato #rrggbb.";
+    fields.color = color.toLowerCase();
+  }
+
+  if (input.style !== undefined || !partial) {
+    const style = input.style ?? "classic";
+    if (!isTagStyle(style)) return "Estilo de tag inválido.";
+    fields.style = style;
+  }
+
+  if (input.icon !== undefined) {
+    if (input.icon !== null && input.icon !== "" && !isTagIcon(input.icon)) {
+      return "Ícone inválido.";
+    }
+    fields.icon = isTagIcon(input.icon) ? input.icon : null;
+  }
+
+  return fields;
+}
+
+async function nameTaken(name: string, exceptId?: number): Promise<boolean> {
+  const existing = await db.orm.public.Tag.select("id", "name").all();
+  return existing.some(
+    (tag) => tag.id !== exceptId && tag.name.toLowerCase() === name.toLowerCase(),
+  );
+}
+
 // Lista todas as tags, com quantos usuários têm cada uma.
 export async function listTags(_request: Request, response: Response) {
   try {
-    const tags = await db.orm.public.Tag.select("id", "name", "color")
+    const tags = await db.orm.public.Tag.select(...TAG_COLUMNS)
       .orderBy([(tag) => tag.name.asc()])
       .all();
     const links = await db.orm.public.UserTag.select("tagId").all();
@@ -40,37 +91,55 @@ export async function listTags(_request: Request, response: Response) {
 // Cria uma tag nova (nome único, sem diferenciar maiúsculas).
 export async function createTag(request: Request, response: Response) {
   try {
-    const { name: rawName, color: rawColor } = request.body ?? {};
-    const name = typeof rawName === "string" ? rawName.trim() : "";
-    const color =
-      typeof rawColor === "string" && rawColor.trim() ? rawColor.trim() : "#a78bfa";
-
-    if (!name || name.length > TAG_NAME_MAX) {
-      return response.status(400).json({
-        message: `O nome da tag deve ter entre 1 e ${TAG_NAME_MAX} caracteres.`,
-      });
+    const fields = readTagFields(request.body, false);
+    if (typeof fields === "string") {
+      return response.status(400).json({ message: fields });
     }
 
-    if (!COLOR_PATTERN.test(color)) {
-      return response.status(400).json({
-        message: "Cor inválida. Use o formato #rrggbb.",
-      });
-    }
-
-    const existing = await db.orm.public.Tag.select("name").all();
-    if (existing.some((tag) => tag.name.toLowerCase() === name.toLowerCase())) {
+    if (await nameTaken(fields.name!)) {
       return response.status(409).json({ message: "Já existe uma tag com esse nome." });
     }
 
-    const tag = await db.orm.public.Tag.select("id", "name", "color").create({
-      name,
-      color: color.toLowerCase(),
+    const tag = await db.orm.public.Tag.select(...TAG_COLUMNS).create({
+      name: fields.name!,
+      color: fields.color!,
+      style: fields.style!,
+      icon: fields.icon ?? null,
     });
 
     return response.status(201).json({ tag: { ...tag, users: 0 } });
   } catch (error) {
     console.error("ERRO AO CRIAR TAG:", error);
     return response.status(500).json({ message: "Erro ao criar tag." });
+  }
+}
+
+// Edita nome, cor, estilo ou ícone de uma tag existente.
+export async function updateTag(request: Request, response: Response) {
+  try {
+    const id = parseId(request.params.tagId);
+    if (!id) return response.status(400).json({ message: "Tag inválida." });
+
+    const fields = readTagFields(request.body, true);
+    if (typeof fields === "string") {
+      return response.status(400).json({ message: fields });
+    }
+    if (Object.keys(fields).length === 0) {
+      return response.status(400).json({ message: "Nada para alterar." });
+    }
+
+    const current = await db.orm.public.Tag.select("id").first({ id });
+    if (!current) return response.status(404).json({ message: "Tag não encontrada." });
+
+    if (fields.name && (await nameTaken(fields.name, id))) {
+      return response.status(409).json({ message: "Já existe uma tag com esse nome." });
+    }
+
+    const tag = await db.orm.public.Tag.where({ id }).select(...TAG_COLUMNS).update(fields);
+    return response.status(200).json({ tag });
+  } catch (error) {
+    console.error("ERRO AO EDITAR TAG:", error);
+    return response.status(500).json({ message: "Erro ao editar tag." });
   }
 }
 

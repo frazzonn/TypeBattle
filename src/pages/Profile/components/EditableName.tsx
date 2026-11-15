@@ -11,6 +11,7 @@ import {
 } from "@mui/material";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
 
+import { UserTags } from "../../../components/UserTags";
 import { useAuth } from "../../../contexts/useAuth";
 import { updateMyName } from "../../../services/api";
 
@@ -60,13 +61,14 @@ export function EditableName() {
 
   if (!editing) {
     return (
-      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+      <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", columnGap: 1.25, rowGap: 0.5 }}>
         <Typography
           variant="h4"
           sx={{ fontWeight: 800, letterSpacing: "-1px", overflowWrap: "anywhere" }}
         >
           {user?.name || "Meu perfil"}
         </Typography>
+        <UserTags tags={user?.tags} size="medium" />
         <Tooltip title="Trocar nome">
           <IconButton
             aria-label="Trocar nome"

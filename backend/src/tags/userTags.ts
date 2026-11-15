@@ -4,7 +4,12 @@ export interface PublicTag {
   id: number;
   name: string;
   color: string;
+  style: string;
+  icon: string | null;
 }
+
+// Colunas da tag que vão para o frontend.
+export const TAG_COLUMNS = ["id", "name", "color", "style", "icon"] as const;
 
 // Quem pode abrir a tela de admin. ADMIN_EMAILS aceita vários, separados por vírgula.
 const DEFAULT_ADMIN_EMAILS = "gustavofrazzon22@gmail.com";
@@ -37,7 +42,7 @@ export async function getTagsForUsers(
 
   const tagIds = [...new Set(links.map((link) => link.tagId))];
   const tags = await db.orm.public.Tag.where((tag) => tag.id.in(tagIds))
-    .select("id", "name", "color")
+    .select(...TAG_COLUMNS)
     .all();
   const tagsById = new Map(tags.map((tag) => [tag.id, tag]));
 

@@ -11,6 +11,7 @@ import {
   listTags,
   listUsers,
   removeUserTag,
+  updateTag,
   updateUser,
 } from "../controllers/AdminController.js";
 import { adminMiddleware } from "../middleware/adminMiddleware.js";
@@ -23,6 +24,7 @@ adminRoutes.use(authMiddleware, adminMiddleware);
 
 adminRoutes.get("/tags", listTags);
 adminRoutes.post("/tags", createTag);
+adminRoutes.patch("/tags/:tagId", updateTag);
 adminRoutes.delete("/tags/:tagId", deleteTag);
 
 adminRoutes.get("/users", listUsers);

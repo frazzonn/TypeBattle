@@ -199,13 +199,15 @@ function PlayerProfile({ rawId }: { rawId: string | undefined }) {
               >
                 TYPEBATTLE / JOGADOR
               </Typography>
-              <Typography
-                variant="h4"
-                sx={{ fontWeight: 800, letterSpacing: "-1px", overflowWrap: "anywhere" }}
-              >
-                {profile.user.name}
-              </Typography>
-              <UserTags tags={profile.user.tags} size="medium" sx={{ mt: 0.75 }} />
+              <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1.25 }}>
+                <Typography
+                  variant="h4"
+                  sx={{ fontWeight: 800, letterSpacing: "-1px", overflowWrap: "anywhere" }}
+                >
+                  {profile.user.name}
+                </Typography>
+                <UserTags tags={profile.user.tags} size="medium" />
+              </Box>
               <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1, mt: 1 }}>
                 <Typography variant="body2" color="text.secondary">
                   Membro desde {formatMemberSince(profile.user.createdAt)}

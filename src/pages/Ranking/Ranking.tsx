@@ -453,22 +453,28 @@ export function Ranking() {
                     {player.position}º LUGAR
                   </Typography>
 
-                  <Typography
+                  <Box
                     sx={{
-                      color: "#f5f3ff",
-                      fontWeight: 700,
-                      fontSize: "1rem",
-                      overflowWrap: "anywhere",
-                      mb: player.tags?.length ? 0.75 : 2,
+                      display: "flex",
+                      flexWrap: "wrap",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 0.75,
+                      mb: 2,
                     }}
                   >
-                    {player.name}
-                  </Typography>
-
-                  <UserTags
-                    tags={player.tags}
-                    sx={{ justifyContent: "center", mb: 1.5 }}
-                  />
+                    <Typography
+                      sx={{
+                        color: "#f5f3ff",
+                        fontWeight: 700,
+                        fontSize: "1rem",
+                        overflowWrap: "anywhere",
+                      }}
+                    >
+                      {player.name}
+                    </Typography>
+                    <UserTags tags={player.tags} />
+                  </Box>
 
                   <Typography
                     sx={{

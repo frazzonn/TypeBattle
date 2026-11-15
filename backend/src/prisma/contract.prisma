@@ -76,6 +76,10 @@ model Tag {
   name      String    @unique
   // Cor em hexadecimal (ex.: #a78bfa)
   color     String    @default("#a78bfa")
+  // Visual da tag (classic, solid, neon, gold, terminal...)
+  style     String    @default("classic")
+  // Ícone opcional antes do nome (code, crown, bolt...)
+  icon      String?
   createdAt DateTime  @default(now())
 
   users     UserTag[]

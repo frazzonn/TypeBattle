@@ -183,6 +183,13 @@
                   "kind": "scalar"
                 }
               },
+              "icon": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "id": {
                 "nullable": false,
                 "type": {
@@ -191,6 +198,13 @@
                 }
               },
               "name": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "style": {
                 "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
@@ -223,11 +237,17 @@
                 "createdAt": {
                   "column": "createdAt"
                 },
+                "icon": {
+                  "column": "icon"
+                },
                 "id": {
                   "column": "id"
                 },
                 "name": {
                   "column": "name"
+                },
+                "style": {
+                  "column": "style"
                 }
               },
               "namespaceId": "public",
@@ -739,6 +759,11 @@
                   "nativeType": "timestamptz",
                   "nullable": false
                 },
+                "icon": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
                 "id": {
                   "codecId": "pg/int4@1",
                   "default": {
@@ -750,6 +775,15 @@
                 },
                 "name": {
                   "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "style": {
+                  "codecId": "pg/text@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "classic"
+                  },
                   "nativeType": "text",
                   "nullable": false
                 }
@@ -1077,7 +1111,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "f3ba0481fda0e71245a1443785f7cb78d3f869242b700eb5f4902d9c371f6d4b"
+    "storageHash": "0e6a767fd7e1d448c9bf7dab6ee4ec443928b75a50468cdfa33673249abd6747"
   },
   "capabilities": {
     "postgres": {

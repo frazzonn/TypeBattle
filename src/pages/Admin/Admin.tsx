@@ -15,15 +15,19 @@ import {
   Typography,
 } from "@mui/material";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
+import BlockRoundedIcon from "@mui/icons-material/BlockRounded";
+import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import SellRoundedIcon from "@mui/icons-material/SellRounded";
 
+import { TAG_ICON_OPTIONS, TAG_STYLE_OPTIONS } from "../../components/tagOptions";
 import { TagBadge } from "../../components/UserTags";
 import { useAuth } from "../../contexts/useAuth";
 import {
   addUserTag,
   createAdminTag,
+  updateAdminTag,
   deleteAdminTag,
   getAdminTags,
   getAdminUsers,
@@ -89,6 +93,10 @@ export function Admin() {
   const [tagsLoading, setTagsLoading] = useState(true);
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState(PRESET_COLORS[0]);
+  const [newStyle, setNewStyle] = useState<string>("classic");
+  const [newIcon, setNewIcon] = useState<string | null>(null);
+  // Tag sendo editada (null = criando uma nova).
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [creating, setCreating] = useState(false);
 
   const [search, setSearch] = useState("");
@@ -167,21 +175,56 @@ export function Admin() {
     );
   }
 
-  async function handleCreateTag(event: FormEvent) {
+  function resetForm() {
+    setEditingId(null);
+    setNewName("");
+    setNewColor(PRESET_COLORS[0]);
+    setNewStyle("classic");
+    setNewIcon(null);
+  }
+
+  function startEditing(tag: AdminTag) {
+    setEditingId(tag.id);
+    setNewName(tag.name);
+    setNewColor(tag.color);
+    setNewStyle(tag.style ?? "classic");
+    setNewIcon(tag.icon ?? null);
+    setError(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function handleSaveTag(event: FormEvent) {
     event.preventDefault();
     const name = newName.trim();
     if (!name || !token) return;
 
+    const data = { name, color: newColor, style: newStyle, icon: newIcon };
     setCreating(true);
     setError(null);
     try {
-      const { tag } = await createAdminTag({ name, color: newColor }, token);
-      setTags((current) =>
-        [...current, tag].sort((a, b) => a.name.localeCompare(b.name)),
-      );
-      setNewName("");
+      if (editingId !== null) {
+        const { tag } = await updateAdminTag(editingId, data, token);
+        setTags((current) =>
+          current
+            .map((item) => (item.id === tag.id ? { ...item, ...tag } : item))
+            .sort((a, b) => a.name.localeCompare(b.name)),
+        );
+        // Atualiza a tag também nos usuários da lista.
+        setUsers((current) =>
+          current.map((item) => ({
+            ...item,
+            tags: item.tags.map((owned) => (owned.id === tag.id ? tag : owned)),
+          })),
+        );
+      } else {
+        const { tag } = await createAdminTag(data, token);
+        setTags((current) =>
+          [...current, tag].sort((a, b) => a.name.localeCompare(b.name)),
+        );
+      }
+      resetForm();
     } catch (err) {
-      setError(getErrorMessage(err, "Erro ao criar tag."));
+      setError(getErrorMessage(err, "Erro ao salvar tag."));
     } finally {
       setCreating(false);
     }
@@ -236,7 +279,16 @@ export function Admin() {
     }
   }
 
-  const previewTag: Tag = { id: 0, name: newName.trim() || "Prévia", color: newColor };
+  const previewName = newName.trim() || "Prévia";
+  const previewTag: Tag = {
+    id: 0,
+    name: previewName,
+    color: newColor,
+    style: newStyle,
+    icon: newIcon,
+  };
+  const styleUsesColor =
+    TAG_STYLE_OPTIONS.find((option) => option.id === newStyle)?.usesColor ?? true;
 
   return (
     <Box
@@ -268,16 +320,18 @@ export function Admin() {
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "340px 1fr" },
+          gridTemplateColumns: { xs: "1fr", md: "380px 1fr" },
           gap: 2.5,
           alignItems: "start",
         }}
       >
         {/* Tags: criar e listar */}
         <Box sx={{ ...panelSx, p: 2.5 }}>
-          <Typography sx={{ fontWeight: 800, mb: 2 }}>Criar tag</Typography>
+          <Typography sx={{ fontWeight: 800, mb: 2 }}>
+            {editingId !== null ? "Editar tag" : "Criar tag"}
+          </Typography>
 
-          <Box component="form" onSubmit={handleCreateTag}>
+          <Box component="form" onSubmit={handleSaveTag}>
             <TextField
               label="Nome"
               placeholder="Ex.: Dev, Adm, VIP"
@@ -289,9 +343,62 @@ export function Admin() {
             />
 
             <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1.5, mb: 1 }}>
-              Cor
+              Estilo
             </Typography>
-            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.875, alignItems: "center" }}>
+            <Box
+              role="radiogroup"
+              aria-label="Estilo da tag"
+              sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(96px, 1fr))", gap: 0.75 }}
+            >
+              {TAG_STYLE_OPTIONS.map((option) => {
+                const selected = newStyle === option.id;
+                return (
+                  <Box
+                    key={option.id}
+                    component="button"
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    aria-label={option.label}
+                    title={option.label}
+                    onClick={() => setNewStyle(option.id)}
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      minWidth: 0,
+                      height: 36,
+                      px: 0.5,
+                      cursor: "pointer",
+                      borderRadius: 1.5,
+                      backgroundColor: selected ? "rgba(167,139,250,0.14)" : "rgba(255,255,255,0.03)",
+                      border: "1px solid",
+                      borderColor: selected ? "primary.main" : "rgba(255,255,255,0.08)",
+                      "&:hover": { borderColor: "rgba(167,139,250,0.5)" },
+                      "&:focus-visible": { outline: "2px solid #a78bfa", outlineOffset: 2 },
+                    }}
+                  >
+                    <TagBadge
+                      tag={{ id: 0, name: option.label, color: newColor, style: option.id, icon: null }}
+                    />
+                  </Box>
+                );
+              })}
+            </Box>
+
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1.5, mb: 1 }}>
+              Cor {!styleUsesColor && "(este estilo tem cores próprias)"}
+            </Typography>
+            <Box
+              sx={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 0.875,
+                alignItems: "center",
+                opacity: styleUsesColor ? 1 : 0.35,
+                pointerEvents: styleUsesColor ? "auto" : "none",
+              }}
+            >
               {PRESET_COLORS.map((color) => (
                 <Box
                   key={color}
@@ -338,17 +445,71 @@ export function Admin() {
               </Tooltip>
             </Box>
 
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: 2.5 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1.5, mb: 0.5 }}>
+              Ícone
+            </Typography>
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.25 }}>
+              <Tooltip title="Sem ícone">
+                <IconButton
+                  size="small"
+                  aria-label="Sem ícone"
+                  aria-pressed={newIcon === null}
+                  onClick={() => setNewIcon(null)}
+                  sx={{
+                    color: newIcon === null ? "primary.main" : "text.secondary",
+                    backgroundColor: newIcon === null ? "rgba(167,139,250,0.14)" : "transparent",
+                  }}
+                >
+                  <BlockRoundedIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              {TAG_ICON_OPTIONS.map(({ id, label, icon: Icon }) => (
+                <Tooltip key={id} title={label}>
+                  <IconButton
+                    size="small"
+                    aria-label={`Ícone ${label}`}
+                    aria-pressed={newIcon === id}
+                    onClick={() => setNewIcon(id)}
+                    sx={{
+                      color: newIcon === id ? "primary.main" : "text.secondary",
+                      backgroundColor: newIcon === id ? "rgba(167,139,250,0.14)" : "transparent",
+                    }}
+                  >
+                    <Icon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              ))}
+            </Box>
+
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: 1,
+                mt: 2.5,
+              }}
+            >
               <TagBadge tag={previewTag} size="medium" />
-              <Button
-                type="submit"
-                variant="contained"
-                startIcon={creating ? <CircularProgress size={16} color="inherit" /> : <AddRoundedIcon />}
-                disabled={!newName.trim() || creating}
-                sx={{ textTransform: "none", fontWeight: 700, borderRadius: 2 }}
-              >
-                Criar
-              </Button>
+              <Box sx={{ display: "flex", gap: 1 }}>
+                {editingId !== null && (
+                  <Button onClick={resetForm} disabled={creating} sx={{ textTransform: "none" }}>
+                    Cancelar
+                  </Button>
+                )}
+                <Button
+                  type="submit"
+                  variant="contained"
+                  startIcon={
+                    creating ? <CircularProgress size={16} color="inherit" /> : editingId !== null ? null : <AddRoundedIcon />
+                  }
+                  disabled={!newName.trim() || creating}
+                  sx={{ textTransform: "none", fontWeight: 700, borderRadius: 2 }}
+                >
+                  {editingId !== null ? "Salvar" : "Criar"}
+                </Button>
+              </Box>
             </Box>
           </Box>
 
@@ -374,6 +535,16 @@ export function Admin() {
                     <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>
                       {tag.users === 1 ? "1 usuário" : `${tag.users} usuários`}
                     </Typography>
+                    <Tooltip title="Editar tag">
+                      <IconButton
+                        size="small"
+                        aria-label={`Editar a tag ${tag.name}`}
+                        onClick={() => startEditing(tag)}
+                        sx={{ color: editingId === tag.id ? "primary.main" : "text.secondary" }}
+                      >
+                        <EditRoundedIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
                     <Tooltip title="Apagar tag">
                       <IconButton
                         size="small"

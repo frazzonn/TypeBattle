@@ -18,6 +18,16 @@ export interface Tag {
   name: string;
   // Cor em hexadecimal (#rrggbb)
   color: string;
+  // Visual da tag (classic, neon, gold, terminal...)
+  style?: string;
+  icon?: string | null;
+}
+
+export interface TagInput {
+  name: string;
+  color: string;
+  style: string;
+  icon: string | null;
 }
 
 interface User {
@@ -400,11 +410,24 @@ export async function getAdminTags(token: string): Promise<{ tags: AdminTag[] }>
 }
 
 export async function createAdminTag(
-  data: { name: string; color: string },
+  data: TagInput,
   token: string,
 ): Promise<{ tag: AdminTag }> {
   return handleResponse(
     await adminRequest("/tags", token, { method: "POST", body: JSON.stringify(data) }),
+  );
+}
+
+export async function updateAdminTag(
+  tagId: number,
+  data: Partial<TagInput>,
+  token: string,
+): Promise<{ tag: Tag }> {
+  return handleResponse(
+    await adminRequest(`/tags/${tagId}`, token, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
   );
 }
 
