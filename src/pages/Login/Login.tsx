@@ -151,6 +151,25 @@ export function Login() {
                 }}
               />
 
+              <Box sx={{ textAlign: "right", mt: "-8px !important" }}>
+                <Box
+                  component={Link}
+                  to={
+                    email.trim()
+                      ? `/recuperar-senha?${new URLSearchParams({ email: email.trim() })}`
+                      : "/recuperar-senha"
+                  }
+                  sx={{
+                    color: "text.secondary",
+                    fontSize: "0.85rem",
+                    textDecoration: "none",
+                    "&:hover": { color: "primary.main", textDecoration: "underline" },
+                  }}
+                >
+                  Esqueci minha senha
+                </Box>
+              </Box>
+
               <Button
                 type="submit"
                 variant="contained"

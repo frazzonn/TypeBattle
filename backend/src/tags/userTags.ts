@@ -12,10 +12,9 @@ export interface PublicTag {
 export const TAG_COLUMNS = ["id", "name", "color", "style", "icon"] as const;
 
 // Quem pode abrir a tela de admin. ADMIN_EMAILS aceita vários, separados por vírgula.
-const DEFAULT_ADMIN_EMAILS = "gustavofrazzon22@gmail.com";
-
+// Sem a variável, ninguém é admin.
 function getAdminEmails(): string[] {
-  return (process.env.ADMIN_EMAILS ?? DEFAULT_ADMIN_EMAILS)
+  return (process.env.ADMIN_EMAILS ?? "")
     .split(",")
     .map((email) => email.trim().toLowerCase())
     .filter(Boolean);

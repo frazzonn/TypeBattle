@@ -5,7 +5,7 @@ import { v2 as cloudinary } from "cloudinary";
 
 import { issueVerificationCode, secondsUntilResend } from "../auth/verification.js";
 import { db } from "../prisma/db.js";
-import { validateName } from "../users/validation.js";
+import { normalizeEmail, passwordError, validateName } from "../users/validation.js";
 
 // Recebe imagens em memória, com limite de 5 MB.
 export const avatarUpload = multer({
@@ -71,7 +71,7 @@ export async function deleteStoredAvatar(avatarUrl: string | null | undefined) {
 export async function createUser(request: Request, response: Response) {
   try {
     const { name: rawName, email: rawEmail, password } = request.body ?? {};
-    const email = typeof rawEmail === "string" ? rawEmail.trim() : "";
+    const email = normalizeEmail(rawEmail);
 
     if (!rawName || !email || !password || typeof password !== "string") {
       return response.status(400).json({
@@ -91,11 +91,9 @@ export async function createUser(request: Request, response: Response) {
       });
     }
 
-    // O bcrypt considera só os primeiros 72 bytes da senha.
-    if (password.length < 6 || Buffer.byteLength(password) > 72) {
-      return response.status(400).json({
-        message: "A senha deve ter entre 6 e 72 caracteres.",
-      });
+    const invalidPassword = passwordError(password);
+    if (invalidPassword) {
+      return response.status(400).json({ message: invalidPassword });
     }
 
     const existingUser = await db.orm.public.User.first({ email });

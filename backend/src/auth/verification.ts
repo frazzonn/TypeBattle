@@ -48,12 +48,35 @@ export function isExpired(expiresAt: InstantLike | null | undefined): boolean {
   return !expiresAt || Date.now() >= expiresAt.epochMilliseconds;
 }
 
+// O mesmo código serve para dois fins. Conta não confirmada usa para
+// confirmar o email; conta confirmada usa para trocar a senha.
+type CodePurpose = "verify" | "reset";
+
+const EMAIL_COPY: Record<
+  CodePurpose,
+  { path: string; subject: string; intro: string; button: string; ignore: string }
+> = {
+  verify: {
+    path: "/verificar",
+    subject: "é o seu código do TypeBattle",
+    intro: "Clique no botão para confirmar seu email:",
+    button: "Confirmar meu email",
+    ignore: "Se não foi você que criou a conta, ignore este email.",
+  },
+  reset: {
+    path: "/recuperar-senha",
+    subject: "é o seu código para trocar a senha do TypeBattle",
+    intro: "Recebemos um pedido para trocar sua senha. Clique no botão para criar uma nova:",
+    button: "Criar nova senha",
+    ignore: "Se não foi você que pediu, ignore este email: sua senha continua a mesma.",
+  },
+};
+
 // Gera um código novo, salva o hash e manda o email.
-export async function issueVerificationCode(user: {
-  id: number;
-  name: string;
-  email: string;
-}): Promise<void> {
+async function issueCode(
+  user: { id: number; name: string; email: string },
+  purpose: CodePurpose,
+): Promise<void> {
   const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
   await db.orm.public.User.where({ id: user.id }).update({
     verificationCodeHash: hashCode(code),
@@ -62,32 +85,54 @@ export async function issueVerificationCode(user: {
     verificationAttempts: 0,
   });
 
+  const copy = EMAIL_COPY[purpose];
   const firstName = user.name.trim().split(/\s+/)[0] || "jogador";
 
-  // Link que abre a tela de verificação já com o código preenchido.
+  // Link que abre a tela certa já com o código preenchido.
   const params = new URLSearchParams({ email: user.email, code });
-  const confirmUrl = `${getAppUrl()}/verificar?${params}`;
+  const actionUrl = `${getAppUrl()}${copy.path}?${params}`;
 
   await sendEmail({
     to: user.email,
     toName: user.name,
-    subject: `${code} é o seu código do TypeBattle`,
+    subject: `${code} ${copy.subject}`,
     text:
       `Olá, ${firstName}!\n\n` +
-      `Seu código de verificação do TypeBattle é: ${code}\n\n` +
-      `Ou confirme direto por este link: ${confirmUrl}\n\n` +
-      `Ele vale por ${CODE_TTL_MINUTES} minutos. Se não foi você que criou a conta, ignore este email.`,
+      `${copy.intro}\n${actionUrl}\n\n` +
+      `Ou use o código: ${code}\n\n` +
+      `Ele vale por ${CODE_TTL_MINUTES} minutos. ${copy.ignore}`,
     html: `<div style="font-family:Arial,sans-serif;max-width:420px;margin:0 auto;padding:24px;color:#1f2330">
   <h2 style="margin:0 0 12px">Type<span style="color:#7c4dff">Battle</span></h2>
   <p>Olá, ${escapeHtml(firstName)}!</p>
-  <p>Clique no botão para confirmar seu email:</p>
+  <p>${copy.intro}</p>
   <p style="margin:22px 0">
-    <a href="${escapeHtml(confirmUrl)}" style="display:inline-block;background:#7c4dff;color:#ffffff;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:8px">Confirmar meu email</a>
+    <a href="${escapeHtml(actionUrl)}" style="display:inline-block;background:#7c4dff;color:#ffffff;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:8px">${copy.button}</a>
   </p>
   <p style="margin:0 0 8px">Ou copie o código:</p>
   <div style="display:inline-block;font-family:'Courier New',monospace;font-size:30px;font-weight:700;letter-spacing:6px;color:#7c4dff;background:#f3efff;border:1px dashed #b9a3ff;border-radius:8px;padding:10px 18px;user-select:all;-webkit-user-select:all">${code}</div>
-  <p style="color:#6b7080;font-size:13px;margin-top:20px">Ele vale por ${CODE_TTL_MINUTES} minutos. Se não foi você que criou a conta, ignore este email.</p>
+  <p style="color:#6b7080;font-size:13px;margin-top:20px">Ele vale por ${CODE_TTL_MINUTES} minutos. ${copy.ignore}</p>
 </div>`,
+  });
+}
+
+export function issueVerificationCode(user: { id: number; name: string; email: string }) {
+  return issueCode(user, "verify");
+}
+
+export function issuePasswordResetCode(user: { id: number; name: string; email: string }) {
+  return issueCode(user, "reset");
+}
+
+// Troca a senha e apaga o código (ele não pode ser usado de novo).
+export async function savePasswordAndClearCode(
+  userId: number,
+  passwordHash: string,
+): Promise<void> {
+  await db.orm.public.User.where({ id: userId }).update({
+    password: passwordHash,
+    verificationCodeHash: null,
+    verificationExpiresAt: null,
+    verificationAttempts: 0,
   });
 }
 

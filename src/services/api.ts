@@ -213,6 +213,22 @@ export async function resendVerification(
   return handleResponse(await postJson("/auth/resend-verification", { email }));
 }
 
+// Esqueci a senha: pede o código por email.
+export async function forgotPassword(
+  email: string,
+): Promise<{ message: string; retryAfter: number }> {
+  return handleResponse(await postJson("/auth/forgot-password", { email }));
+}
+
+// Troca a senha com o código do email e já devolve a sessão.
+export async function resetPassword(data: {
+  email: string;
+  code: string;
+  password: string;
+}): Promise<AuthResponse> {
+  return handleResponse<AuthResponse>(await postJson("/auth/reset-password", data));
+}
+
 // Troca o nome do usuário autenticado.
 export async function updateMyName(
   name: string,

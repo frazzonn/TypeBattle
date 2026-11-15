@@ -34,6 +34,11 @@ const VerifyEmail = lazy(() =>
     default: module.VerifyEmail,
   })),
 );
+const ResetPassword = lazy(() =>
+  import("../pages/ResetPassword/ResetPassword").then((module) => ({
+    default: module.ResetPassword,
+  })),
+);
 const PublicProfile = lazy(() =>
   import("../pages/PublicProfile/PublicProfile").then((module) => ({
     default: module.PublicProfile,
@@ -74,6 +79,7 @@ export function AppRoutes() {
         <Route path="/ranking" element={<Ranking />} />
         <Route path="/battle" element={<Battle />} />
         <Route path="/verificar" element={<VerifyEmail />} />
+        <Route path="/recuperar-senha" element={<ResetPassword />} />
         <Route path="/jogador/:userId" element={<PublicProfile />} />
 
         {/* Rotas que exigem autenticação */}
