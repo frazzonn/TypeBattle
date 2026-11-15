@@ -3,7 +3,9 @@ import type { NextFunction, Request, Response } from "express";
 import multer from "multer";
 import { v2 as cloudinary } from "cloudinary";
 
+import { issueVerificationCode, secondsUntilResend } from "../auth/verification.js";
 import { db } from "../prisma/db.js";
+import { validateName } from "../users/validation.js";
 
 // Recebe imagens em memória, com limite de 5 MB.
 export const avatarUpload = multer({
@@ -52,7 +54,7 @@ function getAvatarPublicId(avatarUrl: string): string | null {
 }
 
 // Apaga a foto antiga sem interromper a requisição se falhar.
-async function deleteStoredAvatar(avatarUrl: string | null | undefined) {
+export async function deleteStoredAvatar(avatarUrl: string | null | undefined) {
   if (!avatarUrl) return;
 
   const publicId = getAvatarPublicId(avatarUrl);
@@ -69,20 +71,19 @@ async function deleteStoredAvatar(avatarUrl: string | null | undefined) {
 export async function createUser(request: Request, response: Response) {
   try {
     const { name: rawName, email: rawEmail, password } = request.body ?? {};
-    const name = typeof rawName === "string" ? rawName.trim() : "";
     const email = typeof rawEmail === "string" ? rawEmail.trim() : "";
 
-    if (!name || !email || !password || typeof password !== "string") {
+    if (!rawName || !email || !password || typeof password !== "string") {
       return response.status(400).json({
         message: "Nome, email e senha são obrigatórios.",
       });
     }
 
-    if (name.length > 50) {
-      return response.status(400).json({
-        message: "O nome deve ter no máximo 50 caracteres.",
-      });
+    const nameResult = validateName(rawName);
+    if ("error" in nameResult) {
+      return response.status(400).json({ message: nameResult.error });
     }
+    const { name } = nameResult;
 
     if (email.length > 254 || !EMAIL_PATTERN.test(email)) {
       return response.status(400).json({
@@ -99,25 +100,53 @@ export async function createUser(request: Request, response: Response) {
 
     const existingUser = await db.orm.public.User.first({ email });
 
-    if (existingUser) {
+    // Email confirmado (ou conta banida) já tem dono.
+    if (existingUser && (existingUser.emailVerified || existingUser.banned)) {
       return response.status(409).json({
         message: "Este email já está cadastrado.",
       });
     }
 
+    // Cadastro não confirmado: quem tem acesso ao email pode refazer.
+    // A confirmação exige a senha deste cadastro, então quem usou o email de
+    // outra pessoa não consegue entrar.
+    if (existingUser) {
+      const wait = secondsUntilResend(existingUser.verificationSentAt);
+      if (wait > 0) {
+        return response.status(429).json({
+          message: `Aguarde ${wait} s para tentar de novo.`,
+          retryAfter: wait,
+        });
+      }
+    }
+
     const passwordHash = await bcrypt.hash(password, 10);
 
-    const user = await db.orm.public.User.create({
-      name,
-      email,
-      password: passwordHash,
-    });
+    const user = existingUser
+      ? (await db.orm.public.User.where({ id: existingUser.id })
+          .select("id", "name", "email")
+          .update({ name, password: passwordHash }))!
+      : await db.orm.public.User.select("id", "name", "email").create({
+          name,
+          email,
+          password: passwordHash,
+          emailVerified: false,
+        });
+
+    let emailSent = true;
+    try {
+      await issueVerificationCode(user);
+    } catch (error) {
+      emailSent = false;
+      console.error("ERRO AO ENVIAR CÓDIGO:", error);
+    }
 
     return response.status(201).json({
       id: user.id,
       name: user.name,
       email: user.email,
-      createdAt: user.createdAt,
+      needsVerification: true,
+      emailSent,
     });
   } catch (error) {
     console.error("ERRO AO CRIAR USUÁRIO:", error);
@@ -226,5 +255,27 @@ export async function removeAvatar(request: Request, response: Response) {
     return response.status(500).json({
       message: "Erro ao remover a foto de perfil.",
     });
+  }
+}
+
+// Troca o nome do próprio usuário.
+export async function updateMyName(request: Request, response: Response) {
+  try {
+    const userId = request.user?.userId;
+    if (!userId) {
+      return response.status(401).json({ message: "Usuário não autenticado." });
+    }
+
+    const result = validateName(request.body?.name);
+    if ("error" in result) {
+      return response.status(400).json({ message: result.error });
+    }
+
+    await db.orm.public.User.where({ id: userId }).update({ name: result.name });
+
+    return response.status(200).json({ message: "Nome atualizado.", name: result.name });
+  } catch (error) {
+    console.error("ERRO AO TROCAR NOME:", error);
+    return response.status(500).json({ message: "Erro ao trocar o nome." });
   }
 }

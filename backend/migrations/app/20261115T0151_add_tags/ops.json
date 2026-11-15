@@ -1,0 +1,326 @@
+[
+  {
+    "id": "table.Tag",
+    "label": "Create table \"Tag\"",
+    "summary": "Creates table \"Tag\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Tag"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"Tag\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Tag\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"Tag\"",
+        "sql": "CREATE TABLE \"public\".\"Tag\" (\n  \"color\" text DEFAULT '#a78bfa' NOT NULL,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"id\" SERIAL NOT NULL,\n  \"name\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"Tag\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Tag\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.UserTag",
+    "label": "Create table \"UserTag\"",
+    "summary": "Creates table \"UserTag\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "UserTag"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"UserTag\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"UserTag\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"UserTag\"",
+        "sql": "CREATE TABLE \"public\".\"UserTag\" (\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"id\" SERIAL NOT NULL,\n  \"tagId\" int4 NOT NULL,\n  \"userId\" int4 NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"UserTag\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"UserTag\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.Tag.Tag_name_key",
+    "label": "Add unique constraint on \"Tag\" (name)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "Tag_name_key",
+        "table": "Tag"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"Tag_name_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Tag_name_key",
+          "public",
+          "\"public\".\"Tag\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"Tag_name_key\"",
+        "sql": "ALTER TABLE \"public\".\"Tag\" ADD CONSTRAINT \"Tag_name_key\" UNIQUE (\"name\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"Tag_name_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Tag_name_key",
+          "public",
+          "\"public\".\"Tag\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.UserTag.UserTag_userId_tagId_key",
+    "label": "Add unique constraint on \"UserTag\" (userId, tagId)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "UserTag_userId_tagId_key",
+        "table": "UserTag"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"UserTag_userId_tagId_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "UserTag_userId_tagId_key",
+          "public",
+          "\"public\".\"UserTag\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"UserTag_userId_tagId_key\"",
+        "sql": "ALTER TABLE \"public\".\"UserTag\" ADD CONSTRAINT \"UserTag_userId_tagId_key\" UNIQUE (\"userId\", \"tagId\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"UserTag_userId_tagId_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "UserTag_userId_tagId_key",
+          "public",
+          "\"public\".\"UserTag\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.UserTag.UserTag_tagId_idx_86854244",
+    "label": "Create index \"UserTag_tagId_idx_86854244\" on \"UserTag\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "UserTag_tagId_idx_86854244",
+        "table": "UserTag"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"UserTag_tagId_idx_86854244\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"UserTag_tagId_idx_86854244\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"UserTag_tagId_idx_86854244\"",
+        "sql": "CREATE INDEX \"UserTag_tagId_idx_86854244\" ON \"public\".\"UserTag\" (\"tagId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"UserTag_tagId_idx_86854244\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"UserTag_tagId_idx_86854244\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.UserTag.UserTag_userId_idx_a489d58a",
+    "label": "Create index \"UserTag_userId_idx_a489d58a\" on \"UserTag\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "UserTag_userId_idx_a489d58a",
+        "table": "UserTag"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"UserTag_userId_idx_a489d58a\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"UserTag_userId_idx_a489d58a\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"UserTag_userId_idx_a489d58a\"",
+        "sql": "CREATE INDEX \"UserTag_userId_idx_a489d58a\" ON \"public\".\"UserTag\" (\"userId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"UserTag_userId_idx_a489d58a\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"UserTag_userId_idx_a489d58a\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.UserTag.UserTag_userId_fkey",
+    "label": "Add foreign key \"UserTag_userId_fkey\" on \"UserTag\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "UserTag_userId_fkey",
+        "table": "UserTag"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"UserTag_userId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "UserTag_userId_fkey",
+          "public",
+          "\"public\".\"UserTag\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"UserTag_userId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"UserTag\"\nADD CONSTRAINT \"UserTag_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"UserTag_userId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "UserTag_userId_fkey",
+          "public",
+          "\"public\".\"UserTag\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.UserTag.UserTag_tagId_fkey",
+    "label": "Add foreign key \"UserTag_tagId_fkey\" on \"UserTag\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "UserTag_tagId_fkey",
+        "table": "UserTag"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"UserTag_tagId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "UserTag_tagId_fkey",
+          "public",
+          "\"public\".\"UserTag\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"UserTag_tagId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"UserTag\"\nADD CONSTRAINT \"UserTag_tagId_fkey\"\nFOREIGN KEY (\"tagId\")\nREFERENCES \"public\".\"Tag\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"UserTag_tagId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "UserTag_tagId_fkey",
+          "public",
+          "\"public\".\"UserTag\""
+        ]
+      }
+    ]
+  }
+]

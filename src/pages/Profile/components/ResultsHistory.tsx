@@ -2,6 +2,8 @@ import { useState } from "react";
 import {
   Box,
   Button,
+  IconButton,
+  Tooltip,
   Paper,
   Table,
   TableBody,
@@ -12,6 +14,8 @@ import {
   Typography,
 } from "@mui/material";
 
+import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
+
 import type { TypingResult } from "../../../services/api";
 import { panelSx } from "../styles";
 
@@ -19,10 +23,12 @@ const RESULTS_PER_PAGE = 10;
 
 interface ResultsHistoryProps {
   results: TypingResult[];
+  // Só o admin recebe: mostra a lixeira em cada linha.
+  onDelete?: (result: TypingResult) => void;
 }
 
 // Tabela do histórico, do teste mais recente para o mais antigo.
-export function ResultsHistory({ results }: ResultsHistoryProps) {
+export function ResultsHistory({ results, onDelete }: ResultsHistoryProps) {
   const [visibleResults, setVisibleResults] = useState(RESULTS_PER_PAGE);
 
   const sortedResults = [...results].sort(
@@ -81,6 +87,7 @@ export function ResultsHistory({ results }: ResultsHistoryProps) {
               <TableCell>Erros</TableCell>
               <TableCell>Caracteres</TableCell>
               <TableCell>Tempo</TableCell>
+              {onDelete && <TableCell aria-label="Ações" />}
             </TableRow>
           </TableHead>
 
@@ -102,6 +109,20 @@ export function ResultsHistory({ results }: ResultsHistoryProps) {
                 <TableCell>{result.errors}</TableCell>
                 <TableCell>{result.characters.toLocaleString("pt-BR")}</TableCell>
                 <TableCell>{result.duration}s</TableCell>
+                {onDelete && (
+                  <TableCell sx={{ py: "0 !important" }}>
+                    <Tooltip title="Apagar resultado">
+                      <IconButton
+                        size="small"
+                        aria-label={`Apagar o resultado de ${result.ppm} PPM`}
+                        onClick={() => onDelete(result)}
+                        sx={{ color: "#e87986" }}
+                      >
+                        <DeleteOutlineRoundedIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                )}
               </TableRow>
             ))}
           </TableBody>

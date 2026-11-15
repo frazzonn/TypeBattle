@@ -8,6 +8,17 @@ model User {
   createdAt     DateTime       @default(now())
   avatarUrl     String?
 
+  // Contas antigas já contam como verificadas; o cadastro novo grava false.
+  emailVerified Boolean        @default(true)
+  // Conta banida pelo admin: não entra e some do ranking.
+  banned        Boolean        @default(false)
+
+  // Código de verificação enviado por email (guardado só o hash).
+  verificationCodeHash  String?
+  verificationExpiresAt DateTime?
+  verificationSentAt    DateTime?
+  verificationAttempts  Int     @default(0)
+
   // Resultados dos testes de digitação
   typingResults TypingResult[]
 
@@ -57,4 +68,29 @@ model BattleResult {
     references: [id],
     onDelete: Cascade
   )
+}
+
+// Tag criada pelo admin para destacar usuários (ex.: Dev, Adm).
+model Tag {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  // Cor em hexadecimal (ex.: #a78bfa)
+  color     String    @default("#a78bfa")
+  createdAt DateTime  @default(now())
+
+  users     UserTag[]
+}
+
+// Liga um usuário a uma tag; cada tag aparece uma vez por usuário.
+model UserTag {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  tagId     Int
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tagId])
+  @@index([tagId])
 }

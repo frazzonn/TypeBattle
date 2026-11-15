@@ -81,7 +81,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // Só encerra a sessão se o backend recusar o token;
         // falhas de rede mantêm o usuário logado.
         if (!isActive || !(error instanceof ApiError)) return;
-        if (error.status !== 401) return;
+        // Token recusado ou conta banida: encerra a sessão.
+        if (error.status !== 401 && error.code !== "ACCOUNT_BANNED") return;
 
         setUser(null);
         setToken(null);
@@ -93,34 +94,42 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
   }, [storedSession]);
 
+  function startSession(newToken: string, newUser: User) {
+    setToken(newToken);
+    setUser(newUser);
+
+    // Persiste a sessão no navegador.
+    localStorage.setItem(TOKEN_KEY, newToken);
+    localStorage.setItem(USER_KEY, JSON.stringify(newUser));
+  }
+
   async function login(email: string, password: string) {
     const response = await loginUser({
       email,
       password,
     });
 
-    setToken(response.token);
-    setUser(response.user);
-
-    // Persiste a sessão no navegador.
-    localStorage.setItem(TOKEN_KEY, response.token);
-    localStorage.setItem(USER_KEY, JSON.stringify(response.user));
+    startSession(response.token, response.user);
   }
 
-  function updateAvatar(avatarUrl: string | null) {
+  // Altera dados do usuário e mantém o localStorage em dia.
+  function patchUser(changes: Partial<User>) {
     setUser((currentUser) => {
       if (!currentUser) return currentUser;
 
-      const updatedUser = {
-        ...currentUser,
-        avatarUrl,
-      };
-
-      // Mantém a foto atualizada ao recarregar a página.
+      const updatedUser = { ...currentUser, ...changes };
       localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
 
       return updatedUser;
     });
+  }
+
+  function updateAvatar(avatarUrl: string | null) {
+    patchUser({ avatarUrl });
+  }
+
+  function updateName(name: string) {
+    patchUser({ name });
   }
 
   function logout() {
@@ -140,6 +149,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         login,
         logout,
         updateAvatar,
+        updateName,
+        startSession,
       }}
     >
       {children}

@@ -20,6 +20,7 @@ import KeyboardRoundedIcon from "@mui/icons-material/KeyboardRounded";
 import SportsEsportsRoundedIcon from "@mui/icons-material/SportsEsportsRounded";
 import EmojiEventsRoundedIcon from "@mui/icons-material/EmojiEventsRounded";
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
+import AdminPanelSettingsRoundedIcon from "@mui/icons-material/AdminPanelSettingsRounded";
 
 import LoginRoundedIcon from "@mui/icons-material/LoginRounded";
 import PersonAddAlt1RoundedIcon from "@mui/icons-material/PersonAddAlt1Rounded";
@@ -51,6 +52,13 @@ export function Header() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isAuthenticated, logout } = useAuth();
+  // A aba Admin só aparece para o email de admin.
+  const visibleNavigationItems = user?.isAdmin
+    ? [
+        ...navigationItems,
+        { label: "Admin", to: "/admin", icon: <AdminPanelSettingsRoundedIcon /> },
+      ]
+    : navigationItems;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const handleMobileMenuClose = () => {
     setMobileMenuOpen(false);
@@ -200,7 +208,7 @@ export function Header() {
               gap: { md: 0.4, lg: 0.8 },
             }}
           >
-            {navigationItems.map((item) => (
+            {visibleNavigationItems.map((item) => (
               <Button
                 key={item.to}
                 component={Link}
@@ -403,7 +411,7 @@ export function Header() {
         <Divider sx={{ borderColor: "rgba(255,255,255,0.09)", mb: 1.5 }} />
 
         <List sx={{ px: 1 }}>
-          {navigationItems.map((item) => (
+          {visibleNavigationItems.map((item) => (
             <ListItemButton
               key={item.to}
               selected={isActive(item.to)}

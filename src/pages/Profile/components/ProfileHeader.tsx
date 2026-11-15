@@ -18,6 +18,8 @@ import PhotoCameraOutlinedIcon from "@mui/icons-material/PhotoCameraOutlined";
 import { useAuth } from "../../../contexts/useAuth";
 import { uploadAvatar, removeAvatar } from "../../../services/api";
 import { panelSx } from "../styles";
+import { UserTags } from "../../../components/UserTags";
+import { EditableName } from "./EditableName";
 
 const MAX_PHOTO_SIZE = 5 * 1024 * 1024;
 
@@ -366,16 +368,9 @@ export function ProfileHeader() {
             TYPEBATTLE / JOGADOR
           </Typography>
 
-          <Typography
-            variant="h4"
-            sx={{
-              fontWeight: 800,
-              letterSpacing: "-1px",
-              overflowWrap: "anywhere",
-            }}
-          >
-            {user?.name || "Meu perfil"}
-          </Typography>
+          <EditableName />
+
+          <UserTags tags={user?.tags} size="medium" sx={{ mt: 0.75 }} />
 
           <Typography color="text.secondary" sx={{ mt: 0.5 }}>
             {user?.email || "E-mail não disponível"}

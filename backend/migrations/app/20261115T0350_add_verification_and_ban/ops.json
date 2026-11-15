@@ -1,0 +1,254 @@
+[
+  {
+    "id": "column.public.User.banned",
+    "label": "Add column \"banned\" to \"User\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "banned",
+        "table": "User"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"banned\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "User",
+          "banned"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"banned\"",
+        "sql": "ALTER TABLE \"public\".\"User\" ADD COLUMN \"banned\" bool DEFAULT false NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"banned\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "User",
+          "banned"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.User.emailVerified",
+    "label": "Add column \"emailVerified\" to \"User\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "emailVerified",
+        "table": "User"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"emailVerified\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "User",
+          "emailVerified"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"emailVerified\"",
+        "sql": "ALTER TABLE \"public\".\"User\" ADD COLUMN \"emailVerified\" bool DEFAULT true NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"emailVerified\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "User",
+          "emailVerified"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.User.verificationAttempts",
+    "label": "Add column \"verificationAttempts\" to \"User\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "verificationAttempts",
+        "table": "User"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"verificationAttempts\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "User",
+          "verificationAttempts"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"verificationAttempts\"",
+        "sql": "ALTER TABLE \"public\".\"User\" ADD COLUMN \"verificationAttempts\" int4 DEFAULT 0 NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"verificationAttempts\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "User",
+          "verificationAttempts"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.User.verificationCodeHash",
+    "label": "Add column \"verificationCodeHash\" to \"User\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "verificationCodeHash",
+        "table": "User"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"verificationCodeHash\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "User",
+          "verificationCodeHash"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"verificationCodeHash\"",
+        "sql": "ALTER TABLE \"public\".\"User\" ADD COLUMN \"verificationCodeHash\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"verificationCodeHash\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "User",
+          "verificationCodeHash"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.User.verificationExpiresAt",
+    "label": "Add column \"verificationExpiresAt\" to \"User\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "verificationExpiresAt",
+        "table": "User"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"verificationExpiresAt\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "User",
+          "verificationExpiresAt"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"verificationExpiresAt\"",
+        "sql": "ALTER TABLE \"public\".\"User\" ADD COLUMN \"verificationExpiresAt\" timestamptz"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"verificationExpiresAt\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "User",
+          "verificationExpiresAt"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.User.verificationSentAt",
+    "label": "Add column \"verificationSentAt\" to \"User\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "verificationSentAt",
+        "table": "User"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"verificationSentAt\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "User",
+          "verificationSentAt"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"verificationSentAt\"",
+        "sql": "ALTER TABLE \"public\".\"User\" ADD COLUMN \"verificationSentAt\" timestamptz"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"verificationSentAt\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "User",
+          "verificationSentAt"
+        ]
+      }
+    ]
+  }
+]

@@ -13,7 +13,7 @@ import { DEFAULT_SETTINGS, type BattleRoom, type RoomSettings } from "./types";
 const SOCKET_URL = (
   import.meta.env.VITE_SOCKET_URL ||
   (import.meta.env.PROD
-    ? "https://typebattle.up.railway.app"
+    ? "https://typebattle-twyi.onrender.com"
     : "http://localhost:3000")
 ).replace(/\/+$/, "");
 

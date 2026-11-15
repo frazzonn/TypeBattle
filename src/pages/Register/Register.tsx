@@ -57,14 +57,16 @@ export function Register() {
     try {
       setIsLoading(true);
 
-      await registerUser({
+      const created = await registerUser({
         name,
         email,
         password,
       });
 
-      // Após cadastrar, vai para o login
-      navigate("/login");
+      // Após cadastrar, confirma o email com o código.
+      navigate("/verificar", {
+        state: { email: created.email, password, emailSent: created.emailSent },
+      });
     } catch (error) {
       setError(error instanceof Error ? error.message : "Erro ao criar conta.");
     } finally {

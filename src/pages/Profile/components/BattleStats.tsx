@@ -12,7 +12,9 @@ import { panelSx } from "../styles";
 import { StatCard } from "./StatCard";
 
 interface BattleStatsProps {
-  token: string;
+  // Perfil próprio: busca pelo token. Perfil de outro jogador: dados prontos.
+  token?: string;
+  data?: BattleResultsResponse;
 }
 
 const RECENT_SHOWN = 8;
@@ -29,11 +31,14 @@ function formatDate(value: string) {
 }
 
 // Resumo das partidas multiplayer jogadas logado e as mais recentes.
-export function BattleStats({ token }: BattleStatsProps) {
-  const [data, setData] = useState<BattleResultsResponse | null>(null);
+export function BattleStats({ token, data: providedData }: BattleStatsProps) {
+  const [fetchedData, setData] = useState<BattleResultsResponse | null>(null);
   const [error, setError] = useState(false);
+  const data = providedData ?? fetchedData;
+  const isOther = Boolean(providedData);
 
   useEffect(() => {
+    if (providedData || !token) return;
     let active = true;
 
     getBattleResults(token)
@@ -48,7 +53,7 @@ export function BattleStats({ token }: BattleStatsProps) {
     return () => {
       active = false;
     };
-  }, [token]);
+  }, [token, providedData]);
 
   const summary = data?.summary;
 
@@ -106,18 +111,22 @@ export function BattleStats({ token }: BattleStatsProps) {
               Nenhuma partida ainda
             </Typography>
             <Typography color="text.secondary" variant="body2">
-              Jogue uma battle logado e suas vitórias aparecem aqui.
+              {isOther
+                ? "Este jogador ainda não jogou nenhuma battle."
+                : "Jogue uma battle logado e suas vitórias aparecem aqui."}
             </Typography>
           </Box>
-          <Button
-            component={RouterLink}
-            to="/battle"
-            variant="contained"
-            startIcon={<SportsEsportsRoundedIcon />}
-            sx={{ fontWeight: 700, textTransform: "none", flexShrink: 0 }}
-          >
-            Jogar battle
-          </Button>
+          {!isOther && (
+            <Button
+              component={RouterLink}
+              to="/battle"
+              variant="contained"
+              startIcon={<SportsEsportsRoundedIcon />}
+              sx={{ fontWeight: 700, textTransform: "none", flexShrink: 0 }}
+            >
+              Jogar battle
+            </Button>
+          )}
         </Paper>
       )}
 
@@ -148,7 +157,7 @@ export function BattleStats({ token }: BattleStatsProps) {
             <StatCard
               label="Taxa de vitória"
               value={`${summary.winRate}%`}
-              description="Rodadas que você venceu"
+              description={isOther ? "Rodadas vencidas" : "Rodadas que você venceu"}
               accent="#86efac"
             />
             <StatCard

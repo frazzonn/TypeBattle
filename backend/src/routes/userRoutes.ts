@@ -6,7 +6,9 @@ import {
   handleAvatarUploadError,
   uploadAvatar,
   removeAvatar,
+  updateMyName,
 } from "../controllers/UserController.js";
+import { getPublicProfile } from "../controllers/ProfileController.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 import { rateLimit } from "../middleware/rateLimit.js";
 
@@ -39,5 +41,17 @@ userRoutes.post(
 
 // Remove a foto do usuário autenticado.
 userRoutes.delete("/avatar", authMiddleware, removeAvatar);
+
+const nameLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: "Muitas trocas de nome. Tente novamente em alguns minutos.",
+});
+
+// Troca o nome do usuário autenticado.
+userRoutes.patch("/me/name", authMiddleware, nameLimiter, updateMyName);
+
+// Perfil público de um jogador.
+userRoutes.get("/:userId/profile", getPublicProfile);
 
 export { userRoutes };

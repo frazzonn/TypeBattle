@@ -6,6 +6,8 @@ import { panelSx } from "../styles";
 
 interface MissedKeysCardProps {
   results: TypingResult[];
+  // Perfil de outro jogador: textos na terceira pessoa.
+  isOther?: boolean;
 }
 
 // Soma as teclas erradas de todos os testes salvos.
@@ -21,14 +23,16 @@ function sumMissedKeys(results: TypingResult[]) {
   return totals;
 }
 
-export function MissedKeysCard({ results }: MissedKeysCardProps) {
+export function MissedKeysCard({ results, isOther = false }: MissedKeysCardProps) {
   return (
     <Paper elevation={0} sx={{ ...panelSx, p: { xs: 2.5, sm: 3 } }}>
       <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>
-        Teclas que você mais erra
+        {isOther ? "Teclas que mais erra" : "Teclas que você mais erra"}
       </Typography>
       <Typography color="text.secondary" variant="body2" sx={{ mb: 2.5 }}>
-        Somando todos os seus testes no modo tempo.
+        {isOther
+          ? "Somando todos os testes no modo tempo."
+          : "Somando todos os seus testes no modo tempo."}
       </Typography>
 
       <MissedKeys

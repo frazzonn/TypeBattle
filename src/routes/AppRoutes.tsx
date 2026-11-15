@@ -29,6 +29,21 @@ const Ranking = lazy(() =>
     default: module.Ranking,
   })),
 );
+const VerifyEmail = lazy(() =>
+  import("../pages/VerifyEmail/VerifyEmail").then((module) => ({
+    default: module.VerifyEmail,
+  })),
+);
+const PublicProfile = lazy(() =>
+  import("../pages/PublicProfile/PublicProfile").then((module) => ({
+    default: module.PublicProfile,
+  })),
+);
+const Admin = lazy(() =>
+  import("../pages/Admin/Admin").then((module) => ({
+    default: module.Admin,
+  })),
+);
 const Battle = lazy(() =>
   import("../pages/Battle/Battle").then((module) => ({
     default: module.Battle,
@@ -58,10 +73,13 @@ export function AppRoutes() {
         <Route path="/typing" element={<TypingTest />} />
         <Route path="/ranking" element={<Ranking />} />
         <Route path="/battle" element={<Battle />} />
+        <Route path="/verificar" element={<VerifyEmail />} />
+        <Route path="/jogador/:userId" element={<PublicProfile />} />
 
         {/* Rotas que exigem autenticação */}
         <Route element={<ProtectedRoute />}>
           <Route path="/profile" element={<Profile />} />
+          <Route path="/admin" element={<Admin />} />
         </Route>
       </Routes>
     </Suspense>

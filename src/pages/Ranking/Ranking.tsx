@@ -18,7 +18,10 @@ import SpeedRoundedIcon from "@mui/icons-material/SpeedRounded";
 import TrackChangesRoundedIcon from "@mui/icons-material/TrackChangesRounded";
 
 import { LanguageAutocomplete } from "../../components/LanguageAutocomplete";
-import { getRanking } from "../../services/api";
+import { Link as RouterLink } from "react-router-dom";
+
+import { UserTags } from "../../components/UserTags";
+import { getRanking, type Tag } from "../../services/api";
 import { DEFAULT_LANGUAGE, LANGUAGE_OPTIONS } from "../../utils/textGenerator";
 
 interface RankingPlayer {
@@ -26,6 +29,7 @@ interface RankingPlayer {
   userId: number;
   name: string;
   avatarUrl?: string | null;
+  tags?: Tag[];
   ppm: number;
   accuracy: number;
 }
@@ -378,7 +382,12 @@ export function Ranking() {
                 <Paper
                   key={player.userId}
                   elevation={0}
+                  component={RouterLink}
+                  to={`/jogador/${player.userId}`}
                   sx={{
+                    display: "block",
+                    color: "inherit",
+                    textDecoration: "none",
                     order: {
                       xs: player.position,
                       sm: isFirst ? 0 : isSecond ? -1 : 1,
@@ -450,11 +459,16 @@ export function Ranking() {
                       fontWeight: 700,
                       fontSize: "1rem",
                       overflowWrap: "anywhere",
-                      mb: 2,
+                      mb: player.tags?.length ? 0.75 : 2,
                     }}
                   >
                     {player.name}
                   </Typography>
+
+                  <UserTags
+                    tags={player.tags}
+                    sx={{ justifyContent: "center", mb: 1.5 }}
+                  />
 
                   <Typography
                     sx={{
@@ -521,7 +535,11 @@ export function Ranking() {
               {remainingPlayers.map((player, index) => (
                 <Box
                   key={player.userId}
+                  component={RouterLink}
+                  to={`/jogador/${player.userId}`}
                   sx={{
+                    color: "inherit",
+                    textDecoration: "none",
                     display: "flex",
                     alignItems: "center",
                     gap: { xs: 1.5, sm: 2 },
@@ -569,9 +587,15 @@ export function Ranking() {
                         color: "#f5f3ff",
                         fontWeight: 700,
                         overflowWrap: "anywhere",
+                        display: "flex",
+                        alignItems: "center",
+                        flexWrap: "wrap",
+                        columnGap: 1,
+                        rowGap: 0.5,
                       }}
                     >
                       {player.name}
+                      <UserTags tags={player.tags} />
                     </Typography>
 
                     <Typography variant="body2" sx={{ color: "#969bad" }}>

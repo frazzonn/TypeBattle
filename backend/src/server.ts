@@ -2,6 +2,7 @@ import cors from "cors";
 import express from "express";
 import { createServer } from "node:http";
 import { Server } from "socket.io";
+import { adminRoutes } from "./routes/adminRoutes.js";
 import { authRoutes } from "./routes/authRoutes.js";
 import { battleResultRoutes } from "./routes/battleResultRoutes.js";
 import { typingResultRoutes } from "./routes/typingResultRoutes.js";
@@ -10,7 +11,7 @@ import { registerBattleSocket } from "./socket/battleSocket.js";
 const app = express();
 const httpServer = createServer(app);
 
-// O Railway fica atrás de um proxy; assim request.ip traz o IP real do cliente.
+// O Render fica atrás de um proxy; assim request.ip traz o IP real do cliente.
 app.set("trust proxy", 1);
 
 // Mantém o acesso local e permite cadastrar a URL do frontend hospedado.
@@ -67,6 +68,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/typing-results", typingResultRoutes);
 app.use("/api/battle-results", battleResultRoutes);
+app.use("/api/admin", adminRoutes);
 
 registerBattleSocket(io);
 

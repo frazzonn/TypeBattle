@@ -201,10 +201,11 @@ async function getPlayerAccount(token: unknown): Promise<PlayerAccount> {
   if (typeof token !== "string" || !token || !jwtSecret) return GUEST;
   try {
     const { userId } = jwt.verify(token, jwtSecret) as { userId: number };
-    const user = await db.orm.public.User.select("avatarUrl").first({
+    const user = await db.orm.public.User.select("avatarUrl", "banned").first({
       id: userId,
     });
-    if (!user) return GUEST;
+    // Conta apagada ou banida joga como convidado (nada é salvo).
+    if (!user || user.banned) return GUEST;
     return { isGuest: false, avatarUrl: user.avatarUrl ?? null, userId };
   } catch {
     return GUEST;

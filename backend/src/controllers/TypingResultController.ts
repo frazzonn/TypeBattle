@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 
 import { DEFAULT_LANGUAGE, isLanguageCode } from "../battle/textGenerator.js";
 import { db } from "../prisma/db.js";
+import { getTagsForUsers } from "../tags/userTags.js";
 
 const ALLOWED_DURATIONS = [15, 30, 60];
 
@@ -50,7 +51,7 @@ function validateMissedKeys(
 }
 
 // Lê o JSON salvo; dados antigos ou inválidos viram objeto vazio.
-function parseMissedKeys(value: string): Record<string, number> {
+export function parseMissedKeys(value: string): Record<string, number> {
   try {
     const parsed: unknown = JSON.parse(value);
     return parsed && typeof parsed === "object" && !Array.isArray(parsed)
@@ -235,7 +236,12 @@ export async function getRanking(request: Request, response: Response) {
       .select("userId", "ppm", "accuracy")
       .all();
 
-    const topResults = [...bestResults]
+    // Contas banidas não aparecem no ranking.
+    const banned = await db.orm.public.User.where({ banned: true }).select("id").all();
+    const bannedIds = new Set(banned.map((user) => user.id));
+
+    const topResults = bestResults
+      .filter((result) => !bannedIds.has(result.userId))
       // Maior PPM primeiro.
       .sort((a, b) => b.ppm - a.ppm)
       .slice(0, RANKING_LIMIT);
@@ -249,6 +255,7 @@ export async function getRanking(request: Request, response: Response) {
             .all()
         : [];
     const usersById = new Map(users.map((user) => [user.id, user]));
+    const tagsByUser = await getTagsForUsers(userIds);
 
     // Monta o ranking relacionando resultado e usuário.
     const ranking = topResults.map((result, index) => ({
@@ -257,6 +264,7 @@ export async function getRanking(request: Request, response: Response) {
       userId: result.userId,
       name: usersById.get(result.userId)?.name ?? "Usuário",
       avatarUrl: usersById.get(result.userId)?.avatarUrl ?? null,
+      tags: tagsByUser.get(result.userId) ?? [],
       ppm: result.ppm,
       accuracy: result.accuracy,
     }));

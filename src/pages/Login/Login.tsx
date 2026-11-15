@@ -15,6 +15,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../../contexts/useAuth";
+import { ApiError } from "../../services/api";
 
 export function Login() {
   const navigate = useNavigate();
@@ -47,6 +48,12 @@ export function Login() {
       // Após o login, vai para o teste de digitação
       navigate("/typing");
     } catch (error) {
+      // Conta sem email confirmado: vai para a tela do código.
+      if (error instanceof ApiError && error.code === "EMAIL_NOT_VERIFIED") {
+        navigate("/verificar", { state: { email: email.trim(), password } });
+        return;
+      }
+
       setError(
         error instanceof Error ? error.message : "Erro ao realizar login.",
       );
