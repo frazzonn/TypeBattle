@@ -166,10 +166,12 @@ function calculateAccuracy(correct: number, characters: number) {
   return characters === 0 ? 100 : Math.round((correct / characters) * 100);
 }
 
-export function useTypingTest() {
+// fixedMode: a página trava o modo (a perseguição fica no Arcade).
+// Sem ele, a perseguição não aparece no teste normal.
+export function useTypingTest(fixedMode?: TestMode) {
   const [settings, setSettings] = useState(loadSettings);
   const {
-    mode,
+    mode: savedMode,
     time,
     wordCount,
     quoteLength,
@@ -179,6 +181,8 @@ export function useTypingTest() {
     useUppercase,
     usePunctuation,
   } = settings;
+  const mode: TestMode =
+    fixedMode ?? (savedMode === "chase" ? "time" : savedMode);
 
   useEffect(() => {
     try {

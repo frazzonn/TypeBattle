@@ -55,6 +55,22 @@ const Battle = lazy(() =>
   })),
 );
 
+const Arcade = lazy(() =>
+  import("../pages/Arcade/Arcade").then((module) => ({
+    default: module.Arcade,
+  })),
+);
+const Orbita = lazy(() =>
+  import("../pages/Arcade/orbita/Orbita").then((module) => ({
+    default: module.Orbita,
+  })),
+);
+const Chase = lazy(() =>
+  import("../pages/Arcade/Chase").then((module) => ({
+    default: module.Chase,
+  })),
+);
+
 function PageLoading() {
   return (
     <Box
@@ -78,6 +94,9 @@ export function AppRoutes() {
         <Route path="/typing" element={<TypingTest />} />
         <Route path="/ranking" element={<Ranking />} />
         <Route path="/battle" element={<Battle />} />
+        <Route path="/arcade" element={<Arcade />} />
+        <Route path="/arcade/orbita" element={<Orbita />} />
+        <Route path="/arcade/perseguicao" element={<Chase />} />
         <Route path="/verificar" element={<VerifyEmail />} />
         <Route path="/recuperar-senha" element={<ResetPassword />} />
         <Route path="/jogador/:userId" element={<PublicProfile />} />

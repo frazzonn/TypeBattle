@@ -19,6 +19,7 @@ import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import KeyboardRoundedIcon from "@mui/icons-material/KeyboardRounded";
 import SportsEsportsRoundedIcon from "@mui/icons-material/SportsEsportsRounded";
 import EmojiEventsRoundedIcon from "@mui/icons-material/EmojiEventsRounded";
+import VideogameAssetRoundedIcon from "@mui/icons-material/VideogameAssetRounded";
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import AdminPanelSettingsRoundedIcon from "@mui/icons-material/AdminPanelSettingsRounded";
 
@@ -40,6 +41,11 @@ const navigationItems = [
     label: "Battle",
     to: "/battle",
     icon: <SportsEsportsRoundedIcon />,
+  },
+  {
+    label: "Arcade",
+    to: "/arcade",
+    icon: <VideogameAssetRoundedIcon />,
   },
   {
     label: "Ranking",
@@ -73,7 +79,9 @@ export function Header() {
     navigate("/");
   }
 
-  const isActive = (path: string) => location.pathname === path;
+  // /arcade/orbita também acende a aba Arcade.
+  const isActive = (path: string) =>
+    location.pathname === path || location.pathname.startsWith(`${path}/`);
   const firstName = user?.name?.trim().split(/\s+/)[0] || "Usuário";
   const initial = firstName.charAt(0).toUpperCase();
 

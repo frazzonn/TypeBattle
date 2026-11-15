@@ -69,7 +69,6 @@ const MODE_OPTIONS: { value: TestMode; label: string }[] = [
   { value: "time", label: "tempo" },
   { value: "words", label: "palavras" },
   { value: "quote", label: "frases" },
-  { value: "chase", label: "perseguição" },
 ];
 
 const QUOTE_LENGTH_OPTIONS: { value: QuoteLengthFilter; label: string }[] = [
@@ -207,7 +206,8 @@ function ResultFigure({
   );
 }
 
-export function TypingTest() {
+// fixedMode trava o modo e esconde a escolha (usado pela perseguição do Arcade).
+export function TypingTest({ fixedMode }: { fixedMode?: TestMode } = {}) {
   const {
     mode,
     selectedTime,
@@ -249,7 +249,7 @@ export function TypingTest() {
     changeAccents,
     changeUppercase,
     changePunctuation,
-  } = useTypingTest();
+  } = useTypingTest(fixedMode);
 
   const { isAuthenticated, token } = useAuth();
 
@@ -536,19 +536,20 @@ export function TypingTest() {
               </>
             )}
 
-            {MODE_OPTIONS.map((option) => (
-              <ToolbarOption
-                key={option.value}
-                active={mode === option.value}
-                disabled={controlsDisabled}
-                onClick={() => changeMode(option.value)}
-              >
-                {option.label}
-              </ToolbarOption>
-            ))}
+            {!fixedMode &&
+              MODE_OPTIONS.map((option) => (
+                <ToolbarOption
+                  key={option.value}
+                  active={mode === option.value}
+                  disabled={controlsDisabled}
+                  onClick={() => changeMode(option.value)}
+                >
+                  {option.label}
+                </ToolbarOption>
+              ))}
 
             {/* Duração, quantidade de palavras ou tamanho da frase */}
-            {mode !== "chase" && <ToolbarDivider />}
+            {!fixedMode && <ToolbarDivider />}
             {mode === "time" &&
               TIME_OPTIONS.map((time) => (
                 <ToolbarOption
@@ -585,7 +586,7 @@ export function TypingTest() {
                 </ToolbarOption>
               ))}
 
-            <ToolbarDivider />
+            {!fixedMode && <ToolbarDivider />}
 
             {/* Idioma */}
             <Box sx={{ display: "flex", alignItems: "center", color: MUTED }}>
