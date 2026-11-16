@@ -5,7 +5,8 @@ export type Duration = 15 | 30 | 60;
 export type PlayerLimit = 2 | 3 | 4;
 // Tempo: maior PPM no fim do relógio. Palavras: quem terminar o texto primeiro.
 // Perseguição: um cursor alcança um por um; quem sobrar por último vence.
-export type BattleMode = "time" | "words" | "chase";
+// Pavio: a bomba passa de mão em mão; cada um digita uma palavra com a sílaba.
+export type BattleMode = "time" | "words" | "chase" | "pavio";
 export type WordCount = 10 | 25 | 50 | 100;
 export type RoomStatus = "waiting" | "countdown" | "playing" | "finished";
 export interface RoomSettings {

@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import type { Server, Socket } from "socket.io";
 
 import { db } from "../prisma/db.js";
+import { getTagsForUsers, type PublicTag } from "../tags/userTags.js";
 
 import {
   CHASE_DELAY_MS,
@@ -21,6 +22,14 @@ import type {
   RoomStatus,
   WordCount,
 } from "../battle/types.js";
+import {
+  pavioSubmit,
+  pavioTyping,
+  startPavio,
+  stopPavio,
+  type PavioHooks,
+  type PavioState,
+} from "./pavioBattle.js";
 
 // Aceita clientes antigos sem playerLimit, language ou modo e usa os padrões.
 type RoomSettingsInput = Omit<
@@ -50,6 +59,8 @@ interface RoomPlayer extends PlayerScore {
   nickname: string;
   isGuest: boolean;
   avatarUrl: string | null;
+  // Tags da conta (vazio para convidados).
+  tags: PublicTag[];
   // false enquanto a conexão caiu e o jogador ainda pode voltar.
   connected: boolean;
 }
@@ -57,6 +68,7 @@ interface PlayerAccount {
   isGuest: boolean;
   avatarUrl: string | null;
   userId: number | null;
+  tags: PublicTag[];
 }
 interface BattleState {
   round: number;
@@ -92,8 +104,11 @@ interface BattleRoom {
   // Perseguição: palavras que já custaram a penalidade, por jogador. Cada
   // palavra só pune uma vez, mesmo que o jogador volte e corrija.
   penalizedWords: Record<string, Set<number>>;
+  // Pavio: bomba, sílaba, vidas e de quem é a vez (null fora desse modo).
+  pavio: PavioState | null;
 }
 const rooms = new Map<string, BattleRoom>();
+const BATTLE_MODES = ["time", "words", "chase", "pavio"] as const;
 const countdownTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const finishTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const nextRoundTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -131,7 +146,7 @@ function isValidSettings(value: unknown): value is RoomSettingsInput {
     typeof settings.punctuation === "boolean" &&
     [15, 30, 60].includes(Number(settings.duration)) &&
     (settings.mode === undefined ||
-      ["time", "words", "chase"].includes(String(settings.mode))) &&
+      (BATTLE_MODES as readonly string[]).includes(String(settings.mode))) &&
     (settings.wordCount === undefined ||
       WORD_COUNTS.includes(Number(settings.wordCount) as WordCount)) &&
     ["single", "best-of-3", "best-of-5"].includes(String(settings.format)) &&
@@ -149,7 +164,9 @@ function normalizeRoomSettings(settings: RoomSettingsInput): RoomSettings {
     uppercase: settings.uppercase,
     punctuation: settings.punctuation,
     mode:
-      settings.mode === "words" || settings.mode === "chase"
+      settings.mode === "words" ||
+      settings.mode === "chase" ||
+      settings.mode === "pavio"
         ? settings.mode
         : "time",
     duration: settings.duration,
@@ -189,12 +206,13 @@ function makePlayer(
     nickname,
     isGuest: account.isGuest,
     avatarUrl: account.avatarUrl,
+    tags: account.tags,
     connected: true,
     ...initialScore(),
   };
 }
-const GUEST: PlayerAccount = { isGuest: true, avatarUrl: null, userId: null };
-// Quem está logado manda o token; a foto vem do banco, nunca do cliente.
+const GUEST: PlayerAccount = { isGuest: true, avatarUrl: null, userId: null, tags: [] };
+// Quem está logado manda o token; foto e tags vêm do banco, nunca do cliente.
 // Token ausente, inválido ou expirado entra como convidado.
 async function getPlayerAccount(token: unknown): Promise<PlayerAccount> {
   const jwtSecret = process.env["JWT_SECRET"];
@@ -206,7 +224,14 @@ async function getPlayerAccount(token: unknown): Promise<PlayerAccount> {
     });
     // Conta apagada ou banida joga como convidado (nada é salvo).
     if (!user || user.banned) return GUEST;
-    return { isGuest: false, avatarUrl: user.avatarUrl ?? null, userId };
+    // Sem as tags (falha no banco), o jogador entra do mesmo jeito.
+    const tagsByUser = await getTagsForUsers([userId]).catch(() => null);
+    return {
+      isGuest: false,
+      avatarUrl: user.avatarUrl ?? null,
+      userId,
+      tags: tagsByUser?.get(userId) ?? [],
+    };
   } catch {
     return GUEST;
   }
@@ -300,6 +325,7 @@ function clearTimers(code: string) {
   clearTimer(nextRoundTimers, code);
   clearTimer(lobbyTimers, code);
   clearTimer(chaseTimers, code);
+  stopPavio(code);
 }
 // O servidor calcula as estatísticas oficiais da rodada.
 // No modo palavras o progresso vai só até a primeira letra errada.
@@ -411,6 +437,30 @@ function finishBattle(room: BattleRoom) {
   const roundWinner = getRoundWinner(room);
   battle.winnerSocketId = roundWinner;
   saveRoundResults(room, roundWinner, elapsed);
+  concludeRound(room, battle, roundWinner);
+}
+
+// Pavio: o último que sobrou vence a rodada. Não entra no histórico de
+// battle do perfil (não tem PPM para comparar com os outros modos).
+function finishPavio(room: BattleRoom, roundWinner: string | null) {
+  if (room.status !== "playing" || !room.battle) return;
+  stopPavio(room.code);
+  room.battle.winnerSocketId = roundWinner;
+  concludeRound(room, room.battle, roundWinner);
+}
+
+const pavioHooks: PavioHooks = {
+  update: (room) => sendRoomUpdate(room as BattleRoom),
+  emit: (room, event, payload) => io.to(room.code).emit(event, payload),
+  finish: (room, winner) => finishPavio(room as BattleRoom, winner),
+};
+
+// Placar da série, fim da série e o caminho para a próxima rodada ou o lobby.
+function concludeRound(
+  room: BattleRoom,
+  battle: BattleState,
+  roundWinner: string | null,
+) {
   if (roundWinner) {
     room.seriesWins[roundWinner] = (room.seriesWins[roundWinner] ?? 0) + 1;
   }
@@ -460,6 +510,7 @@ function finishBattle(room: BattleRoom) {
     if (!currentRoom || currentRoom.status !== "finished") return;
     currentRoom.status = "waiting";
     currentRoom.battle = null;
+    currentRoom.pavio = null;
     currentRoom.typedTexts = {};
     currentRoom.seriesWins = Object.fromEntries(
       currentRoom.players.map((player) => [player.socketId, 0]),
@@ -481,13 +532,16 @@ function startRound(room: BattleRoom, round: number): boolean {
   room.status = "countdown";
   room.typedTexts = {};
   room.penalizedWords = {};
+  room.pavio = null;
   for (const player of room.players) {
     Object.assign(player, initialScore());
     room.typedTexts[player.socketId] = "";
   }
+  const isPavio = room.settings.mode === "pavio";
   room.battle = {
     round,
-    text: makeText(room.settings),
+    // O Pavio não tem texto: as sílabas vêm a cada vez.
+    text: isPavio ? "" : makeText(room.settings),
     countdownEndsAt: Date.now() + 3000,
     startedAt: null,
     endsAt: null,
@@ -509,6 +563,22 @@ function startRound(room: BattleRoom, round: number): boolean {
     const now = Date.now();
     currentRoom.status = "playing";
     currentRoom.battle.startedAt = now;
+    countdownTimers.delete(currentRoom.code);
+
+    // Pavio: sem relógio da rodada; ela acaba quando sobra um jogador.
+    if (isPavio) {
+      currentRoom.battle.countdownEndsAt = null;
+      startPavio(currentRoom, pavioHooks);
+      sendRoomUpdate(currentRoom);
+      io.to(currentRoom.code).emit("battle:started", {
+        startedAt: now,
+        endsAt: null,
+        duration: currentRoom.settings.duration,
+        text: "",
+      });
+      return;
+    }
+
     const limit = getRoundLimitMs(currentRoom.settings);
     currentRoom.battle.endsAt = now + limit;
     currentRoom.battle.countdownEndsAt = null;
@@ -632,6 +702,7 @@ export function registerBattleSocket(server: Server) {
           battle: null,
           typedTexts: {},
           penalizedWords: {},
+          pavio: null,
           seriesWins: { [socket.id]: 0 },
           userIds:
             account.userId === null ? {} : { [socket.id]: account.userId },
@@ -754,7 +825,10 @@ export function registerBattleSocket(server: Server) {
       ) {
         return;
       }
-      if (!room.players.some((player) => player.socketId === socket.id)) {
+      if (
+        room.settings.mode === "pavio" ||
+        !room.players.some((player) => player.socketId === socket.id)
+      ) {
         return;
       }
       const target = room.battle.text;
@@ -793,6 +867,21 @@ export function registerBattleSocket(server: Server) {
         }
       }
       sendRoomUpdate(room);
+    });
+    // Pavio: o que o jogador da vez digita e a palavra que ele manda.
+    socket.on("pavio:typing", (payload: { text?: unknown }) => {
+      const code = socket.data.roomCode as string | undefined;
+      const room = code ? rooms.get(code) : undefined;
+      if (room?.settings.mode === "pavio") {
+        pavioTyping(room, socket.id, payload?.text, pavioHooks);
+      }
+    });
+    socket.on("pavio:submit", (payload: { word?: unknown }) => {
+      const code = socket.data.roomCode as string | undefined;
+      const room = code ? rooms.get(code) : undefined;
+      if (room?.settings.mode === "pavio") {
+        pavioSubmit(room, socket.id, payload?.word, pavioHooks);
+      }
     });
     socket.on("room:leave", () => {
       removePlayerFromRoom(socket);
@@ -866,6 +955,7 @@ function removePlayer(code: string, socketId: string) {
     clearTimers(code);
     room.status = "waiting";
     room.battle = null;
+    room.pavio = null;
     room.typedTexts = {};
     room.seriesWinnerSocketId = null;
     room.seriesFinished = false;

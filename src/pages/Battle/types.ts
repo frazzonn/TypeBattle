@@ -1,3 +1,5 @@
+import type { Tag } from "../../services/api";
+
 export type Difficulty = "easy" | "normal" | "hard";
 
 export type MatchFormat = "single" | "best-of-3" | "best-of-5";
@@ -8,7 +10,23 @@ export type PlayerLimit = 2 | 3 | 4;
 
 // Tempo: maior PPM no fim do relógio. Palavras: quem terminar o texto primeiro.
 // Perseguição: um cursor alcança um por um; quem sobrar por último vence.
-export type BattleMode = "time" | "words" | "chase";
+// Pavio: a bomba passa de mão em mão; quem ficar sem vidas sai.
+export type BattleMode = "time" | "words" | "chase" | "pavio";
+
+export type PavioRejection = "short" | "letters" | "missing" | "used" | "unknown";
+
+// Estado público do Pavio (o tempo do pavio fica escondido no servidor).
+export interface PavioState {
+  syllable: string | null;
+  turnSocketId: string | null;
+  lives: Record<string, number>;
+  words: Record<string, number>;
+  eliminated: string[];
+  bombStartedAt: number | null;
+  wordsPlayed: number;
+  lastWord: { socketId: string; word: string } | null;
+  explosion: { socketId: string; syllable: string; examples: string[]; at: number } | null;
+}
 
 export type WordCount = 10 | 25 | 50 | 100;
 
@@ -32,6 +50,8 @@ export interface RoomPlayer {
   nickname: string;
   isGuest?: boolean;
   avatarUrl?: string | null;
+  // Tags da conta (o servidor busca no banco; convidados não têm).
+  tags?: Tag[];
   // false enquanto a conexão do jogador caiu e ele ainda pode voltar.
   connected?: boolean;
   ppm: number;
@@ -73,6 +93,7 @@ export interface BattleRoom {
   seriesWinnerSocketId?: string | null;
   seriesFinished?: boolean;
   lastSeriesResult?: SeriesResult | null;
+  pavio?: PavioState | null;
 }
 
 export const DEFAULT_SETTINGS: RoomSettings = {

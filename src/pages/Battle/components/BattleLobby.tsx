@@ -6,6 +6,7 @@ import LinkRoundedIcon from "@mui/icons-material/LinkRounded";
 import WorkspacePremiumRoundedIcon from "@mui/icons-material/WorkspacePremiumRounded";
 
 import { LanguageAutocomplete } from "../../../components/LanguageAutocomplete";
+import { UserTags } from "../../../components/UserTags";
 import {
   DEFAULT_LANGUAGE,
   languageHasDifficulty,
@@ -100,6 +101,9 @@ export function BattleLobby({
   ) {
     onUpdateSettings({ ...settings, [key]: value });
   }
+
+  // O Pavio usa sílabas em português: idioma, dificuldade e texto não se aplicam.
+  const isPavio = settings.mode === "pavio";
 
   const lastSeries = room.lastSeriesResult;
   const lastSeriesWinner = lastSeries?.players.find(
@@ -302,6 +306,7 @@ export function BattleLobby({
                       </Box>
                     )}
                   </Typography>
+                  <UserTags tags={player.tags} sx={{ mt: 0.5 }} />
                   {isReconnecting && (
                     <Typography sx={{ color: colors.textSecondary, fontSize: 12 }}>
                       Reconectando…
@@ -398,6 +403,7 @@ export function BattleLobby({
             </Typography>
           </Box>
 
+          {!isPavio && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
             <Typography id="lobby-language" sx={labelSx}>
               IDIOMA
@@ -431,8 +437,9 @@ export function BattleLobby({
               }}
             />
           </Box>
+          )}
           {/* Alguns idiomas têm uma lista só, sem dificuldade. */}
-          {languageHasDifficulty(settings.language ?? DEFAULT_LANGUAGE) && (
+          {!isPavio && languageHasDifficulty(settings.language ?? DEFAULT_LANGUAGE) && (
             <SegmentedControl
               label="Dificuldade"
               value={settings.difficulty}
@@ -455,6 +462,7 @@ export function BattleLobby({
                 { value: "time", label: "Tempo" },
                 { value: "words", label: "Palavras" },
                 { value: "chase", label: "Perseguição" },
+                { value: "pavio", label: "Pavio" },
               ]}
             />
             <Typography sx={{ color: colors.textSecondary, fontSize: 13 }}>
@@ -462,10 +470,12 @@ export function BattleLobby({
                 ? "Quem terminar o texto primeiro, sem erros, vence."
                 : settings.mode === "chase"
                   ? "Um cursor vermelho acelera atrás de todos. Quem for alcançado sai; o último que sobrar vence. Seguir com uma palavra errada faz ele avançar uma palavra em você."
-                  : "Quem tiver mais PPM quando o tempo acabar vence."}
+                  : isPavio
+                    ? "A bomba passa de mão em mão. Na sua vez, escreva uma palavra com as letras da bomba juntas (com AB vale cabo, não carbo). Cada um tem 2 vidas; quem estiver com ela quando explodir perde uma. O último que sobrar vence. Palavras em português, acento opcional."
+                    : "Quem tiver mais PPM quando o tempo acabar vence."}
             </Typography>
           </Box>
-          {settings.mode === "chase" ? null : settings.mode === "words" ? (
+          {settings.mode === "chase" || isPavio ? null : settings.mode === "words" ? (
             <SegmentedControl
               label="Palavras"
               value={settings.wordCount}
@@ -513,6 +523,7 @@ export function BattleLobby({
             }))}
           />
 
+          {!isPavio && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
             <Typography sx={labelSx}>TEXTO</Typography>
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
@@ -536,6 +547,7 @@ export function BattleLobby({
               />
             </Box>
           </Box>
+          )}
         </Box>
       </Box>
 

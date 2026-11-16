@@ -8,7 +8,13 @@ import {
   getErrorMessage,
   getRoomFromPayload,
 } from "./battleUtils";
-import { DEFAULT_SETTINGS, type BattleRoom, type RoomSettings } from "./types";
+import {
+  DEFAULT_SETTINGS,
+  type BattleMode,
+  type BattleRoom,
+  type PavioRejection,
+  type RoomSettings,
+} from "./types";
 
 const SOCKET_URL = (
   import.meta.env.VITE_SOCKET_URL ||
@@ -18,6 +24,15 @@ const SOCKET_URL = (
 ).replace(/\/+$/, "");
 
 type PendingAction = "create" | "join" | null;
+
+export interface PavioTyping {
+  socketId: string;
+  text: string;
+}
+
+export type PavioFeedback =
+  | { kind: "accepted"; socketId: string; word: string; key: number }
+  | { kind: "rejected"; socketId: string; word: string; reason: PavioRejection; key: number };
 
 // Conexão com o servidor de batalhas e todo o estado da sala atual.
 export function useBattleRoom() {
@@ -39,6 +54,9 @@ export function useBattleRoom() {
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
   // Relógio local da contagem, do cronômetro e de "próxima rodada".
   const [now, setNow] = useState(() => Date.now());
+  // Pavio: texto ao vivo de quem está com a bomba e a última tentativa.
+  const [pavioTyping, setPavioTyping] = useState<PavioTyping | null>(null);
+  const [pavioFeedback, setPavioFeedback] = useState<PavioFeedback | null>(null);
 
   useEffect(() => {
     const socket = io(SOCKET_URL);
@@ -54,6 +72,8 @@ export function useBattleRoom() {
       setRoom(incomingRoom);
       setPendingAction(null);
       setError("");
+      // Bomba explodiu ou rodada acabou: o texto de quem digitava some.
+      if (!incomingRoom.pavio?.turnSocketId) setPavioTyping(null);
 
       if (action === "create") {
         window.history.replaceState(
@@ -124,6 +144,35 @@ export function useBattleRoom() {
       setFinishedAt(finishedTime);
     });
 
+    // Pavio: o que o jogador da vez digita e o resultado de cada tentativa.
+    socket.on("pavio:typing", (payload: { socketId?: string; text?: string }) => {
+      if (typeof payload?.socketId !== "string") return;
+      setPavioTyping({ socketId: payload.socketId, text: String(payload.text ?? "") });
+    });
+    socket.on(
+      "pavio:rejected",
+      (payload: { socketId?: string; word?: string; reason?: PavioRejection }) => {
+        if (typeof payload?.socketId !== "string") return;
+        setPavioFeedback({
+          kind: "rejected",
+          socketId: payload.socketId,
+          word: String(payload.word ?? ""),
+          reason: payload.reason ?? "unknown",
+          key: Date.now(),
+        });
+      },
+    );
+    socket.on("pavio:accepted", (payload: { socketId?: string; word?: string }) => {
+      if (typeof payload?.socketId !== "string") return;
+      setPavioTyping(null);
+      setPavioFeedback({
+        kind: "accepted",
+        socketId: payload.socketId,
+        word: String(payload.word ?? ""),
+        key: Date.now(),
+      });
+    });
+
     socket.on("room:error", (payload: unknown) => {
       pendingActionRef.current = null;
       setPendingAction(null);
@@ -168,7 +217,8 @@ export function useBattleRoom() {
     return socketRef.current;
   }
 
-  function createRoom(nickname: string) {
+  // mode: sala já criada num modo (ex.: "Com amigos" no Pavio do Arcade).
+  function createRoom(nickname: string, mode?: BattleMode) {
     const cleanNickname = nickname.trim();
 
     if (!cleanNickname) {
@@ -185,7 +235,7 @@ export function useBattleRoom() {
     setPendingAction("create");
     socket.emit("room:create", {
       nickname: cleanNickname,
-      settings: DEFAULT_SETTINGS,
+      settings: mode ? { ...DEFAULT_SETTINGS, mode } : DEFAULT_SETTINGS,
       token: token ?? undefined,
     });
   }
@@ -250,6 +300,15 @@ export function useBattleRoom() {
     [room?.status],
   );
 
+  // Pavio: só quem está com a bomba manda (o servidor confere de novo).
+  const sendPavioTyping = useCallback((text: string) => {
+    socketRef.current?.emit("pavio:typing", { text });
+  }, []);
+
+  const submitPavioWord = useCallback((word: string) => {
+    socketRef.current?.emit("pavio:submit", { word });
+  }, []);
+
   async function copyText(text: string, success: string, fallback: string) {
     try {
       await navigator.clipboard.writeText(text);
@@ -298,6 +357,10 @@ export function useBattleRoom() {
     startBattle,
     leaveRoom,
     sendProgress,
+    pavioTyping,
+    pavioFeedback,
+    sendPavioTyping,
+    submitPavioWord,
     copyInviteLink,
     copyRoomCode,
     showError,

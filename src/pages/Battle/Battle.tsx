@@ -9,6 +9,7 @@ import { BattleJoin } from "./components/BattleJoin";
 import { BattleLobby } from "./components/BattleLobby";
 import { BattleMatch } from "./components/BattleMatch";
 import { BattleResult } from "./components/BattleResult";
+import { PavioMatch } from "./components/PavioMatch";
 import { colors } from "./styles";
 import { useBattleRoom } from "./useBattleRoom";
 
@@ -16,6 +17,8 @@ export function Battle() {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const inviteCode = searchParams.get("room")?.toUpperCase() ?? "";
+  // Vindo do Arcade ("Com amigos"): a sala nova já começa no modo Pavio.
+  const initialMode = searchParams.get("mode") === "pavio" ? "pavio" : undefined;
 
   const battle = useBattleRoom();
   const { room } = battle;
@@ -81,8 +84,24 @@ export function Battle() {
         connected={battle.connected}
         isCreating={battle.isCreating}
         onNicknameChange={setNicknameInput}
-        onCreate={() => battle.createRoom(nickname)}
+        onCreate={() => battle.createRoom(nickname, initialMode)}
         onContinue={continueToJoin}
+      />
+    );
+  } else if (
+    (status === "countdown" || status === "playing") &&
+    room.battle &&
+    room.settings.mode === "pavio"
+  ) {
+    content = (
+      <PavioMatch
+        room={room}
+        myId={battle.myId}
+        now={now}
+        typing={battle.pavioTyping}
+        feedback={battle.pavioFeedback}
+        onType={battle.sendPavioTyping}
+        onSubmit={battle.submitPavioWord}
       />
     );
   } else if ((status === "countdown" || status === "playing") && room.battle) {

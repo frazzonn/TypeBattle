@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { Box, Button, Chip, Container, Stack, Typography } from "@mui/material";
+import { Box, Chip, Container, Stack, Typography } from "@mui/material";
 import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
 
 const MONO_FONT = "'JetBrains Mono', ui-monospace, monospace";
@@ -94,6 +94,45 @@ function ChasePreview() {
   );
 }
 
+// Miniatura do Pavio: a bomba com a sílaba e uma palavra sendo digitada.
+function PavioPreview() {
+  return (
+    <Stack direction="row" spacing={3} sx={{ height: "100%", alignItems: "center", justifyContent: "center", px: 2 }}>
+      <Box sx={{ position: "relative", width: 96, height: 96, flexShrink: 0 }}>
+        <Box
+          sx={{
+            position: "absolute", left: 58, top: -18, width: 4, height: 30, bgcolor: "#8a7356",
+            borderRadius: 2, transform: "rotate(28deg)",
+            "&::after": {
+              content: '""', position: "absolute", top: -7, left: -5, width: 14, height: 14, borderRadius: "50%",
+              background: "radial-gradient(circle, #fff6d8 0 25%, #fdba74 45%, rgba(255,92,122,0) 70%)",
+            },
+          }}
+        />
+        <Box
+          sx={{
+            width: 96, height: 96, borderRadius: "50%", display: "grid", placeItems: "center",
+            background: "radial-gradient(circle at 34% 30%, #4a4f5e 0 8%, #262a33 30%, #12141a 72%)",
+            boxShadow: "0 10px 24px rgba(0,0,0,.45)",
+            fontFamily: MONO_FONT, fontWeight: 800, fontSize: 24, color: "#fff",
+          }}
+        >
+          AB
+        </Box>
+      </Box>
+      <Stack spacing={1}>
+        <Typography sx={{ fontFamily: MONO_FONT, fontSize: 20, fontWeight: 700 }}>
+          c<Box component="span" sx={{ color: "#a78bfa" }}>ab</Box>o
+          <Box component="span" sx={{ color: "#4ade80", fontSize: 14, ml: 1 }}>+3 s</Box>
+        </Typography>
+        <Typography sx={{ fontFamily: MONO_FONT, fontSize: 16, color: "#5d6270", textDecoration: "line-through" }}>
+          carbo
+        </Typography>
+      </Stack>
+    </Stack>
+  );
+}
+
 interface GameCardProps {
   to: string;
   title: string;
@@ -103,14 +142,21 @@ interface GameCardProps {
   preview: ReactNode;
 }
 
+// O card inteiro é um link para o jogo.
 function GameCard({ to, title, badge, description, details, preview }: GameCardProps) {
   return (
     <Box
+      component={Link}
+      to={to}
+      aria-label={`Jogar ${title}`}
       sx={{
         display: "flex", flexDirection: "column", minWidth: 0,
+        color: "inherit", textDecoration: "none", cursor: "pointer",
         bgcolor: "#181b21", border: "1px solid #23262e", borderRadius: "14px", overflow: "hidden",
         transition: "border-color 180ms ease, transform 180ms ease",
         "&:hover": { borderColor: "rgba(167,139,250,0.4)", transform: "translateY(-2px)" },
+        "&:hover .play-button": { bgcolor: "#8a60ff" },
+        "&:focus-visible": { outline: "2px solid #a78bfa", outlineOffset: 3 },
       }}
     >
       <Box sx={{ height: 190, bgcolor: "#12141a", borderBottom: "1px solid #23262e" }}>{preview}</Box>
@@ -136,15 +182,19 @@ function GameCard({ to, title, badge, description, details, preview }: GameCardP
           ))}
         </Stack>
         <Box sx={{ flex: 1 }} />
-        <Button
-          component={Link}
-          to={to}
-          variant="contained"
-          startIcon={<PlayArrowRoundedIcon />}
-          sx={{ alignSelf: "flex-start", px: 2.5 }}
+        {/* Só visual: o clique é do card inteiro (link dentro de link não vale). */}
+        <Box
+          className="play-button"
+          aria-hidden="true"
+          sx={{
+            alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 0.75,
+            px: 2.5, py: 0.9, borderRadius: "10px", bgcolor: "primary.main", color: "#fff",
+            fontWeight: 600, fontSize: 14, transition: "background-color 180ms ease",
+          }}
         >
+          <PlayArrowRoundedIcon sx={{ fontSize: 20 }} />
           Jogar
-        </Button>
+        </Box>
       </Stack>
     </Box>
   );
@@ -153,7 +203,7 @@ function GameCard({ to, title, badge, description, details, preview }: GameCardP
 export function Arcade() {
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 4, md: 6 } }}>
-      <Stack spacing={4} sx={{ maxWidth: 1000, mx: "auto" }}>
+      <Stack spacing={4} sx={{ maxWidth: 1180, mx: "auto" }}>
         <Stack spacing={1}>
           <Typography variant="h3" sx={{ fontWeight: 800, letterSpacing: "-0.02em", fontSize: { xs: 32, md: 44 } }}>
             Arcade
@@ -164,11 +214,22 @@ export function Arcade() {
           </Typography>
         </Stack>
 
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 3 }}>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, minmax(0, 1fr))" }, gap: 3 }}>
+          <GameCard
+            to="/arcade/pavio"
+            title="Pavio"
+            badge="Novo"
+            description="A bomba mostra duas ou três letras. Escreva uma palavra que tenha essas letras juntas antes que o pavio acabe."
+            details={[
+              "Solo: começa com 60 s e cada palavra soma tempo",
+              "Com amigos na battle: 2 vidas, o último que sobrar vence",
+              "Acento é opcional: cabeca vale por cabeça",
+            ]}
+            preview={<PavioPreview />}
+          />
           <GameCard
             to="/arcade/orbita"
             title="Órbita"
-            badge="Novo"
             description="As palavras vêm em espiral até o núcleo. Digite cada uma para destruí-la antes que ela encoste nele."
             details={[
               "3 escudos; palavras em ciano devolvem um",

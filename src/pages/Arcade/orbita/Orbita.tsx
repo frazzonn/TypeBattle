@@ -1,7 +1,18 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { Box, Button, CircularProgress, Container, Stack, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  CircularProgress,
+  Container,
+  IconButton,
+  Stack,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
+import FullscreenExitRoundedIcon from "@mui/icons-material/FullscreenExitRounded";
+import FullscreenRoundedIcon from "@mui/icons-material/FullscreenRounded";
 
 import { DEFAULT_LANGUAGE, loadWordBank } from "../../../utils/textGenerator";
 import {
@@ -190,6 +201,32 @@ export function Orbita() {
     focusInput();
   }, [changeStatus, focusInput]);
 
+  // Tela cheia: só a moldura do jogo ocupa a tela.
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const toggleFullscreen = useCallback(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+    const request = document.fullscreenElement
+      ? document.exitFullscreen()
+      : frame.requestFullscreen();
+    request
+      .catch(() => {
+        // Navegador ou janela sem permissão: o jogo segue no tamanho normal.
+      })
+      .finally(() => {
+        if (statusRef.current === "playing") focusInput();
+      });
+  }, [focusInput]);
+
+  useEffect(() => {
+    function onChange() {
+      setIsFullscreen(document.fullscreenElement === frameRef.current);
+    }
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+
   const pauseGame = useCallback(() => {
     if (statusRef.current !== "playing") return;
     gameRef.current?.pause();
@@ -227,7 +264,14 @@ export function Orbita() {
         return;
       }
 
-      if (current !== "playing") return;
+      // F liga/desliga a tela cheia fora da partida (durante ela, F é letra).
+      if (current !== "playing") {
+        if (event.key.toLowerCase() === "f" && current !== "loading") {
+          event.preventDefault();
+          toggleFullscreen();
+        }
+        return;
+      }
 
       if (event.key === "Backspace") {
         event.preventDefault();
@@ -254,7 +298,7 @@ export function Orbita() {
       window.removeEventListener("blur", pauseGame);
       document.removeEventListener("visibilitychange", onHide);
     };
-  }, [startGame, pauseGame, resumeGame]);
+  }, [startGame, pauseGame, resumeGame, toggleFullscreen]);
 
   // Teclado virtual do celular: muitos não mandam a tecla no keydown.
   function handleMobileInput(event: React.FormEvent<HTMLInputElement>) {
@@ -269,6 +313,7 @@ export function Orbita() {
   }
 
   const multiplierLabel = `x${String(hud.multiplier).replace(".", ",")}`;
+  const canFullscreen = typeof document !== "undefined" && document.fullscreenEnabled;
   const showNumbers = !hud.demo;
 
   return (
@@ -316,6 +361,10 @@ export function Orbita() {
             maxHeight: { xs: "78vh", sm: "74vh" }, minHeight: 360,
             bgcolor: "#181b21", border: "1px solid #23262e", borderRadius: "14px",
             overflow: "hidden", cursor: "text",
+            "&:fullscreen": {
+              width: "100vw", height: "100vh", maxHeight: "none", aspectRatio: "auto",
+              border: 0, borderRadius: 0,
+            },
           }}
         >
           <Box
@@ -354,6 +403,23 @@ export function Orbita() {
               })}
             </Box>
           </Box>
+
+          {canFullscreen && (
+            <Tooltip title={isFullscreen ? "Sair da tela cheia (F)" : "Tela cheia (F)"}>
+              <IconButton
+                onClick={toggleFullscreen}
+                aria-label={isFullscreen ? "Sair da tela cheia" : "Tela cheia"}
+                size="small"
+                sx={{
+                  position: "absolute", right: 10, bottom: 10, zIndex: 4,
+                  color: MUTED, bgcolor: "rgba(15,17,21,.6)", border: "1px solid #262a33",
+                  "&:hover": { color: "#fff", bgcolor: "rgba(124,77,255,.25)" },
+                }}
+              >
+                {isFullscreen ? <FullscreenExitRoundedIcon /> : <FullscreenRoundedIcon />}
+              </IconButton>
+            </Tooltip>
+          )}
 
           {status === "loading" && (
             <Box sx={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}>

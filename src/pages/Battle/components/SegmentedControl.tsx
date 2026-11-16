@@ -35,7 +35,11 @@ export function SegmentedControl<T extends string | number>({
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))`,
+          // Mais de 3 opções: duas por linha no celular, para o texto caber.
+          gridTemplateColumns:
+            options.length > 3
+              ? { xs: "repeat(2, minmax(0, 1fr))", sm: `repeat(${options.length}, minmax(0, 1fr))` }
+              : `repeat(${options.length}, minmax(0, 1fr))`,
           gap: 0.5,
           p: 0.5,
           borderRadius: "10px",

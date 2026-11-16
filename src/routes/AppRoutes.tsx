@@ -65,6 +65,11 @@ const Orbita = lazy(() =>
     default: module.Orbita,
   })),
 );
+const Pavio = lazy(() =>
+  import("../pages/Arcade/pavio/Pavio").then((module) => ({
+    default: module.Pavio,
+  })),
+);
 const Chase = lazy(() =>
   import("../pages/Arcade/Chase").then((module) => ({
     default: module.Chase,
@@ -97,6 +102,7 @@ export function AppRoutes() {
         <Route path="/arcade" element={<Arcade />} />
         <Route path="/arcade/orbita" element={<Orbita />} />
         <Route path="/arcade/perseguicao" element={<Chase />} />
+        <Route path="/arcade/pavio" element={<Pavio />} />
         <Route path="/verificar" element={<VerifyEmail />} />
         <Route path="/recuperar-senha" element={<ResetPassword />} />
         <Route path="/jogador/:userId" element={<PublicProfile />} />

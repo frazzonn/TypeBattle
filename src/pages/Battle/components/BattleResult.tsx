@@ -2,6 +2,7 @@ import { Box, Button, Typography } from "@mui/material";
 import EmojiEventsOutlinedIcon from "@mui/icons-material/EmojiEventsOutlined";
 import LinkRoundedIcon from "@mui/icons-material/LinkRounded";
 
+import { UserTags } from "../../../components/UserTags";
 import {
   formatSeconds,
   getMaximumRounds,
@@ -50,16 +51,29 @@ export function BattleResult({
   const seriesFinished = Boolean(room.seriesFinished);
   const roundWinner = battle.winnerSocketId;
   const seriesWinner = room.seriesWinnerSocketId ?? null;
-  const ranking = rankPlayers(room.players);
+  const pavio = room.settings.mode === "pavio" ? (room.pavio ?? null) : null;
+  // Pavio: quem sobrou primeiro, depois quem saiu por último.
+  const ranking = pavio
+    ? [...room.players].sort((a, b) => {
+        const outA = pavio.eliminated.indexOf(a.socketId);
+        const outB = pavio.eliminated.indexOf(b.socketId);
+        if (outA === -1 && outB === -1) return (pavio.words[b.socketId] ?? 0) - (pavio.words[a.socketId] ?? 0);
+        if (outA === -1) return -1;
+        if (outB === -1) return 1;
+        return outB - outA;
+      })
+    : rankPlayers(room.players);
   const isWordsMode = room.settings.mode === "words";
   const isChase = room.settings.mode === "chase";
   const showTime = isWordsMode || isChase;
   const winnerFinishMs = room.players.find(
     (player) => player.socketId === roundWinner,
   )?.finishMs;
-  const headers = showTime
-    ? ["#", "JOGADOR", isChase ? "AGUENTOU" : "TEMPO", "PPM", "PRECISÃO", "ERROS"]
-    : ["#", "JOGADOR", "PPM", "PRECISÃO", "ERROS"];
+  const headers = pavio
+    ? ["#", "JOGADOR", "VIDAS", "PALAVRAS"]
+    : showTime
+      ? ["#", "JOGADOR", isChase ? "AGUENTOU" : "TEMPO", "PPM", "PRECISÃO", "ERROS"]
+      : ["#", "JOGADOR", "PPM", "PRECISÃO", "ERROS"];
 
   let title: string;
   if (seriesFinished && isSeries) {
@@ -136,6 +150,13 @@ export function BattleResult({
             {roundWinner
               ? "Foi o último que o perseguidor não alcançou."
               : "O perseguidor alcançou todos ao mesmo tempo."}
+          </Typography>
+        )}
+        {pavio && (
+          <Typography sx={{ color: colors.textSecondary, fontSize: 15 }}>
+            {roundWinner
+              ? `Foi o último que sobrou · ${pavio.wordsPlayed} palavras na rodada.`
+              : "Ninguém sobrou."}
           </Typography>
         )}
         {isWordsMode && (
@@ -224,10 +245,26 @@ export function BattleResult({
                           (você)
                         </Box>
                       )}
+                      <UserTags tags={player.tags} />
                     </Box>
                   </Box>
+                  {pavio && (
+                    <>
+                      <Box component="td" sx={cellSx}>
+                        {(pavio.lives[player.socketId] ?? 0) > 0
+                          ? `${pavio.lives[player.socketId]} ♥`
+                          : "fora"}
+                      </Box>
+                      <Box
+                        component="td"
+                        sx={{ ...cellSx, pr: 2.5, color: "#ffffff", fontWeight: 700, fontSize: 18 }}
+                      >
+                        {pavio.words[player.socketId] ?? 0}
+                      </Box>
+                    </>
+                  )}
                   {/* Modo palavras: tempo de quem terminou; progresso dos demais. */}
-                  {showTime && (
+                  {!pavio && showTime && (
                     <Box component="td" sx={cellSx}>
                       {isChase
                         ? player.caughtMs != null
@@ -238,18 +275,22 @@ export function BattleResult({
                           : `${player.progress}%`}
                     </Box>
                   )}
-                  <Box
-                    component="td"
-                    sx={{ ...cellSx, color: "#ffffff", fontWeight: 700, fontSize: 18 }}
-                  >
-                    {player.ppm}
-                  </Box>
-                  <Box component="td" sx={cellSx}>
-                    {player.accuracy}%
-                  </Box>
-                  <Box component="td" sx={{ ...cellSx, pr: 2.5 }}>
-                    {player.errors}
-                  </Box>
+                  {!pavio && (
+                    <>
+                      <Box
+                        component="td"
+                        sx={{ ...cellSx, color: "#ffffff", fontWeight: 700, fontSize: 18 }}
+                      >
+                        {player.ppm}
+                      </Box>
+                      <Box component="td" sx={cellSx}>
+                        {player.accuracy}%
+                      </Box>
+                      <Box component="td" sx={{ ...cellSx, pr: 2.5 }}>
+                        {player.errors}
+                      </Box>
+                    </>
+                  )}
                 </Box>
               );
             })}

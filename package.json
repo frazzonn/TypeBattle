@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "build:languages": "node scripts/build-languages.mjs"
+    "build:languages": "node scripts/build-languages.mjs",
+    "build:pavio": "node scripts/build-pavio.mjs"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
