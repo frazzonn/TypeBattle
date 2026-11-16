@@ -27,7 +27,8 @@ export function loadDictionary(): Promise<string[]> {
       if (!response.ok) throw new Error("Dicionário indisponível.");
       return response.text();
     })
-    .then((text) => text.split("\n").filter(Boolean))
+    // \r?\n: o Git no Windows pode trocar as quebras de linha por CRLF.
+    .then((text) => text.split(/\r?\n/).filter(Boolean))
     .catch((error: unknown) => {
       dictionaryPromise = null;
       throw error;

@@ -31,7 +31,8 @@ let syllables: Syllables | null = null;
 
 // Carrega na primeira partida (são ~265 mil palavras) e mantém em memória.
 function getWordList(): string[] {
-  wordList ??= readFileSync(findDataFile("portuguese.txt"), "utf8").split("\n").filter(Boolean);
+  // \r?\n: o Git no Windows pode trocar as quebras de linha por CRLF.
+  wordList ??= readFileSync(findDataFile("portuguese.txt"), "utf8").split(/\r?\n/).filter(Boolean);
   return wordList;
 }
 
