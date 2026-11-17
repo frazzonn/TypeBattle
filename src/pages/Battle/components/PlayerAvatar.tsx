@@ -8,6 +8,8 @@ interface PlayerAvatarProps {
   avatarUrl?: string | null;
   color: string;
   size?: number;
+  // Redondo (a roda do Pavio); senão, cantos arredondados.
+  round?: boolean;
 }
 
 // Foto de perfil de quem está logado; senão, a inicial na cor do jogador.
@@ -16,6 +18,7 @@ export function PlayerAvatar({
   avatarUrl,
   color,
   size = 40,
+  round = false,
 }: PlayerAvatarProps) {
   // Se a imagem não carregar, volta para a inicial.
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
@@ -26,7 +29,7 @@ export function PlayerAvatar({
     width: size,
     height: size,
     // Cantos proporcionais: 10px no tamanho padrão de 40.
-    borderRadius: `${Math.round(size / 4)}px`,
+    borderRadius: round ? "50%" : `${Math.round(size / 4)}px`,
   };
 
   if (showPhoto) {

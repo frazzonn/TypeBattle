@@ -6,8 +6,13 @@ import { checkWord, exampleWords, pickSyllable, type WordRejection } from "../pa
 
 export const PAVIO_LIVES = 2;
 // O pavio queima um tempo sorteado e escondido; ninguém sabe quando explode.
-const FUSE_MIN_MS = 12_000;
-const FUSE_MAX_MS = 24_000;
+const FUSE_MIN_MS = 20_000;
+const FUSE_MAX_MS = 35_000;
+// Quem recebe a bomba quase no fim ganha um tempo mínimo para tentar, mas
+// cada bomba só pode ganhar até MAX_EXTRA_MS no total (senão, com respostas
+// rápidas, ela nunca explodiria).
+const MIN_HOLD_MS = 3_000;
+const MAX_EXTRA_MS = 9_000;
 // Pausa depois da explosão, para todo mundo ver quem perdeu a vida.
 const EXPLOSION_PAUSE_MS = 3_000;
 const MAX_TYPED = 30;
@@ -45,6 +50,10 @@ export interface PavioHooks {
 interface PrivateState {
   used: Set<string>;
   timer: ReturnType<typeof setTimeout> | null;
+  // Quando a bomba atual explode (escondido dos jogadores).
+  explodesAt: number;
+  // Quanto tempo extra a bomba atual já ganhou com passes no fim.
+  extraMs: number;
 }
 
 // Palavras já usadas e o timer da bomba ficam só no servidor.
@@ -53,7 +62,7 @@ const privateStates = new Map<string, PrivateState>();
 function getPrivate(code: string): PrivateState {
   let state = privateStates.get(code);
   if (!state) {
-    state = { used: new Set(), timer: null };
+    state = { used: new Set(), timer: null, explodesAt: 0, extraMs: 0 };
     privateStates.set(code, state);
   }
   return state;
@@ -97,7 +106,15 @@ function lightFuse(room: PavioRoom, hooks: PavioHooks, holder: string) {
   pavio.explosion = null;
 
   const fuse = FUSE_MIN_MS + Math.random() * (FUSE_MAX_MS - FUSE_MIN_MS);
-  state.timer = setTimeout(() => explode(room, hooks), fuse);
+  state.extraMs = 0;
+  scheduleExplosion(room, hooks, Date.now() + fuse);
+}
+
+function scheduleExplosion(room: PavioRoom, hooks: PavioHooks, at: number) {
+  const state = getPrivate(room.code);
+  if (state.timer) clearTimeout(state.timer);
+  state.explodesAt = at;
+  state.timer = setTimeout(() => explode(room, hooks), Math.max(0, at - Date.now()));
 }
 
 function explode(room: PavioRoom, hooks: PavioHooks) {
@@ -179,9 +196,16 @@ export function pavioSubmit(room: PavioRoom, socketId: string, raw: unknown, hoo
   pavio.wordsPlayed += 1;
   pavio.lastWord = { socketId, word: result.word };
 
-  // A bomba continua queimando: só muda de mão e de sílaba.
+  // A bomba continua queimando: só muda de mão e de sílaba. Se estava quase
+  // no fim, o próximo ainda ganha um tempo mínimo para tentar.
   pavio.turnSocketId = nextAlive(room, socketId);
   pavio.syllable = pickSyllable(pavio.wordsPlayed, pavio.syllable);
+  const missing = Date.now() + MIN_HOLD_MS - state.explodesAt;
+  const extra = Math.min(missing, MAX_EXTRA_MS - state.extraMs);
+  if (extra > 0) {
+    state.extraMs += extra;
+    scheduleExplosion(room, hooks, state.explodesAt + extra);
+  }
   hooks.emit(room, "pavio:accepted", { socketId, word: result.word });
   hooks.update(room);
 }

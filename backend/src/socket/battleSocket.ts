@@ -151,28 +151,37 @@ function isValidSettings(value: unknown): value is RoomSettingsInput {
       WORD_COUNTS.includes(Number(settings.wordCount) as WordCount)) &&
     ["single", "best-of-3", "best-of-5"].includes(String(settings.format)) &&
     (settings.playerLimit === undefined ||
-      [2, 3, 4].includes(Number(settings.playerLimit)))
+      [2, 3, 4, 5, 6, 7, 8].includes(Number(settings.playerLimit)))
   );
 }
+// O Pavio (por turnos) aceita até 8 jogadores; os modos de corrida, até 4.
+function maxPlayersFor(mode: RoomSettings["mode"]): number {
+  return mode === "pavio" ? 8 : 4;
+}
+
 function normalizeRoomSettings(settings: RoomSettingsInput): RoomSettings {
-  const limit = Number(settings.playerLimit);
   const wordCount = Number(settings.wordCount) as WordCount;
+  const mode: RoomSettings["mode"] =
+    settings.mode === "words" ||
+    settings.mode === "chase" ||
+    settings.mode === "pavio"
+      ? settings.mode
+      : "time";
+  const requested = Number(settings.playerLimit);
+  const limit = Number.isInteger(requested)
+    ? Math.min(Math.max(requested, 2), maxPlayersFor(mode))
+    : 2;
   return {
     difficulty: settings.difficulty,
     language: settings.language ?? DEFAULT_LANGUAGE,
     accents: settings.accents,
     uppercase: settings.uppercase,
     punctuation: settings.punctuation,
-    mode:
-      settings.mode === "words" ||
-      settings.mode === "chase" ||
-      settings.mode === "pavio"
-        ? settings.mode
-        : "time",
+    mode,
     duration: settings.duration,
     wordCount: WORD_COUNTS.includes(wordCount) ? wordCount : 25,
     format: settings.format,
-    playerLimit: limit === 3 ? 3 : limit === 4 ? 4 : 2,
+    playerLimit: limit as RoomSettings["playerLimit"],
   };
 }
 function initialScore(): PlayerScore {

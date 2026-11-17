@@ -30,6 +30,17 @@ export interface PavioTyping {
   text: string;
 }
 
+// Uma linha do "lance a lance" do Pavio.
+export interface PavioLogEntry {
+  key: number;
+  socketId: string;
+  kind: "accepted" | "rejected" | "lostLife" | "out";
+  word?: string;
+  reason?: PavioRejection;
+}
+
+const PAVIO_LOG_SIZE = 12;
+
 export type PavioFeedback =
   | { kind: "accepted"; socketId: string; word: string; key: number }
   | { kind: "rejected"; socketId: string; word: string; reason: PavioRejection; key: number };
@@ -57,10 +68,22 @@ export function useBattleRoom() {
   // Pavio: texto ao vivo de quem está com a bomba e a última tentativa.
   const [pavioTyping, setPavioTyping] = useState<PavioTyping | null>(null);
   const [pavioFeedback, setPavioFeedback] = useState<PavioFeedback | null>(null);
+  const [pavioLog, setPavioLog] = useState<PavioLogEntry[]>([]);
+  const lastExplosionRef = useRef<number | null>(null);
 
   useEffect(() => {
-    const socket = io(SOCKET_URL);
+    // WebSocket direto: cada letra chega na hora. Começar em "polling" (o
+    // padrão) mandava o texto ao vivo aos pedaços. Se a rede bloquear
+    // WebSocket (proxy de faculdade/empresa), tenta o polling.
+    const socket = io(SOCKET_URL, {
+      transports: ["websocket", "polling"],
+      tryAllTransports: true,
+    });
     socketRef.current = socket;
+
+    function addLog(entry: PavioLogEntry) {
+      setPavioLog((log) => [entry, ...log].slice(0, PAVIO_LOG_SIZE));
+    }
 
     function applyRoom(incomingRoom: BattleRoom) {
       const action = pendingActionRef.current;
@@ -74,6 +97,14 @@ export function useBattleRoom() {
       setError("");
       // Bomba explodiu ou rodada acabou: o texto de quem digitava some.
       if (!incomingRoom.pavio?.turnSocketId) setPavioTyping(null);
+
+      // Explosão nova vai para o lance a lance (uma vez só).
+      const explosion = incomingRoom.pavio?.explosion;
+      if (explosion && explosion.at !== lastExplosionRef.current) {
+        lastExplosionRef.current = explosion.at;
+        const out = (incomingRoom.pavio?.lives[explosion.socketId] ?? 0) === 0;
+        addLog({ key: Date.now(), socketId: explosion.socketId, kind: out ? "out" : "lostLife" });
+      }
 
       if (action === "create") {
         window.history.replaceState(
@@ -126,6 +157,8 @@ export function useBattleRoom() {
     }
 
     socket.on("battle:countdown", () => {
+      setPavioLog([]);
+      setPavioFeedback(null);
       setTypedText("");
       setPlayStartedAt(null);
       setNotice("");
@@ -153,24 +186,22 @@ export function useBattleRoom() {
       "pavio:rejected",
       (payload: { socketId?: string; word?: string; reason?: PavioRejection }) => {
         if (typeof payload?.socketId !== "string") return;
-        setPavioFeedback({
-          kind: "rejected",
+        const entry = {
           socketId: payload.socketId,
           word: String(payload.word ?? ""),
           reason: payload.reason ?? "unknown",
           key: Date.now(),
-        });
+        };
+        setPavioFeedback({ kind: "rejected", ...entry });
+        addLog({ kind: "rejected", ...entry });
       },
     );
     socket.on("pavio:accepted", (payload: { socketId?: string; word?: string }) => {
       if (typeof payload?.socketId !== "string") return;
       setPavioTyping(null);
-      setPavioFeedback({
-        kind: "accepted",
-        socketId: payload.socketId,
-        word: String(payload.word ?? ""),
-        key: Date.now(),
-      });
+      const entry = { socketId: payload.socketId, word: String(payload.word ?? ""), key: Date.now() };
+      setPavioFeedback({ kind: "accepted", ...entry });
+      addLog({ kind: "accepted", ...entry });
     });
 
     socket.on("room:error", (payload: unknown) => {
@@ -359,6 +390,7 @@ export function useBattleRoom() {
     sendProgress,
     pavioTyping,
     pavioFeedback,
+    pavioLog,
     sendPavioTyping,
     submitPavioWord,
     copyInviteLink,

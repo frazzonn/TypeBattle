@@ -100,6 +100,7 @@ export function Battle() {
         now={now}
         typing={battle.pavioTyping}
         feedback={battle.pavioFeedback}
+        log={battle.pavioLog}
         onType={battle.sendPavioTyping}
         onSubmit={battle.submitPavioWord}
       />

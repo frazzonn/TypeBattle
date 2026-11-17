@@ -29,29 +29,32 @@ interface BombProps {
 }
 
 // Bomba com a sílaba no meio. Só CSS: leve até em computador fraco.
-export function Bomb({ syllable, tension, exploded = false, error = false, size = 185 }: BombProps) {
+export function Bomb({ syllable, tension, exploded = false, error = false, size = 140 }: BombProps) {
   const t = Math.max(0, Math.min(1, tension));
   // Treme mais rápido conforme a tensão sobe; abaixo de 0,35 fica parada.
   const shakeSeconds = 0.5 - t * 0.38;
-  const fuseLength = 18 + (1 - t) * 34;
+  // Pavio e faísca acompanham o tamanho da bomba.
+  const scale = size / 200;
+  const fuseLength = (18 + (1 - t) * 34) * scale;
+  const sparkSize = Math.max(10, 18 * scale);
   const sparkColor = t > 0.75 ? "#ff5c7a" : "#fdba74";
 
   return (
     <Box
       aria-hidden="true"
-      sx={{ position: "relative", width: size, height: size + 40, display: "grid", placeItems: "end center" }}
+      sx={{ position: "relative", width: size, height: size + 40 * scale, display: "grid", placeItems: "end center" }}
     >
       {/* Pavio */}
       <Box
         sx={{
-          position: "absolute", left: "58%", bottom: size * 0.86, width: 4, height: fuseLength,
+          position: "absolute", left: "58%", bottom: size * 0.86, width: Math.max(2, 4 * scale), height: fuseLength,
           bgcolor: "#8a7356", borderRadius: 2, transformOrigin: "bottom center", transform: "rotate(28deg)",
           opacity: exploded ? 0 : 1, transition: "height 300ms ease",
         }}
       >
         <Box
           sx={{
-            position: "absolute", top: -9, left: -7, width: 18, height: 18, borderRadius: "50%",
+            position: "absolute", top: -sparkSize / 2, left: -sparkSize / 2 + 1, width: sparkSize, height: sparkSize, borderRadius: "50%",
             background: `radial-gradient(circle, #fff6d8 0 25%, ${sparkColor} 45%, rgba(255,92,122,0) 70%)`,
             animation: `${spark} ${0.35 - t * 0.2}s ease-in-out infinite`,
             "@media (prefers-reduced-motion: reduce)": { animation: "none" },

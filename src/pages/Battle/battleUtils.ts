@@ -6,7 +6,11 @@ import {
 } from "./types";
 
 // Uma cor fixa por posição na sala, usada no lobby, nas pistas e no resultado.
-export const PLAYER_COLORS = ["#a78bfa", "#67e8f9", "#fdba74", "#86efac"];
+// (Oito cores: o Pavio aceita até 8 jogadores.)
+export const PLAYER_COLORS = [
+  "#a78bfa", "#67e8f9", "#fdba74", "#86efac",
+  "#f9a8d4", "#fde047", "#93c5fd", "#fca5a5",
+];
 
 export function getPlayerColor(room: BattleRoom, socketId: string): string {
   const index = room.players.findIndex((player) => player.socketId === socketId);
