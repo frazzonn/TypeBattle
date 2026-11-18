@@ -17,7 +17,6 @@ const technologies = [
   "PostgreSQL",
   "Prisma",
 ];
-
 const socialLinks = [
   {
     label: "GitHub",

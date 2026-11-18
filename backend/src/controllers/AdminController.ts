@@ -327,7 +327,7 @@ export async function deleteUserTypingResult(request: Request, response: Respons
   }
 }
 
-// Zera os resultados do usuário (testes e battle).
+// Zera os resultados do usuário (testes, battle e Arcade).
 export async function deleteUserResults(request: Request, response: Response) {
   try {
     const userId = parseId(request.params.userId);
@@ -336,6 +336,7 @@ export async function deleteUserResults(request: Request, response: Response) {
     await db.transaction(async (tx) => {
       await tx.orm.public.TypingResult.where({ userId }).deleteAll();
       await tx.orm.public.BattleResult.where({ userId }).deleteAll();
+      await tx.orm.public.ArcadeResult.where({ userId }).deleteAll();
     });
 
     return response.status(204).end();

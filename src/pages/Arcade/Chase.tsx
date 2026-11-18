@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Box, Button, Container, Typography } from "@mui/material";
 import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
+import EmojiEventsRoundedIcon from "@mui/icons-material/EmojiEventsRounded";
 
 import { TypingTest } from "../TypingTest/TypingTest";
 
@@ -21,6 +22,16 @@ export function Chase() {
           </Button>
           <Typography sx={{ color: "#5d6270" }}>/</Typography>
           <Typography sx={{ fontWeight: 700 }}>Perseguição</Typography>
+          <Button
+            component={Link}
+            to="/ranking?tipo=chase"
+            size="small"
+            variant="outlined"
+            startIcon={<EmojiEventsRoundedIcon />}
+            sx={{ ml: "auto", borderColor: "#343844", color: "#d5d7de" }}
+          >
+            Ranking
+          </Button>
         </Box>
       </Container>
       <TypingTest fixedMode="chase" />

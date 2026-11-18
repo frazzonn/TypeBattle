@@ -24,6 +24,9 @@ model User {
 
   // Partidas multiplayer (uma linha por rodada)
   battleResults BattleResult[]
+
+  // Partidas dos jogos do Arcade (Pavio, Órbita, Perseguição)
+  arcadeResults ArcadeResult[]
 }
 model TypingResult {
   id         Int      @id @default(autoincrement())
@@ -37,6 +40,11 @@ model TypingResult {
   language   String   @default("portuguese")
   // Letras em que errou e quantas vezes, em JSON (ex.: {"a":2," ":1})
   missedKeys String   @default("{}")
+  // "time" (duração fixa) ou "words" (texto com wordCount palavras; a
+  // duração é quanto a pessoa levou, e durationMs o tempo exato)
+  mode       String   @default("time")
+  wordCount  Int?
+  durationMs Int?
   createdAt  DateTime @default(now())
 
   // Relaciona o resultado ao usuário
@@ -68,6 +76,24 @@ model BattleResult {
     references: [id],
     onDelete: Cascade
   )
+}
+
+// Uma partida de um jogo do Arcade.
+// score: pontos (orbita), palavras (pavio) ou milissegundos aguentados (chase).
+model ArcadeResult {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  game      String
+  score     Int
+  // Idioma do texto (a perseguição tem ranking por idioma)
+  language  String   @default("portuguese")
+  // Números extras do jogo, em JSON (onda, combo, PPM, precisão...)
+  details   String   @default("{}")
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([game, language])
 }
 
 // Tag criada pelo admin para destacar usuários (ex.: Dev, Adm).

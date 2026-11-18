@@ -2,8 +2,11 @@ import { useCallback, useEffect, useEffectEvent, useRef, useState, type FormEven
 import { Link } from "react-router-dom";
 import { Alert, Box, Button, Chip, CircularProgress, Container, Stack, Typography } from "@mui/material";
 import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
+import EmojiEventsRoundedIcon from "@mui/icons-material/EmojiEventsRounded";
 import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
 
+import { useAuth } from "../../../contexts/useAuth";
+import { saveArcadeResult } from "../../../services/api";
 import { Bomb } from "./Bomb";
 import {
   checkWord,
@@ -78,6 +81,8 @@ export function Pavio() {
   const dictionaryRef = useRef<{ list: string[]; set: Set<string> } | null>(null);
   const usedRef = useRef<Set<string>>(new Set());
   const endsAtRef = useRef(0);
+  const startedAtRef = useRef(0);
+  const { token } = useAuth();
 
   const [status, setStatus] = useState<Status>("loading");
   const [syllable, setSyllable] = useState("");
@@ -116,8 +121,16 @@ export function Pavio() {
         setRecord(finalWords.length);
         saveRecord(finalWords.length);
       }
+      // Logado: a partida vai para o perfil e o ranking do Pavio. O servidor
+      // confere cada palavra no dicionário.
+      if (token && finalWords.length > 0) {
+        const seconds = Math.max(1, Math.round((Date.now() - startedAtRef.current) / 1000));
+        void saveArcadeResult({ game: "pavio", words: finalWords, seconds }, token).catch(
+          (error: unknown) => console.error("Erro ao salvar o Pavio:", error),
+        );
+      }
     },
-    [record],
+    [record, token],
   );
 
   // Relógio da bomba.
@@ -139,6 +152,7 @@ export function Pavio() {
 
   function start() {
     usedRef.current = new Set();
+    startedAtRef.current = Date.now();
     endsAtRef.current = Date.now() + START_MS;
     setWords([]);
     setInput("");
@@ -234,6 +248,16 @@ export function Pavio() {
             <Typography variant="body2" sx={{ color: MUTED, fontFamily: MONO_FONT, fontSize: 13 }}>
               Recorde: {record} {record === 1 ? "palavra" : "palavras"}
             </Typography>
+            <Button
+              component={Link}
+              to="/ranking?tipo=pavio"
+              size="small"
+              variant="outlined"
+              startIcon={<EmojiEventsRoundedIcon />}
+              sx={{ borderColor: "#343844", color: "#d5d7de" }}
+            >
+              Ranking
+            </Button>
             <Button
               component={Link}
               to="/battle?mode=pavio"

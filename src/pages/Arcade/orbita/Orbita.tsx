@@ -11,9 +11,12 @@ import {
   Typography,
 } from "@mui/material";
 import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
+import EmojiEventsRoundedIcon from "@mui/icons-material/EmojiEventsRounded";
 import FullscreenExitRoundedIcon from "@mui/icons-material/FullscreenExitRounded";
 import FullscreenRoundedIcon from "@mui/icons-material/FullscreenRounded";
 
+import { useAuth } from "../../../contexts/useAuth";
+import { saveArcadeResult } from "../../../services/api";
 import { DEFAULT_LANGUAGE, loadWordBank } from "../../../utils/textGenerator";
 import {
   buildOrbitaWords,
@@ -137,6 +140,12 @@ export function Orbita() {
   const [result, setResult] = useState<OrbitaResult | null>(null);
   const [record, setRecord] = useState(readRecord);
   const recordRef = useRef(record);
+  // O motor é criado uma vez; o token atual fica numa ref.
+  const { token } = useAuth();
+  const tokenRef = useRef(token);
+  useEffect(() => {
+    tokenRef.current = token;
+  }, [token]);
   const [newRecord, setNewRecord] = useState(false);
 
   const changeStatus = useCallback((next: Status) => {
@@ -171,6 +180,23 @@ export function Orbita() {
             setNewRecord(beat);
             setResult(finalResult);
             changeStatus("over");
+            // Logado: a partida vai para o perfil e o ranking do Órbita.
+            const currentToken = tokenRef.current;
+            if (currentToken && finalResult.letters > 0 && finalResult.seconds >= 3) {
+              void saveArcadeResult(
+                {
+                  game: "orbita",
+                  score: finalResult.score,
+                  letters: finalResult.letters,
+                  seconds: finalResult.seconds,
+                  wave: finalResult.wave,
+                  bestCombo: finalResult.bestCombo,
+                  killed: finalResult.killed,
+                  accuracy: finalResult.accuracy,
+                },
+                currentToken,
+              ).catch((error: unknown) => console.error("Erro ao salvar o Órbita:", error));
+            }
           },
         });
         changeStatus("ready");
@@ -342,9 +368,21 @@ export function Orbita() {
               ela encoste nele.
             </Typography>
           </Stack>
-          <Typography variant="body2" sx={{ color: MUTED, fontFamily: MONO_FONT, fontSize: 13 }}>
-            Recorde: {record.toLocaleString("pt-BR")}
-          </Typography>
+          <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
+            <Typography variant="body2" sx={{ color: MUTED, fontFamily: MONO_FONT, fontSize: 13 }}>
+              Recorde: {record.toLocaleString("pt-BR")}
+            </Typography>
+            <Button
+              component={Link}
+              to="/ranking?tipo=orbita"
+              size="small"
+              variant="outlined"
+              startIcon={<EmojiEventsRoundedIcon />}
+              sx={{ borderColor: "#343844", color: "#d5d7de" }}
+            >
+              Ranking
+            </Button>
+          </Stack>
         </Stack>
 
         <Box

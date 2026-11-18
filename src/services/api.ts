@@ -54,6 +54,10 @@ interface TypingResultData {
   language: string;
   // Letra esperada -> quantas vezes errou nela.
   missedKeys?: Record<string, number>;
+  // Modo palavras: quantas palavras e quanto levou (ms).
+  mode?: "time" | "words";
+  wordCount?: number;
+  durationMs?: number;
 }
 
 export interface TypingResult {
@@ -81,12 +85,55 @@ export interface RankingEntry {
   ppm: number;
   accuracy: number;
   position: number;
+  // Modo palavras: quanto levou no melhor resultado.
+  durationMs?: number | null;
 }
 
 export interface RankingResponse {
-  duration: number;
+  mode?: "time" | "words";
+  duration: number | null;
+  wordCount?: number | null;
   language?: string;
   ranking: RankingEntry[];
+}
+
+export type ArcadeGame = "pavio" | "orbita" | "chase";
+
+export interface ArcadeRankingEntry {
+  position: number;
+  userId: number;
+  name: string;
+  avatarUrl?: string | null;
+  tags?: Tag[];
+  // pavio: palavras · orbita: pontos · chase: milissegundos aguentados
+  score: number;
+  details: Record<string, number | string>;
+}
+
+export interface ArcadeRankingResponse {
+  game: ArcadeGame;
+  language: string;
+  ranking: ArcadeRankingEntry[];
+}
+
+// Resultado de uma partida do Arcade (o servidor confere os números).
+export type ArcadeResultData =
+  | { game: "orbita"; score: number; letters: number; seconds: number; wave: number; bestCombo: number; killed: number; accuracy: number }
+  | { game: "pavio"; words: string[]; seconds: number }
+  | { game: "chase"; ms: number; characters: number; errors: number; accuracy: number; language: string };
+
+export interface ArcadeRecord {
+  played: number;
+  best: { score: number; language: string; details: Record<string, number | string> } | null;
+}
+
+export interface UserRecords {
+  words: {
+    wordCount: number;
+    played: number;
+    best: { ppm: number; accuracy: number; durationMs: number | null; language: string } | null;
+  }[];
+  arcade: Record<ArcadeGame, ArcadeRecord>;
 }
 
 export interface BattleResult {
@@ -361,15 +408,57 @@ export async function getTypingResults(
   return handleResponse<TypingResultsResponse>(response);
 }
 
-// Busca o ranking para uma duração e um idioma.
+// Busca o ranking do teste: modo tempo (por duração) ou palavras (por quantidade).
 export async function getRanking(
-  duration: number,
+  amount: number,
   language: string,
+  mode: "time" | "words" = "time",
 ): Promise<RankingResponse> {
-  const params = new URLSearchParams({ duration: String(duration), language });
+  const params = new URLSearchParams(
+    mode === "words"
+      ? { mode, wordCount: String(amount), language }
+      : { duration: String(amount), language },
+  );
   const response = await fetch(`${API_URL}/typing-results/ranking?${params}`);
 
   return handleResponse<RankingResponse>(response);
+}
+
+// Ranking de um jogo do Arcade (a perseguição é separada por idioma).
+export async function getArcadeRanking(
+  game: ArcadeGame,
+  language?: string,
+): Promise<ArcadeRankingResponse> {
+  const params = new URLSearchParams({ game, ...(language ? { language } : {}) });
+  const response = await fetch(`${API_URL}/arcade-results/ranking?${params}`);
+
+  return handleResponse<ArcadeRankingResponse>(response);
+}
+
+// Salva uma partida do Arcade de quem está logado.
+export async function saveArcadeResult(
+  data: ArcadeResultData,
+  token: string,
+): Promise<{ message: string }> {
+  const response = await fetch(`${API_URL}/arcade-results`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  });
+
+  return handleResponse<{ message: string }>(response);
+}
+
+// Recordes do modo palavras e do Arcade de um jogador.
+export async function getUserRecords(
+  userId: number,
+  token?: string | null,
+): Promise<UserRecords> {
+  const response = await fetch(`${API_URL}/users/${userId}/records`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+
+  return handleResponse<UserRecords>(response);
 }
 
 // Resumo e partidas recentes da battle do usuário autenticado.

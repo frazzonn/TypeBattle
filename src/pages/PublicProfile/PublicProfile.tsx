@@ -25,6 +25,7 @@ import {
 import { BattleStats } from "../Profile/components/BattleStats";
 import { MissedKeysCard } from "../Profile/components/MissedKeysCard";
 import { ProfileOverview } from "../Profile/components/ProfileOverview";
+import { RecordsCard } from "../Profile/components/RecordsCard";
 import { ResultsHistory } from "../Profile/components/ResultsHistory";
 import { panelSx } from "../Profile/styles";
 import { AdminUserControls } from "./AdminUserControls";
@@ -249,6 +250,8 @@ function PlayerProfile({ rawId }: { rawId: string | undefined }) {
           )}
 
           <BattleStats data={profile.battle} />
+
+          <RecordsCard userId={userId} token={token} isOther />
 
           {results.length > 0 && (
             <Box>

@@ -20,6 +20,8 @@ export interface OrbitaResult {
   bestCombo: number;
   killed: number;
   seconds: number;
+  // Letras certas (o servidor confere a pontuação com elas).
+  letters: number;
 }
 
 interface OrbitaCallbacks {
@@ -394,6 +396,7 @@ export class OrbitaGame {
       bestCombo: g.bestCombo,
       killed: g.killed,
       seconds: Math.round(g.time),
+      letters: g.correct,
     });
   }
 

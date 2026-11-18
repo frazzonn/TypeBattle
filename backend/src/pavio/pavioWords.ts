@@ -46,6 +46,11 @@ function getSyllables(): Syllables {
   return syllables;
 }
 
+// A palavra (já normalizada) existe no dicionário?
+export function isDictionaryWord(word: string): boolean {
+  return getWords().has(word);
+}
+
 // "Cabeça" -> "cabeca": o jogador pode digitar com ou sem acento.
 export function normalizeWord(value: string): string {
   return value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();

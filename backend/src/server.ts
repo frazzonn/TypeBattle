@@ -3,6 +3,7 @@ import express from "express";
 import { createServer } from "node:http";
 import { Server } from "socket.io";
 import { adminRoutes } from "./routes/adminRoutes.js";
+import { arcadeRoutes } from "./routes/arcadeRoutes.js";
 import { authRoutes } from "./routes/authRoutes.js";
 import { battleResultRoutes } from "./routes/battleResultRoutes.js";
 import { typingResultRoutes } from "./routes/typingResultRoutes.js";
@@ -69,6 +70,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/typing-results", typingResultRoutes);
 app.use("/api/battle-results", battleResultRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/arcade-results", arcadeRoutes);
 
 registerBattleSocket(io);
 

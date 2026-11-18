@@ -14,11 +14,12 @@ import { BattleStats } from "./components/BattleStats";
 import { MissedKeysCard } from "./components/MissedKeysCard";
 import { ProfileHeader } from "./components/ProfileHeader";
 import { ProfileOverview } from "./components/ProfileOverview";
+import { RecordsCard } from "./components/RecordsCard";
 import { ResultsHistory } from "./components/ResultsHistory";
 import { panelSx } from "./styles";
 
 export function Profile() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
 
   const [results, setResults] = useState<TypingResult[]>([]);
   // Sem token não há o que carregar (a rota já exige login).
@@ -97,6 +98,8 @@ export function Profile() {
         {hasResults && <MissedKeysCard results={results} />}
 
         {token && <BattleStats token={token} />}
+
+        {user && <RecordsCard userId={user.id} token={token} />}
 
         <Box>
           {hasResults && <ResultsHistory results={results} />}

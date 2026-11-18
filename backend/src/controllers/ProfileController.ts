@@ -44,7 +44,7 @@ export async function getPublicProfile(request: Request, response: Response) {
 
     const [tagsByUser, results, battle] = await Promise.all([
       getTagsForUsers([id]),
-      db.orm.public.TypingResult.where({ userId: id })
+      db.orm.public.TypingResult.where({ userId: id, mode: "time" })
         .orderBy([(result) => result.createdAt.asc(), (result) => result.id.asc()])
         .all(),
       loadBattleData(id),

@@ -37,7 +37,7 @@ import { LanguageAutocomplete } from "../../components/LanguageAutocomplete";
 import { TypingText } from "../../components/typing/TypingText";
 import { ResultChart } from "../../components/typing/ResultChart";
 import { MissedKeys } from "../../components/typing/MissedKeys";
-import { getTypingResults, saveTypingResult } from "../../services/api";
+import { getTypingResults, saveArcadeResult, saveTypingResult } from "../../services/api";
 import { useAuth } from "../../contexts/useAuth";
 
 const MONO_FONT =
@@ -293,37 +293,48 @@ export function TypingTest({ fixedMode }: { fixedMode?: TestMode } = {}) {
       });
   }, [token]);
 
-  // Salva o resultado quando o teste termina. Só o modo tempo entra no
-  // ranking e no histórico (os outros têm duração variável).
+  // Salva o resultado quando o teste termina (só para quem está logado).
+  // Tempo e palavras entram no ranking e no perfil; a perseguição vai para
+  // o Arcade. Frases não são salvas.
   useEffect(() => {
-    if (
-      !result ||
-      mode !== "time" ||
-      !isAuthenticated ||
-      !token ||
-      resultSavedRef.current
-    ) {
-      return;
-    }
+    if (!result || !isAuthenticated || !token || resultSavedRef.current) return;
+    if (mode !== "time" && mode !== "words" && mode !== "chase") return;
 
     resultSavedRef.current = true;
+    const durationMs = Math.round(result.durationSeconds * 1000);
 
-    void saveTypingResult(
-      {
-        ppm: result.ppm,
-        accuracy: result.accuracy,
-        errors: result.errors,
-        characters: result.characters,
-        duration: selectedTime,
-        language,
-        missedKeys: result.missedKeys,
-      },
-      token,
-    ).catch((error: unknown) => {
+    const request =
+      mode === "chase"
+        ? saveArcadeResult(
+            {
+              game: "chase",
+              ms: durationMs,
+              characters: result.characters,
+              errors: result.errors,
+              accuracy: result.accuracy,
+              language,
+            },
+            token,
+          )
+        : saveTypingResult(
+            {
+              ppm: result.ppm,
+              accuracy: result.accuracy,
+              errors: result.errors,
+              characters: result.characters,
+              duration: mode === "time" ? selectedTime : Math.max(1, Math.round(result.durationSeconds)),
+              language,
+              missedKeys: result.missedKeys,
+              ...(mode === "words" ? { mode: "words" as const, wordCount, durationMs } : {}),
+            },
+            token,
+          );
+
+    void request.catch((error: unknown) => {
       resultSavedRef.current = false;
       console.error("Erro ao salvar resultado:", error);
     });
-  }, [result, mode, isAuthenticated, token, selectedTime, language]);
+  }, [result, mode, isAuthenticated, token, selectedTime, wordCount, language]);
 
   // Modo foco: durante o teste, menu, rodapé e configurações somem.
   // Mexer o mouse mostra de novo; voltar a digitar esconde.

@@ -5,6 +5,10 @@ import { db } from "../prisma/db.js";
 import { getTagsForUsers } from "../tags/userTags.js";
 
 const ALLOWED_DURATIONS = [15, 30, 60];
+// Modo palavras: tamanhos de texto que têm ranking.
+export const ALLOWED_WORD_COUNTS = [10, 25, 50, 100];
+// Modo palavras: no máximo 30 minutos para terminar o texto.
+const MAX_WORDS_MS = 30 * 60 * 1000;
 
 // Acima disso o resultado não é plausível para um humano.
 const MAX_PPM = 350;
@@ -21,6 +25,10 @@ interface TypingResultInput {
   language: string;
   // JSON com a letra esperada e quantas vezes errou nela.
   missedKeys: string;
+  // "time" (duração fixa) ou "words" (quanto levou para terminar o texto).
+  mode: "time" | "words";
+  wordCount: number | null;
+  durationMs: number | null;
 }
 
 // Mais que isso não cabe num teste de 60 s.
@@ -68,8 +76,10 @@ export function validateTypingResult(body: unknown): TypingResultInput | string 
     return "Todos os dados do resultado são obrigatórios.";
   }
 
-  const { ppm, accuracy, errors, characters, duration, language, missedKeys } =
+  const { ppm, accuracy, errors, characters, duration, language, missedKeys, wordCount, durationMs } =
     body as Record<string, unknown>;
+  // Clientes antigos não mandam o modo: é o modo tempo.
+  const mode = (body as Record<string, unknown>).mode === "words" ? "words" : "time";
 
   if (
     ppm === undefined ||
@@ -91,8 +101,21 @@ export function validateTypingResult(body: unknown): TypingResultInput | string 
     return "Os dados do resultado devem ser números inteiros positivos.";
   }
 
-  if (!ALLOWED_DURATIONS.includes(duration)) {
-    return "A duração deve ser 15, 30 ou 60 segundos.";
+  // Tempo exato do teste: fixo no modo tempo; no modo palavras, quanto levou.
+  let elapsedMs: number;
+  if (mode === "words") {
+    if (!isNonNegativeInteger(wordCount) || !ALLOWED_WORD_COUNTS.includes(wordCount)) {
+      return "Quantidade de palavras inválida.";
+    }
+    if (!isNonNegativeInteger(durationMs) || durationMs < 1000 || durationMs > MAX_WORDS_MS) {
+      return "Tempo do teste inválido.";
+    }
+    elapsedMs = durationMs;
+  } else {
+    if (!ALLOWED_DURATIONS.includes(duration)) {
+      return "A duração deve ser 15, 30 ou 60 segundos.";
+    }
+    elapsedMs = duration * 1000;
   }
 
   // Clientes antigos não mandam o idioma: conta como português.
@@ -106,7 +129,7 @@ export function validateTypingResult(body: unknown): TypingResultInput | string 
 
   // O frontend calcula PPM e precisão a partir dos caracteres digitados.
   const correct = characters - errors;
-  const expectedPpm = Math.round(correct / 5 / (duration / 60));
+  const expectedPpm = Math.round(correct / 5 / (elapsedMs / 60_000));
   const expectedAccuracy =
     characters === 0 ? 100 : Math.round((correct / characters) * 100);
 
@@ -128,9 +151,13 @@ export function validateTypingResult(body: unknown): TypingResultInput | string 
     accuracy,
     errors,
     characters,
-    duration,
+    // No modo palavras, a duração é o tempo arredondado para segundos.
+    duration: mode === "words" ? Math.max(1, Math.round(elapsedMs / 1000)) : duration,
     language: language ?? DEFAULT_LANGUAGE,
     missedKeys: JSON.stringify(validMissedKeys),
+    mode,
+    wordCount: mode === "words" ? (wordCount as number) : null,
+    durationMs: mode === "words" ? elapsedMs : null,
   };
 }
 
@@ -185,7 +212,9 @@ export async function getTypingResults(request: Request, response: Response) {
       });
     }
 
-    const results = await db.orm.public.TypingResult.where({ userId })
+    // Histórico e gráficos do perfil são do modo tempo; o modo palavras
+    // aparece nos recordes (GET /users/:id/records).
+    const results = await db.orm.public.TypingResult.where({ userId, mode: "time" })
       .orderBy([(result) => result.createdAt.asc(), (result) => result.id.asc()])
       .all();
 
@@ -204,16 +233,24 @@ export async function getTypingResults(request: Request, response: Response) {
   }
 }
 
-// Busca o ranking dos jogadores por duração e idioma
+// Busca o ranking dos jogadores: modo tempo (por duração) ou modo palavras
+// (por quantidade de palavras), sempre separado por idioma.
 export async function getRanking(request: Request, response: Response) {
   try {
+    const mode = request.query.mode === "words" ? "words" : "time";
     const duration = Number(request.query.duration);
+    const wordCount = Number(request.query.wordCount);
     const language = request.query.language ?? DEFAULT_LANGUAGE;
 
-    // Somente essas três durações são permitidas.
-    if (!ALLOWED_DURATIONS.includes(duration)) {
+    if (mode === "time" && !ALLOWED_DURATIONS.includes(duration)) {
       return response.status(400).json({
         message: "A duração deve ser 15, 30 ou 60 segundos.",
+      });
+    }
+
+    if (mode === "words" && !ALLOWED_WORD_COUNTS.includes(wordCount)) {
+      return response.status(400).json({
+        message: "A quantidade de palavras deve ser 10, 25, 50 ou 100.",
       });
     }
 
@@ -223,9 +260,14 @@ export async function getRanking(request: Request, response: Response) {
       });
     }
 
+    const filter =
+      mode === "words"
+        ? { mode, wordCount, language }
+        : { mode, duration, language };
+
     // Melhor resultado de cada usuário (DISTINCT ON userId), calculado no banco.
     // Em caso de empate no PPM, vale o resultado mais antigo.
-    const bestResults = await db.orm.public.TypingResult.where({ duration, language })
+    const bestResults = await db.orm.public.TypingResult.where(filter)
       .orderBy([
         (result) => result.userId.asc(),
         (result) => result.ppm.desc(),
@@ -233,7 +275,7 @@ export async function getRanking(request: Request, response: Response) {
         (result) => result.id.asc(),
       ])
       .distinctOn("userId")
-      .select("userId", "ppm", "accuracy")
+      .select("userId", "ppm", "accuracy", "durationMs")
       .all();
 
     // Contas banidas não aparecem no ranking.
@@ -267,10 +309,14 @@ export async function getRanking(request: Request, response: Response) {
       tags: tagsByUser.get(result.userId) ?? [],
       ppm: result.ppm,
       accuracy: result.accuracy,
+      // Modo palavras: quanto tempo levou no melhor resultado.
+      durationMs: result.durationMs ?? null,
     }));
 
     return response.status(200).json({
-      duration,
+      mode,
+      duration: mode === "time" ? duration : null,
+      wordCount: mode === "words" ? wordCount : null,
       language,
       ranking,
     });

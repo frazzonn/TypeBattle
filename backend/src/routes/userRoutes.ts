@@ -9,6 +9,7 @@ import {
   updateMyName,
 } from "../controllers/UserController.js";
 import { getPublicProfile } from "../controllers/ProfileController.js";
+import { getUserRecords } from "../controllers/ArcadeController.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 import { rateLimit } from "../middleware/rateLimit.js";
 
@@ -53,5 +54,8 @@ userRoutes.patch("/me/name", authMiddleware, nameLimiter, updateMyName);
 
 // Perfil público de um jogador.
 userRoutes.get("/:userId/profile", getPublicProfile);
+
+// Recordes do modo palavras e dos jogos do Arcade (também públicos).
+userRoutes.get("/:userId/records", getUserRecords);
 
 export { userRoutes };

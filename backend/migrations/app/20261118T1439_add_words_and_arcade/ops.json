@@ -1,0 +1,287 @@
+[
+  {
+    "id": "table.ArcadeResult",
+    "label": "Create table \"ArcadeResult\"",
+    "summary": "Creates table \"ArcadeResult\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "ArcadeResult"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"ArcadeResult\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ArcadeResult\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"ArcadeResult\"",
+        "sql": "CREATE TABLE \"public\".\"ArcadeResult\" (\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"details\" text DEFAULT '{}' NOT NULL,\n  \"game\" text NOT NULL,\n  \"id\" SERIAL NOT NULL,\n  \"language\" text DEFAULT 'portuguese' NOT NULL,\n  \"score\" int4 NOT NULL,\n  \"userId\" int4 NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"ArcadeResult\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ArcadeResult\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.TypingResult.durationMs",
+    "label": "Add column \"durationMs\" to \"TypingResult\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "durationMs",
+        "table": "TypingResult"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"durationMs\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "TypingResult",
+          "durationMs"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"durationMs\"",
+        "sql": "ALTER TABLE \"public\".\"TypingResult\" ADD COLUMN \"durationMs\" int4"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"durationMs\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "TypingResult",
+          "durationMs"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.TypingResult.mode",
+    "label": "Add column \"mode\" to \"TypingResult\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "mode",
+        "table": "TypingResult"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"mode\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "TypingResult",
+          "mode"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"mode\"",
+        "sql": "ALTER TABLE \"public\".\"TypingResult\" ADD COLUMN \"mode\" text DEFAULT 'time' NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"mode\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "TypingResult",
+          "mode"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.TypingResult.wordCount",
+    "label": "Add column \"wordCount\" to \"TypingResult\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "wordCount",
+        "table": "TypingResult"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"wordCount\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "TypingResult",
+          "wordCount"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"wordCount\"",
+        "sql": "ALTER TABLE \"public\".\"TypingResult\" ADD COLUMN \"wordCount\" int4"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"wordCount\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "TypingResult",
+          "wordCount"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.ArcadeResult.ArcadeResult_game_language_idx_509b14d1",
+    "label": "Create index \"ArcadeResult_game_language_idx_509b14d1\" on \"ArcadeResult\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "ArcadeResult_game_language_idx_509b14d1",
+        "table": "ArcadeResult"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"ArcadeResult_game_language_idx_509b14d1\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ArcadeResult_game_language_idx_509b14d1\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"ArcadeResult_game_language_idx_509b14d1\"",
+        "sql": "CREATE INDEX \"ArcadeResult_game_language_idx_509b14d1\" ON \"public\".\"ArcadeResult\" (\"game\", \"language\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"ArcadeResult_game_language_idx_509b14d1\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ArcadeResult_game_language_idx_509b14d1\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.ArcadeResult.ArcadeResult_userId_idx_a489d58a",
+    "label": "Create index \"ArcadeResult_userId_idx_a489d58a\" on \"ArcadeResult\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "ArcadeResult_userId_idx_a489d58a",
+        "table": "ArcadeResult"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"ArcadeResult_userId_idx_a489d58a\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ArcadeResult_userId_idx_a489d58a\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"ArcadeResult_userId_idx_a489d58a\"",
+        "sql": "CREATE INDEX \"ArcadeResult_userId_idx_a489d58a\" ON \"public\".\"ArcadeResult\" (\"userId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"ArcadeResult_userId_idx_a489d58a\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ArcadeResult_userId_idx_a489d58a\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.ArcadeResult.ArcadeResult_userId_fkey",
+    "label": "Add foreign key \"ArcadeResult_userId_fkey\" on \"ArcadeResult\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "ArcadeResult_userId_fkey",
+        "table": "ArcadeResult"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"ArcadeResult_userId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ArcadeResult_userId_fkey",
+          "public",
+          "\"public\".\"ArcadeResult\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"ArcadeResult_userId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"ArcadeResult\"\nADD CONSTRAINT \"ArcadeResult_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"ArcadeResult_userId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ArcadeResult_userId_fkey",
+          "public",
+          "\"public\".\"ArcadeResult\""
+        ]
+      }
+    ]
+  }
+]
