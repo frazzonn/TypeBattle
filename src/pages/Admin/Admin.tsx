@@ -307,9 +307,14 @@ export function Admin() {
       >
         TYPEBATTLE / ADMIN
       </Typography>
-      <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: "-1px", mb: 3 }}>
-        Tags dos usuários
-      </Typography>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap", mb: 3 }}>
+        <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: "-1px", flex: 1 }}>
+          Tags dos usuários
+        </Typography>
+        <Button component={RouterLink} to="/admin/cifra" variant="outlined" sx={{ borderColor: "#343844", color: "#d5d7de" }}>
+          Palavras da Cifra diária
+        </Button>
+      </Box>
 
       {error && (
         <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>

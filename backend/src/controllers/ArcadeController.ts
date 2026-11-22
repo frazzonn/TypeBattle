@@ -9,8 +9,10 @@ import { getTagsForUsers, isAdminEmail } from "../tags/userTags.js";
 import { ALLOWED_WORD_COUNTS } from "./TypingResultController.js";
 
 // Jogos do Arcade com ranking. O score de cada um:
-//   orbita: pontos · pavio: palavras · chase: milissegundos aguentados.
-export const ARCADE_GAMES = ["orbita", "pavio", "chase"] as const;
+//   orbita: pontos · pavio: palavras · chase: milissegundos aguentados ·
+//   cifra: palavras acertadas contra o relógio (gravado só pelo servidor, em
+//   CifraController; validateArcade não aceita resultados dela).
+export const ARCADE_GAMES = ["orbita", "pavio", "chase", "cifra"] as const;
 type ArcadeGame = (typeof ARCADE_GAMES)[number];
 
 const RANKING_LIMIT = 100;

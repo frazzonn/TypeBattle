@@ -34,7 +34,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'6be84fe31e7a2c538f5df7e407f5ae75338343d0561d5a02a7cab315124def62'>;
+  StorageHashBase<'97618ea452f105cfa36259e1a10c2d03990cc220f3f060afeee2a9a23d59aa00'>;
 export type ExecutionHash = ExecutionHashBase<string>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
@@ -271,6 +271,26 @@ export type FieldOutputTypes = {
       readonly userId: CodecTypes['pg/int4@1']['output'];
       readonly won: CodecTypes['pg/bool@1']['output'];
     };
+    readonly CifraDaily: {
+      readonly boards: CodecTypes['pg/int4@1']['output'];
+      readonly createdAt: CodecTypes['pg/timestamptz-temporal@1']['output'];
+      readonly custom: CodecTypes['pg/bool@1']['output'];
+      readonly date: CodecTypes['pg/text@1']['output'];
+      readonly id: CodecTypes['pg/int4@1']['output'];
+      readonly words: CodecTypes['pg/text@1']['output'];
+    };
+    readonly CifraDailyPlay: {
+      readonly attempts: CodecTypes['pg/int4@1']['output'];
+      readonly boards: CodecTypes['pg/int4@1']['output'];
+      readonly date: CodecTypes['pg/text@1']['output'];
+      readonly durationMs: CodecTypes['pg/int4@1']['output'] | null;
+      readonly finishedAt: CodecTypes['pg/timestamptz-temporal@1']['output'] | null;
+      readonly guesses: CodecTypes['pg/text@1']['output'];
+      readonly id: CodecTypes['pg/int4@1']['output'];
+      readonly startedAt: CodecTypes['pg/timestamptz-temporal@1']['output'];
+      readonly userId: CodecTypes['pg/int4@1']['output'];
+      readonly won: CodecTypes['pg/bool@1']['output'];
+    };
     readonly Tag: {
       readonly color: CodecTypes['pg/text@1']['output'];
       readonly createdAt: CodecTypes['pg/timestamptz-temporal@1']['output'];
@@ -337,6 +357,26 @@ export type FieldInputTypes = {
       readonly placement: CodecTypes['pg/int4@1']['input'];
       readonly players: CodecTypes['pg/int4@1']['input'];
       readonly ppm: CodecTypes['pg/int4@1']['input'];
+      readonly userId: CodecTypes['pg/int4@1']['input'];
+      readonly won: CodecTypes['pg/bool@1']['input'];
+    };
+    readonly CifraDaily: {
+      readonly boards: CodecTypes['pg/int4@1']['input'];
+      readonly createdAt: CodecTypes['pg/timestamptz-temporal@1']['input'];
+      readonly custom: CodecTypes['pg/bool@1']['input'];
+      readonly date: CodecTypes['pg/text@1']['input'];
+      readonly id: CodecTypes['pg/int4@1']['input'];
+      readonly words: CodecTypes['pg/text@1']['input'];
+    };
+    readonly CifraDailyPlay: {
+      readonly attempts: CodecTypes['pg/int4@1']['input'];
+      readonly boards: CodecTypes['pg/int4@1']['input'];
+      readonly date: CodecTypes['pg/text@1']['input'];
+      readonly durationMs: CodecTypes['pg/int4@1']['input'] | null;
+      readonly finishedAt: CodecTypes['pg/timestamptz-temporal@1']['input'] | null;
+      readonly guesses: CodecTypes['pg/text@1']['input'];
+      readonly id: CodecTypes['pg/int4@1']['input'];
+      readonly startedAt: CodecTypes['pg/timestamptz-temporal@1']['input'];
       readonly userId: CodecTypes['pg/int4@1']['input'];
       readonly won: CodecTypes['pg/bool@1']['input'];
     };
@@ -409,6 +449,26 @@ export type StorageColumnTypes = {
       readonly userId: CodecTypes['pg/int4@1']['output'];
       readonly won: CodecTypes['pg/bool@1']['output'];
     };
+    readonly CifraDaily: {
+      readonly boards: CodecTypes['pg/int4@1']['output'];
+      readonly createdAt: CodecTypes['pg/timestamptz-temporal@1']['output'];
+      readonly custom: CodecTypes['pg/bool@1']['output'];
+      readonly date: CodecTypes['pg/text@1']['output'];
+      readonly id: CodecTypes['pg/int4@1']['output'];
+      readonly words: CodecTypes['pg/text@1']['output'];
+    };
+    readonly CifraDailyPlay: {
+      readonly attempts: CodecTypes['pg/int4@1']['output'];
+      readonly boards: CodecTypes['pg/int4@1']['output'];
+      readonly date: CodecTypes['pg/text@1']['output'];
+      readonly durationMs: CodecTypes['pg/int4@1']['output'] | null;
+      readonly finishedAt: CodecTypes['pg/timestamptz-temporal@1']['output'] | null;
+      readonly guesses: CodecTypes['pg/text@1']['output'];
+      readonly id: CodecTypes['pg/int4@1']['output'];
+      readonly startedAt: CodecTypes['pg/timestamptz-temporal@1']['output'];
+      readonly userId: CodecTypes['pg/int4@1']['output'];
+      readonly won: CodecTypes['pg/bool@1']['output'];
+    };
     readonly Tag: {
       readonly color: CodecTypes['pg/text@1']['output'];
       readonly createdAt: CodecTypes['pg/timestamptz-temporal@1']['output'];
@@ -475,6 +535,26 @@ export type StorageColumnInputTypes = {
       readonly placement: CodecTypes['pg/int4@1']['input'];
       readonly players: CodecTypes['pg/int4@1']['input'];
       readonly ppm: CodecTypes['pg/int4@1']['input'];
+      readonly userId: CodecTypes['pg/int4@1']['input'];
+      readonly won: CodecTypes['pg/bool@1']['input'];
+    };
+    readonly CifraDaily: {
+      readonly boards: CodecTypes['pg/int4@1']['input'];
+      readonly createdAt: CodecTypes['pg/timestamptz-temporal@1']['input'];
+      readonly custom: CodecTypes['pg/bool@1']['input'];
+      readonly date: CodecTypes['pg/text@1']['input'];
+      readonly id: CodecTypes['pg/int4@1']['input'];
+      readonly words: CodecTypes['pg/text@1']['input'];
+    };
+    readonly CifraDailyPlay: {
+      readonly attempts: CodecTypes['pg/int4@1']['input'];
+      readonly boards: CodecTypes['pg/int4@1']['input'];
+      readonly date: CodecTypes['pg/text@1']['input'];
+      readonly durationMs: CodecTypes['pg/int4@1']['input'] | null;
+      readonly finishedAt: CodecTypes['pg/timestamptz-temporal@1']['input'] | null;
+      readonly guesses: CodecTypes['pg/text@1']['input'];
+      readonly id: CodecTypes['pg/int4@1']['input'];
+      readonly startedAt: CodecTypes['pg/timestamptz-temporal@1']['input'];
       readonly userId: CodecTypes['pg/int4@1']['input'];
       readonly won: CodecTypes['pg/bool@1']['input'];
     };
@@ -551,6 +631,29 @@ export namespace Models {
     user: public_User;
     readonly [RelationKeys]?: 'user';
   };
+  export type public_CifraDaily = {
+    boards: CodecTypes['pg/int4@1']['output'];
+    createdAt: CodecTypes['pg/timestamptz-temporal@1']['output'];
+    custom: CodecTypes['pg/bool@1']['output'];
+    date: CodecTypes['pg/text@1']['output'];
+    id: CodecTypes['pg/int4@1']['output'];
+    words: CodecTypes['pg/text@1']['output'];
+    readonly [RelationKeys]?: never;
+  };
+  export type public_CifraDailyPlay = {
+    attempts: CodecTypes['pg/int4@1']['output'];
+    boards: CodecTypes['pg/int4@1']['output'];
+    date: CodecTypes['pg/text@1']['output'];
+    durationMs: CodecTypes['pg/int4@1']['output'] | null;
+    finishedAt: CodecTypes['pg/timestamptz-temporal@1']['output'] | null;
+    guesses: CodecTypes['pg/text@1']['output'];
+    id: CodecTypes['pg/int4@1']['output'];
+    startedAt: CodecTypes['pg/timestamptz-temporal@1']['output'];
+    userId: CodecTypes['pg/int4@1']['output'];
+    won: CodecTypes['pg/bool@1']['output'];
+    user: public_User;
+    readonly [RelationKeys]?: 'user';
+  };
   export type public_Tag = {
     color: CodecTypes['pg/text@1']['output'];
     createdAt: CodecTypes['pg/timestamptz-temporal@1']['output'];
@@ -593,8 +696,9 @@ export namespace Models {
     verificationSentAt: CodecTypes['pg/timestamptz-temporal@1']['output'] | null;
     arcadeResults: public_ArcadeResult[];
     battleResults: public_BattleResult[];
+    cifraPlays: public_CifraDailyPlay[];
     typingResults: public_TypingResult[];
-    readonly [RelationKeys]?: 'arcadeResults' | 'battleResults' | 'typingResults';
+    readonly [RelationKeys]?: 'arcadeResults' | 'battleResults' | 'cifraPlays' | 'typingResults';
   };
   export type public_UserTag = {
     createdAt: CodecTypes['pg/timestamptz-temporal@1']['output'];
@@ -611,6 +715,8 @@ export declare const models: {
   public: {
     ArcadeResult: Models.public_ArcadeResult;
     BattleResult: Models.public_BattleResult;
+    CifraDaily: Models.public_CifraDaily;
+    CifraDailyPlay: Models.public_CifraDailyPlay;
     Tag: Models.public_Tag;
     TypingResult: Models.public_TypingResult;
     User: Models.public_User;
@@ -796,6 +902,154 @@ type ContractBase = Omit<
                   readonly source: {
                     readonly namespaceId: 'public' & NamespaceId;
                     readonly tableName: 'BattleResult';
+                    readonly columns: readonly ['userId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'User';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+              ];
+            };
+            readonly CifraDaily: {
+              columns: {
+                readonly boards: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly createdAt: {
+                  readonly nativeType: 'timestamptz';
+                  readonly codecId: 'pg/timestamptz-temporal@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                };
+                readonly custom: {
+                  readonly nativeType: 'bool';
+                  readonly codecId: 'pg/bool@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/bool@1', false>;
+                  };
+                };
+                readonly date: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly id: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'function';
+                    readonly expression: 'autoincrement()';
+                  };
+                };
+                readonly words: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [{ readonly columns: readonly ['date', 'boards'] }];
+              indexes: readonly [];
+              foreignKeys: readonly [];
+            };
+            readonly CifraDailyPlay: {
+              columns: {
+                readonly attempts: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/int4@1', 0>;
+                  };
+                };
+                readonly boards: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly date: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly durationMs: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: true;
+                };
+                readonly finishedAt: {
+                  readonly nativeType: 'timestamptz';
+                  readonly codecId: 'pg/timestamptz-temporal@1';
+                  readonly nullable: true;
+                };
+                readonly guesses: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', '[]'>;
+                  };
+                };
+                readonly id: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'function';
+                    readonly expression: 'autoincrement()';
+                  };
+                };
+                readonly startedAt: {
+                  readonly nativeType: 'timestamptz';
+                  readonly codecId: 'pg/timestamptz-temporal@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                };
+                readonly userId: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly won: {
+                  readonly nativeType: 'bool';
+                  readonly codecId: 'pg/bool@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/bool@1', false>;
+                  };
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [{ readonly columns: readonly ['userId', 'date', 'boards'] }];
+              indexes: readonly [
+                {
+                  readonly name: 'CifraDailyPlay_date_boards_idx_c89b716a';
+                  readonly prefix: 'CifraDailyPlay_date_boards_idx';
+                  readonly columns: readonly ['date', 'boards'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'CifraDailyPlay_userId_idx_a489d58a';
+                  readonly prefix: 'CifraDailyPlay_userId_idx';
+                  readonly columns: readonly ['userId'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'CifraDailyPlay';
                     readonly columns: readonly ['userId'];
                   };
                   readonly target: {
@@ -1142,6 +1396,14 @@ type ContractBase = Omit<
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'BattleResult';
     };
+    readonly CifraDaily: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'CifraDaily';
+    };
+    readonly CifraDailyPlay: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'CifraDailyPlay';
+    };
     readonly Tag: { readonly namespace: 'public' & NamespaceId; readonly model: 'Tag' };
     readonly TypingResult: {
       readonly namespace: 'public' & NamespaceId;
@@ -1287,6 +1549,127 @@ type ContractBase = Omit<
                 readonly placement: { readonly column: 'placement' };
                 readonly players: { readonly column: 'players' };
                 readonly ppm: { readonly column: 'ppm' };
+                readonly userId: { readonly column: 'userId' };
+                readonly won: { readonly column: 'won' };
+              };
+            };
+          };
+          readonly CifraDaily: {
+            readonly fields: {
+              readonly boards: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-temporal@1';
+                };
+              };
+              readonly custom: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
+              };
+              readonly date: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly words: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+            };
+            readonly relations: Record<string, never>;
+            readonly storage: {
+              readonly table: 'CifraDaily';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly boards: { readonly column: 'boards' };
+                readonly createdAt: { readonly column: 'createdAt' };
+                readonly custom: { readonly column: 'custom' };
+                readonly date: { readonly column: 'date' };
+                readonly id: { readonly column: 'id' };
+                readonly words: { readonly column: 'words' };
+              };
+            };
+          };
+          readonly CifraDailyPlay: {
+            readonly fields: {
+              readonly attempts: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly boards: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly date: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly durationMs: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly finishedAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-temporal@1';
+                };
+              };
+              readonly guesses: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly startedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-temporal@1';
+                };
+              };
+              readonly userId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly won: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
+              };
+            };
+            readonly relations: {
+              readonly user: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['userId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'CifraDailyPlay';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly attempts: { readonly column: 'attempts' };
+                readonly boards: { readonly column: 'boards' };
+                readonly date: { readonly column: 'date' };
+                readonly durationMs: { readonly column: 'durationMs' };
+                readonly finishedAt: { readonly column: 'finishedAt' };
+                readonly guesses: { readonly column: 'guesses' };
+                readonly id: { readonly column: 'id' };
+                readonly startedAt: { readonly column: 'startedAt' };
                 readonly userId: { readonly column: 'userId' };
                 readonly won: { readonly column: 'won' };
               };
@@ -1513,6 +1896,17 @@ type ContractBase = Omit<
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
                   readonly model: 'BattleResult';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['userId'];
+                };
+              };
+              readonly cifraPlays: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'CifraDailyPlay';
                 };
                 readonly cardinality: '1:N';
                 readonly on: {

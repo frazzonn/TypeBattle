@@ -97,7 +97,7 @@ export interface RankingResponse {
   ranking: RankingEntry[];
 }
 
-export type ArcadeGame = "pavio" | "orbita" | "chase";
+export type ArcadeGame = "pavio" | "orbita" | "chase" | "cifra";
 
 export interface ArcadeRankingEntry {
   position: number;
@@ -105,7 +105,8 @@ export interface ArcadeRankingEntry {
   name: string;
   avatarUrl?: string | null;
   tags?: Tag[];
-  // pavio: palavras · orbita: pontos · chase: milissegundos aguentados
+  // pavio: palavras · orbita: pontos · chase: milissegundos aguentados ·
+  // cifra: palavras acertadas contra o relógio
   score: number;
   details: Record<string, number | string>;
 }
@@ -611,4 +612,143 @@ export function deleteAdminTypingResult(
   token: string,
 ): Promise<void> {
   return adminDelete(`/users/${userId}/typing-results/${resultId}`, token);
+}
+
+// ---------------------------------------------------------------- Cifra
+
+export type CifraMark = "correct" | "present" | "absent";
+
+export interface CifraRow {
+  word: string;
+  // Com acento, quando o palpite é uma das respostas.
+  written: string;
+  // Cores em cada palavra (null = aquela palavra já tinha sido descoberta).
+  marks: (CifraMark[] | null)[];
+}
+
+export interface CifraDailyState {
+  date: string;
+  boards: number;
+  maxAttempts: number;
+  rows: CifraRow[];
+  // Em qual palpite cada palavra foi descoberta (null = ainda não).
+  solvedAt: (number | null)[];
+  won: boolean;
+  finished: boolean;
+  answers: string[] | null;
+  // Logado: o servidor mede o tempo a partir de startedAt.
+  started: boolean;
+  startedAt: number | null;
+  durationMs: number | null;
+  serverNow: number;
+  // Quando sai o próximo desafio.
+  nextAt: number;
+}
+
+export interface CifraRunState {
+  id: string;
+  maxAttempts: number;
+  rows: CifraRow[];
+  score: number;
+  solved: string[];
+  endsAt: number;
+  serverNow: number;
+  finished: boolean;
+  answer: string | null;
+  last?: { word: string; written: string; marks: CifraMark[]; solved: boolean };
+}
+
+export interface CifraDailyRankingEntry {
+  position: number;
+  userId: number;
+  name: string;
+  avatarUrl?: string | null;
+  tags?: Tag[];
+  attempts: number;
+  durationMs: number;
+}
+
+function cifraRequest(path: string, token: string | null | undefined, init: RequestInit = {}) {
+  return fetch(`${API_URL}/cifra${path}`, {
+    ...init,
+    headers: {
+      ...(init.body ? { "Content-Type": "application/json" } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+}
+
+export async function getCifraDaily(boards: number, token?: string | null): Promise<CifraDailyState> {
+  return handleResponse(await cifraRequest(`/daily/${boards}`, token));
+}
+
+export async function startCifraDaily(boards: number, token: string): Promise<CifraDailyState> {
+  return handleResponse(await cifraRequest(`/daily/${boards}/start`, token, { method: "POST" }));
+}
+
+// Convidado manda os palpites anteriores (o progresso fica no aparelho).
+export async function guessCifraDaily(
+  boards: number,
+  data: { guess: string; date: string; previous?: string[] },
+  token?: string | null,
+): Promise<CifraDailyState> {
+  return handleResponse(
+    await cifraRequest(`/daily/${boards}/guess`, token, { method: "POST", body: JSON.stringify(data) }),
+  );
+}
+
+export async function getCifraDailyRanking(
+  boards: number,
+): Promise<{ date: string; boards: number; ranking: CifraDailyRankingEntry[] }> {
+  return handleResponse(await cifraRequest(`/daily/${boards}/ranking`, null));
+}
+
+export async function startCifraRun(token?: string | null): Promise<CifraRunState> {
+  return handleResponse(await cifraRequest("/run", token, { method: "POST" }));
+}
+
+export async function guessCifraRun(id: string, guess: string): Promise<CifraRunState> {
+  return handleResponse(
+    await cifraRequest(`/run/${id}/guess`, null, { method: "POST", body: JSON.stringify({ guess }) }),
+  );
+}
+
+export async function finishCifraRun(id: string): Promise<CifraRunState> {
+  return handleResponse(await cifraRequest(`/run/${id}/finish`, null, { method: "POST" }));
+}
+
+// Admin: palavras dos próximos dias.
+export interface AdminCifraMode {
+  boards: number;
+  words: string[];
+  custom: boolean;
+  plays: number;
+}
+
+export interface AdminCifraDay {
+  date: string;
+  modes: AdminCifraMode[];
+}
+
+export async function getAdminCifra(token: string, days = 14): Promise<{ today: string; days: AdminCifraDay[] }> {
+  return handleResponse(await adminRequest(`/cifra?days=${days}`, token));
+}
+
+export async function setAdminCifra(
+  date: string,
+  boards: number,
+  words: string[],
+  token: string,
+): Promise<AdminCifraMode & { date: string }> {
+  return handleResponse(
+    await adminRequest(`/cifra/${date}/${boards}`, token, { method: "PUT", body: JSON.stringify({ words }) }),
+  );
+}
+
+export async function resetAdminCifra(
+  date: string,
+  boards: number,
+  token: string,
+): Promise<AdminCifraMode & { date: string }> {
+  return handleResponse(await adminRequest(`/cifra/${date}/${boards}`, token, { method: "DELETE" }));
 }

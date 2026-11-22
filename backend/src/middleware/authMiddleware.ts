@@ -8,6 +8,28 @@ interface AuthPayload {
   email: string;
 }
 
+// Situação da conta (existe? banida?), lembrada por alguns segundos para não
+// consultar o banco a cada requisição. O admin limpa ao banir ou apagar.
+const ACCOUNT_CACHE_MS = 30_000;
+const accountCache = new Map<number, { exists: boolean; banned: boolean; at: number }>();
+
+async function getAccountStatus(userId: number): Promise<{ exists: boolean; banned: boolean }> {
+  const cached = accountCache.get(userId);
+  if (cached && Date.now() - cached.at < ACCOUNT_CACHE_MS) return cached;
+  const account = await db.orm.public.User.select("banned").first({ id: userId });
+  const status = { exists: Boolean(account), banned: Boolean(account?.banned), at: Date.now() };
+  accountCache.set(userId, status);
+  if (accountCache.size > 5_000) {
+    for (const [id, entry] of accountCache) if (Date.now() - entry.at >= ACCOUNT_CACHE_MS) accountCache.delete(id);
+  }
+  return status;
+}
+
+// Chamado quando o admin bane, desbane ou apaga uma conta.
+export function forgetAccountStatus(userId: number) {
+  accountCache.delete(userId);
+}
+
 // Verifica se a requisição possui um JWT válido
 export async function authMiddleware(
   request: Request,
@@ -52,11 +74,9 @@ export async function authMiddleware(
 
   try {
     // A conta pode ter sido apagada ou banida depois que o token foi emitido.
-    const account = await db.orm.public.User.select("banned").first({
-      id: decoded.userId,
-    });
+    const account = await getAccountStatus(decoded.userId);
 
-    if (!account) {
+    if (!account.exists) {
       return response.status(401).json({ message: "Usuário não encontrado." });
     }
 
@@ -73,5 +93,26 @@ export async function authMiddleware(
 
   // Guarda os dados do usuário na requisição
   request.user = decoded;
+  next();
+}
+
+// Login opcional: com um token válido de conta ativa, preenche request.user;
+// sem token (ou com um inválido), segue como convidado.
+export async function optionalAuthMiddleware(
+  request: Request,
+  _response: Response,
+  next: NextFunction,
+) {
+  const [type, token] = (request.headers.authorization ?? "").split(" ");
+  const jwtSecret = process.env["JWT_SECRET"];
+  if (type !== "Bearer" || !token || !jwtSecret) return next();
+
+  try {
+    const decoded = jwt.verify(token, jwtSecret) as AuthPayload;
+    const account = await getAccountStatus(decoded.userId);
+    if (account.exists && !account.banned) request.user = decoded;
+  } catch {
+    // Token inválido ou expirado: joga como convidado.
+  }
   next();
 }

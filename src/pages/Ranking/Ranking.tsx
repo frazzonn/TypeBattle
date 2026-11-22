@@ -15,6 +15,7 @@ import {
 
 import DirectionsRunRoundedIcon from "@mui/icons-material/DirectionsRunRounded";
 import EmojiEventsRoundedIcon from "@mui/icons-material/EmojiEventsRounded";
+import GridViewRoundedIcon from "@mui/icons-material/GridViewRounded";
 import MilitaryTechRoundedIcon from "@mui/icons-material/MilitaryTechRounded";
 import NotesRoundedIcon from "@mui/icons-material/NotesRounded";
 import PublicRoundedIcon from "@mui/icons-material/PublicRounded";
@@ -29,7 +30,7 @@ import { getArcadeRanking, getRanking, type Tag } from "../../services/api";
 import { DEFAULT_LANGUAGE, LANGUAGE_OPTIONS } from "../../utils/textGenerator";
 
 // Qual ranking está na tela. Os do Arcade também vêm pelo link (?tipo=pavio).
-type Board = "time" | "words" | "pavio" | "orbita" | "chase";
+type Board = "time" | "words" | "pavio" | "orbita" | "chase" | "cifra";
 
 const BOARDS: { value: Board; label: string; group: "Digitar" | "Arcade"; icon: ReactNode }[] = [
   { value: "time", label: "Tempo", group: "Digitar", icon: <TimerOutlinedIcon sx={{ fontSize: 18 }} /> },
@@ -37,6 +38,7 @@ const BOARDS: { value: Board; label: string; group: "Digitar" | "Arcade"; icon: 
   { value: "pavio", label: "Pavio", group: "Arcade", icon: <WhatshotRoundedIcon sx={{ fontSize: 18 }} /> },
   { value: "orbita", label: "Órbita", group: "Arcade", icon: <PublicRoundedIcon sx={{ fontSize: 18 }} /> },
   { value: "chase", label: "Perseguição", group: "Arcade", icon: <DirectionsRunRoundedIcon sx={{ fontSize: 18 }} /> },
+  { value: "cifra", label: "Cifra", group: "Arcade", icon: <GridViewRoundedIcon sx={{ fontSize: 18 }} /> },
 ];
 
 function isBoard(value: string | null): value is Board {
@@ -69,6 +71,7 @@ const VALUE_LABEL: Record<Board, { long: string; short: string }> = {
   pavio: { long: "PALAVRAS NA BOMBA", short: "PALAVRAS" },
   orbita: { long: "PONTOS", short: "PONTOS" },
   chase: { long: "AGUENTOU", short: "AGUENTOU" },
+  cifra: { long: "PALAVRAS CONTRA O RELÓGIO", short: "PALAVRAS" },
 };
 
 const toggleSx = {
@@ -141,6 +144,8 @@ export function Ranking() {
         let detail: string;
         if (board === "pavio") {
           detail = d.longest ? `Mais longa: ${d.longest}` : "";
+        } else if (board === "cifra") {
+          detail = d.last ? `Última: ${d.last}` : "";
         } else if (board === "orbita") {
           value = player.score.toLocaleString("pt-BR");
           detail = `Onda ${d.wave ?? "?"} · combo ${d.bestCombo ?? 0}`;
@@ -182,6 +187,9 @@ export function Ranking() {
   } else if (board === "pavio") {
     description = "Mais palavras antes da bomba explodir, no modo solo.";
     emptyHint = "Jogue o Pavio no Arcade para começar a classificação.";
+  } else if (board === "cifra") {
+    description = "Mais palavras descobertas na Cifra contra o relógio.";
+    emptyHint = "Jogue a Cifra contra o relógio no Arcade para começar a classificação.";
   } else if (board === "orbita") {
     description = "Maior pontuação defendendo o núcleo.";
     emptyHint = "Jogue o Órbita no Arcade para começar a classificação.";

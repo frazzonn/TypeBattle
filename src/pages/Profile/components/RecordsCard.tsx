@@ -62,14 +62,14 @@ export function RecordsCard({ userId, token, isOther = false }: RecordsCardProps
     );
   }
 
-  const { pavio, orbita, chase } = records.arcade;
+  const { pavio, orbita, chase, cifra } = records.arcade;
   const empty = isOther ? "Ainda não jogou" : "Você ainda não jogou";
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
       <Box>
         <SectionTitle title="Arcade" to="/ranking?tipo=pavio" />
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3, minmax(0, 1fr))" }, gap: 2 }}>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" }, gap: 2 }}>
           <StatCard
             label="Pavio · mais palavras"
             value={pavio.best ? pavio.best.score : "—"}
@@ -97,6 +97,16 @@ export function RecordsCard({ userId, token, isOther = false }: RecordsCardProps
               chase.best ? `${playedLabel(chase.played)} · ${chase.best.details.ppm ?? 0} PPM` : empty
             }
             accent="#ff5c7a"
+          />
+          <StatCard
+            label="Cifra · contra o relógio"
+            value={cifra?.best ? cifra.best.score : "—"}
+            description={
+              cifra?.best
+                ? `${playedLabel(cifra.played)}${cifra.best.details.last ? ` · última: ${cifra.best.details.last}` : ""}`
+                : empty
+            }
+            accent="#d9a227"
           />
         </Box>
       </Box>

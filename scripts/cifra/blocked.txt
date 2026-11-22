@@ -1,0 +1,27 @@
+# Palavras que nunca são sorteadas como resposta da Cifra (uma por linha).
+# Depois de editar: npm run build:cifra
+# nomes próprios e estrangeirismos que passaram pelos filtros
+color
+error
+milao
+apolo
+italo
+leone
+jango
+suede
+copel
+jaque
+trans
+anglo
+zorro
+doris
+nobel
+jimbo
+ibope
+xerox
+jeans
+graal
+magno
+betao
+weber
+maura

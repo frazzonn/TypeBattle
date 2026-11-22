@@ -3,6 +3,9 @@ import { Link } from "react-router-dom";
 import { Box, Chip, Container, Stack, Typography } from "@mui/material";
 import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
 
+import { MARK_COLORS } from "./cifra/cifraLogic";
+import { Bomb } from "./pavio/Bomb";
+
 const MONO_FONT = "'JetBrains Mono', ui-monospace, monospace";
 const MUTED = "#a0a4ad";
 
@@ -98,27 +101,8 @@ function ChasePreview() {
 function PavioPreview() {
   return (
     <Stack direction="row" spacing={3} sx={{ height: "100%", alignItems: "center", justifyContent: "center", px: 2 }}>
-      <Box sx={{ position: "relative", width: 96, height: 96, flexShrink: 0 }}>
-        <Box
-          sx={{
-            position: "absolute", left: 58, top: -18, width: 4, height: 30, bgcolor: "#8a7356",
-            borderRadius: 2, transform: "rotate(28deg)",
-            "&::after": {
-              content: '""', position: "absolute", top: -7, left: -5, width: 14, height: 14, borderRadius: "50%",
-              background: "radial-gradient(circle, #fff6d8 0 25%, #fdba74 45%, rgba(255,92,122,0) 70%)",
-            },
-          }}
-        />
-        <Box
-          sx={{
-            width: 96, height: 96, borderRadius: "50%", display: "grid", placeItems: "center",
-            background: "radial-gradient(circle at 34% 30%, #4a4f5e 0 8%, #262a33 30%, #12141a 72%)",
-            boxShadow: "0 10px 24px rgba(0,0,0,.45)",
-            fontFamily: MONO_FONT, fontWeight: 800, fontSize: 24, color: "#fff",
-          }}
-        >
-          AB
-        </Box>
+      <Box sx={{ flexShrink: 0 }}>
+        <Bomb syllable="ab" tension={0.15} size={92} />
       </Box>
       <Stack spacing={1}>
         <Typography sx={{ fontFamily: MONO_FONT, fontSize: 20, fontWeight: 700 }}>
@@ -129,6 +113,39 @@ function PavioPreview() {
           carbo
         </Typography>
       </Stack>
+    </Stack>
+  );
+}
+
+// Miniatura da Cifra: três palpites com as dicas.
+function CifraPreview() {
+  const rows: [string, string][] = [
+    ["carta", "..vvv"],
+    ["parte", "vpvv."],
+    ["porta", "vvvvv"],
+  ];
+  const color = { v: MARK_COLORS.correct, p: MARK_COLORS.present, ".": MARK_COLORS.absent } as const;
+  return (
+    <Stack sx={{ height: "100%", alignItems: "center", justifyContent: "center", gap: 0.75 }}>
+      {rows.map(([word, marks]) => (
+        <Stack key={word} direction="row" spacing={0.75}>
+          {[...word].map((letter, i) => {
+            const mark = color[marks[i] as keyof typeof color];
+            return (
+              <Box
+                key={i}
+                sx={{
+                  width: 36, height: 36, display: "grid", placeItems: "center", borderRadius: "6px",
+                  bgcolor: mark.bg, color: mark.color, fontFamily: MONO_FONT, fontWeight: 800,
+                  fontSize: 18, textTransform: "uppercase",
+                }}
+              >
+                {letter}
+              </Box>
+            );
+          })}
+        </Stack>
+      ))}
     </Stack>
   );
 }
@@ -214,11 +231,22 @@ export function Arcade() {
           </Typography>
         </Stack>
 
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, minmax(0, 1fr))" }, gap: 3 }}>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" }, gap: 3 }}>
+          <GameCard
+            to="/arcade/cifra"
+            title="Cifra"
+            badge="Novo"
+            description="Descubra a palavra de 5 letras pelas dicas de cada palpite, com o relógio correndo."
+            details={[
+              "Diária com 1, 2 ou 4 palavras, igual para todo mundo",
+              "Contra o relógio: cada acerto soma tempo; errou, acabou",
+              "Ranking do dia e ranking do Arcade",
+            ]}
+            preview={<CifraPreview />}
+          />
           <GameCard
             to="/arcade/pavio"
             title="Pavio"
-            badge="Novo"
             description="A bomba mostra duas ou três letras. Escreva uma palavra que tenha essas letras juntas antes que o pavio acabe."
             details={[
               "Solo: começa com 60 s e cada palavra soma tempo",

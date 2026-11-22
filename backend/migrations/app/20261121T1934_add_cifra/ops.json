@@ -1,0 +1,284 @@
+[
+  {
+    "id": "table.CifraDaily",
+    "label": "Create table \"CifraDaily\"",
+    "summary": "Creates table \"CifraDaily\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "CifraDaily"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"CifraDaily\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CifraDaily\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"CifraDaily\"",
+        "sql": "CREATE TABLE \"public\".\"CifraDaily\" (\n  \"boards\" int4 NOT NULL,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"custom\" bool DEFAULT false NOT NULL,\n  \"date\" text NOT NULL,\n  \"id\" SERIAL NOT NULL,\n  \"words\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"CifraDaily\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CifraDaily\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.CifraDailyPlay",
+    "label": "Create table \"CifraDailyPlay\"",
+    "summary": "Creates table \"CifraDailyPlay\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "CifraDailyPlay"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"CifraDailyPlay\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CifraDailyPlay\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"CifraDailyPlay\"",
+        "sql": "CREATE TABLE \"public\".\"CifraDailyPlay\" (\n  \"attempts\" int4 DEFAULT 0 NOT NULL,\n  \"boards\" int4 NOT NULL,\n  \"date\" text NOT NULL,\n  \"durationMs\" int4,\n  \"finishedAt\" timestamptz,\n  \"guesses\" text DEFAULT '[]' NOT NULL,\n  \"id\" SERIAL NOT NULL,\n  \"startedAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"userId\" int4 NOT NULL,\n  \"won\" bool DEFAULT false NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"CifraDailyPlay\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CifraDailyPlay\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.CifraDaily.CifraDaily_date_boards_key",
+    "label": "Add unique constraint on \"CifraDaily\" (date, boards)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "CifraDaily_date_boards_key",
+        "table": "CifraDaily"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"CifraDaily_date_boards_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CifraDaily_date_boards_key",
+          "public",
+          "\"public\".\"CifraDaily\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"CifraDaily_date_boards_key\"",
+        "sql": "ALTER TABLE \"public\".\"CifraDaily\" ADD CONSTRAINT \"CifraDaily_date_boards_key\" UNIQUE (\"date\", \"boards\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"CifraDaily_date_boards_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CifraDaily_date_boards_key",
+          "public",
+          "\"public\".\"CifraDaily\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.CifraDailyPlay.CifraDailyPlay_userId_date_boards_key",
+    "label": "Add unique constraint on \"CifraDailyPlay\" (userId, date, boards)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "CifraDailyPlay_userId_date_boards_key",
+        "table": "CifraDailyPlay"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"CifraDailyPlay_userId_date_boards_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CifraDailyPlay_userId_date_boards_key",
+          "public",
+          "\"public\".\"CifraDailyPlay\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"CifraDailyPlay_userId_date_boards_key\"",
+        "sql": "ALTER TABLE \"public\".\"CifraDailyPlay\" ADD CONSTRAINT \"CifraDailyPlay_userId_date_boards_key\" UNIQUE (\"userId\", \"date\", \"boards\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"CifraDailyPlay_userId_date_boards_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CifraDailyPlay_userId_date_boards_key",
+          "public",
+          "\"public\".\"CifraDailyPlay\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.CifraDailyPlay.CifraDailyPlay_date_boards_idx_c89b716a",
+    "label": "Create index \"CifraDailyPlay_date_boards_idx_c89b716a\" on \"CifraDailyPlay\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "CifraDailyPlay_date_boards_idx_c89b716a",
+        "table": "CifraDailyPlay"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"CifraDailyPlay_date_boards_idx_c89b716a\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CifraDailyPlay_date_boards_idx_c89b716a\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"CifraDailyPlay_date_boards_idx_c89b716a\"",
+        "sql": "CREATE INDEX \"CifraDailyPlay_date_boards_idx_c89b716a\" ON \"public\".\"CifraDailyPlay\" (\"date\", \"boards\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"CifraDailyPlay_date_boards_idx_c89b716a\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CifraDailyPlay_date_boards_idx_c89b716a\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.CifraDailyPlay.CifraDailyPlay_userId_idx_a489d58a",
+    "label": "Create index \"CifraDailyPlay_userId_idx_a489d58a\" on \"CifraDailyPlay\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "CifraDailyPlay_userId_idx_a489d58a",
+        "table": "CifraDailyPlay"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"CifraDailyPlay_userId_idx_a489d58a\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CifraDailyPlay_userId_idx_a489d58a\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"CifraDailyPlay_userId_idx_a489d58a\"",
+        "sql": "CREATE INDEX \"CifraDailyPlay_userId_idx_a489d58a\" ON \"public\".\"CifraDailyPlay\" (\"userId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"CifraDailyPlay_userId_idx_a489d58a\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CifraDailyPlay_userId_idx_a489d58a\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.CifraDailyPlay.CifraDailyPlay_userId_fkey",
+    "label": "Add foreign key \"CifraDailyPlay_userId_fkey\" on \"CifraDailyPlay\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "CifraDailyPlay_userId_fkey",
+        "table": "CifraDailyPlay"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"CifraDailyPlay_userId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CifraDailyPlay_userId_fkey",
+          "public",
+          "\"public\".\"CifraDailyPlay\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"CifraDailyPlay_userId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"CifraDailyPlay\"\nADD CONSTRAINT \"CifraDailyPlay_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"CifraDailyPlay_userId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CifraDailyPlay_userId_fkey",
+          "public",
+          "\"public\".\"CifraDailyPlay\""
+        ]
+      }
+    ]
+  }
+]

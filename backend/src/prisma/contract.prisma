@@ -25,8 +25,11 @@ model User {
   // Partidas multiplayer (uma linha por rodada)
   battleResults BattleResult[]
 
-  // Partidas dos jogos do Arcade (Pavio, Órbita, Perseguição)
+  // Partidas dos jogos do Arcade (Pavio, Órbita, Perseguição, Cifra)
   arcadeResults ArcadeResult[]
+
+  // Partidas da Cifra diária (uma por dia e modo)
+  cifraPlays CifraDailyPlay[]
 }
 model TypingResult {
   id         Int      @id @default(autoincrement())
@@ -123,4 +126,42 @@ model UserTag {
 
   @@unique([userId, tagId])
   @@index([tagId])
+}
+
+// Palavras da Cifra diária de um dia e modo (1, 2 ou 4 palavras).
+// Criada quando alguém abre o dia (sorteio automático) ou quando o admin
+// escolhe as palavras; depois disso não muda mais.
+model CifraDaily {
+  id        Int      @id @default(autoincrement())
+  // Dia no horário de Brasília (ex.: "2026-11-21")
+  date      String
+  // Quantas palavras: 1, 2 ou 4
+  boards    Int
+  // Respostas sem acento, separadas por vírgula
+  words     String
+  // true = escolhidas pelo admin
+  custom    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@unique([date, boards])
+}
+
+// Partida de um jogador logado na Cifra diária. O tempo é medido pelo servidor.
+model CifraDailyPlay {
+  id         Int       @id @default(autoincrement())
+  userId     Int
+  date       String
+  boards     Int
+  // Palpites em ordem, em JSON (ex.: ["termo","cabra"])
+  guesses    String    @default("[]")
+  attempts   Int       @default(0)
+  won        Boolean   @default(false)
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  durationMs Int?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date, boards])
+  @@index([date, boards])
 }

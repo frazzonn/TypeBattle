@@ -60,6 +60,16 @@ const Arcade = lazy(() =>
     default: module.Arcade,
   })),
 );
+const Cifra = lazy(() =>
+  import("../pages/Arcade/cifra/Cifra").then((module) => ({
+    default: module.Cifra,
+  })),
+);
+const AdminCifra = lazy(() =>
+  import("../pages/Admin/AdminCifra").then((module) => ({
+    default: module.AdminCifra,
+  })),
+);
 const Orbita = lazy(() =>
   import("../pages/Arcade/orbita/Orbita").then((module) => ({
     default: module.Orbita,
@@ -103,6 +113,7 @@ export function AppRoutes() {
         <Route path="/arcade/orbita" element={<Orbita />} />
         <Route path="/arcade/perseguicao" element={<Chase />} />
         <Route path="/arcade/pavio" element={<Pavio />} />
+        <Route path="/arcade/cifra" element={<Cifra />} />
         <Route path="/verificar" element={<VerifyEmail />} />
         <Route path="/recuperar-senha" element={<ResetPassword />} />
         <Route path="/jogador/:userId" element={<PublicProfile />} />
@@ -111,6 +122,7 @@ export function AppRoutes() {
         <Route element={<ProtectedRoute />}>
           <Route path="/profile" element={<Profile />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/admin/cifra" element={<AdminCifra />} />
         </Route>
       </Routes>
     </Suspense>

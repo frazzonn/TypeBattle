@@ -14,6 +14,11 @@ import {
   updateTag,
   updateUser,
 } from "../controllers/AdminController.js";
+import {
+  adminListDaily,
+  adminResetDaily,
+  adminSetDaily,
+} from "../controllers/CifraController.js";
 import { adminMiddleware } from "../middleware/adminMiddleware.js";
 import { authMiddleware } from "../middleware/authMiddleware.js";
 
@@ -36,5 +41,10 @@ adminRoutes.patch("/users/:userId", updateUser);
 adminRoutes.delete("/users/:userId", deleteUser);
 adminRoutes.delete("/users/:userId/results", deleteUserResults);
 adminRoutes.delete("/users/:userId/typing-results/:resultId", deleteUserTypingResult);
+
+// Cifra diária: ver os próximos dias e escolher as palavras.
+adminRoutes.get("/cifra", adminListDaily);
+adminRoutes.put("/cifra/:date/:boards", adminSetDaily);
+adminRoutes.delete("/cifra/:date/:boards", adminResetDaily);
 
 export { adminRoutes };

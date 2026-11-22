@@ -1,6 +1,7 @@
 import { or } from "@prisma/orm-postgres/orm-client";
 import type { Request, Response } from "express";
 
+import { forgetAccountStatus } from "../middleware/authMiddleware.js";
 import { db } from "../prisma/db.js";
 import { isTagIcon, isTagStyle } from "../tags/tagStyles.js";
 import { getTagsForUsers, isAdminEmail, TAG_COLUMNS } from "../tags/userTags.js";
@@ -302,6 +303,8 @@ export async function updateUser(request: Request, response: Response) {
     const updated = await db.orm.public.User.where({ id })
       .select("id", "name", "banned")
       .update(changes);
+    // O banimento vale na hora, sem esperar o cache da conta.
+    forgetAccountStatus(id);
 
     return response.status(200).json({ user: updated });
   } catch (error) {
@@ -360,6 +363,7 @@ export async function deleteUser(request: Request, response: Response) {
     }
 
     await db.orm.public.User.where({ id }).delete();
+    forgetAccountStatus(id);
     await deleteStoredAvatar(target.avatarUrl);
 
     return response.status(204).end();

@@ -6,6 +6,7 @@ import { adminRoutes } from "./routes/adminRoutes.js";
 import { arcadeRoutes } from "./routes/arcadeRoutes.js";
 import { authRoutes } from "./routes/authRoutes.js";
 import { battleResultRoutes } from "./routes/battleResultRoutes.js";
+import { cifraRoutes } from "./routes/cifraRoutes.js";
 import { typingResultRoutes } from "./routes/typingResultRoutes.js";
 import { userRoutes } from "./routes/userRoutes.js";
 import { registerBattleSocket } from "./socket/battleSocket.js";
@@ -71,6 +72,7 @@ app.use("/api/typing-results", typingResultRoutes);
 app.use("/api/battle-results", battleResultRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/arcade-results", arcadeRoutes);
+app.use("/api/cifra", cifraRoutes);
 
 registerBattleSocket(io);
 
