@@ -2,10 +2,9 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { LANGUAGE_WORDS } from "../battle/languageWords.js";
-
-// Dicionário e sílabas do Pavio, gerados por scripts/build-pavio.mjs em
-// backend/data/pavio. As palavras estão sem acento e em minúsculas.
+// Dicionário, palavras conhecidas e sílabas do Pavio, gerados por
+// scripts/build-pavio.mjs em backend/data/pavio. As palavras estão sem acento
+// e em minúsculas.
 
 export type SyllableLevel = "easy" | "medium" | "hard";
 type Syllables = Record<SyllableLevel, string[]>;
@@ -25,20 +24,25 @@ function findDataFile(name: string): string {
   return found;
 }
 
-let wordList: string[] | null = null;
-let words: Set<string> | null = null;
-let syllables: Syllables | null = null;
-
-// Carrega na primeira partida (são ~265 mil palavras) e mantém em memória.
-function getWordList(): string[] {
-  // \r?\n: o Git no Windows pode trocar as quebras de linha por CRLF.
-  wordList ??= readFileSync(findDataFile("portuguese.txt"), "utf8").split(/\r?\n/).filter(Boolean);
-  return wordList;
+// \r?\n: o Git no Windows pode trocar as quebras de linha por CRLF.
+function readLines(name: string): string[] {
+  return readFileSync(findDataFile(name), "utf8").split(/\r?\n/).filter(Boolean);
 }
 
+let words: Set<string> | null = null;
+let commonWords: string[] | null = null;
+let syllables: Syllables | null = null;
+
+// Carrega na primeira partida (são ~570 mil palavras) e mantém em memória.
 function getWords(): Set<string> {
-  words ??= new Set(getWordList());
+  words ??= new Set(readLines("portuguese.txt"));
   return words;
+}
+
+// Palavras conhecidas, da mais usada para a menos.
+function getCommonWords(): string[] {
+  commonWords ??= readLines("common.txt");
+  return commonWords;
 }
 
 function getSyllables(): Syllables {
@@ -88,36 +92,42 @@ export function checkWord(
   return { word };
 }
 
-// Algumas palavras que resolviam a sílaba (mostradas quando a bomba explode).
-let commonWords: string[] | null = null;
+// Palavras que resolviam a sílaba (mostradas quando a bomba explode).
+// Mesma regra de src/pages/Arcade/pavio/pavioRules.ts.
+const EXAMPLE_POOL = 25;
 
-// Palavras comuns (as do teste de digitação), para os exemplos serem conhecidos.
-function getCommonWords(): string[] {
-  if (!commonWords) {
-    const portuguese = LANGUAGE_WORDS.find((language) => language.code === "portuguese");
-    const all = [...(portuguese?.normal ?? []), ...(portuguese?.hard ?? [])].map(normalizeWord);
-    commonWords = [...new Set(all)].filter((word) => /^[a-z]{3,}$/.test(word));
-  }
-  return commonWords;
-}
-
-// Começa num ponto sorteado (as listas são alfabéticas) para variar os exemplos.
 export function exampleWords(syllable: string, amount = 3): string[] {
-  const common = pickExamples(getCommonWords(), syllable, amount);
-  if (common.length >= amount) return common;
-  const extra = pickExamples(getWordList(), syllable, amount).filter((word) => !common.includes(word));
-  return [...common, ...extra].slice(0, amount);
+  return pickExamples(getCommonWords(), syllable, amount);
 }
 
-function pickExamples(list: readonly string[], syllable: string, amount: number): string[] {
-  if (list.length === 0) return [];
-  const start = Math.floor(Math.random() * list.length);
+// Sorteia entre as palavras mais usadas que têm a sílaba, de começos diferentes.
+function pickExamples(common: readonly string[], syllable: string, amount: number): string[] {
+  const pool: string[] = [];
+  const short: string[] = [];
+  for (const word of common) {
+    if (word === syllable || !word.includes(syllable)) continue;
+    if (word.length >= 4 && word.length <= 10) pool.push(word);
+    else short.push(word);
+    if (pool.length >= EXAMPLE_POOL) break;
+  }
+
+  const shuffled = shuffle(pool);
+  // Primeiro, começos diferentes; se não der, completa com o que tiver.
   const found: string[] = [];
-  for (let i = 0; i < list.length && found.length < amount; i += 1) {
-    const word = list[(start + i) % list.length];
-    if (word.length <= 9 && word.includes(syllable) && !found.some((w) => w[0] === word[0])) {
-      found.push(word);
-    }
+  for (const word of shuffled) {
+    if (found.length < amount && !found.some((other) => other[0] === word[0])) found.push(word);
+  }
+  for (const word of [...shuffled, ...short]) {
+    if (found.length < amount && !found.includes(word)) found.push(word);
   }
   return found;
+}
+
+function shuffle<T>(list: readonly T[]): T[] {
+  const copy = [...list];
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
 }

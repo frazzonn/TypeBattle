@@ -1,0 +1,2 @@
+# Palavras que nunca valem nem aparecem como exemplo no Pavio.
+# Depois de editar: npm run build:pavio

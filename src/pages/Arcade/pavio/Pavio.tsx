@@ -15,6 +15,7 @@ import {
   normalizeWord,
   pickSyllable,
   REJECTION_MESSAGES,
+  type PavioDictionary,
 } from "./pavioRules";
 
 const MONO_FONT = "'JetBrains Mono', ui-monospace, monospace";
@@ -78,7 +79,7 @@ function TypedWord({ value, syllable }: { value: string; syllable: string }) {
 
 export function Pavio() {
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const dictionaryRef = useRef<{ list: string[]; set: Set<string> } | null>(null);
+  const dictionaryRef = useRef<PavioDictionary | null>(null);
   const usedRef = useRef<Set<string>>(new Set());
   const endsAtRef = useRef(0);
   const startedAtRef = useRef(0);
@@ -97,9 +98,9 @@ export function Pavio() {
   useEffect(() => {
     let cancelled = false;
     loadDictionary()
-      .then((list) => {
+      .then((dictionary) => {
         if (cancelled) return;
-        dictionaryRef.current = { list, set: new Set(list) };
+        dictionaryRef.current = dictionary;
         setStatus("ready");
       })
       .catch(() => {
@@ -114,7 +115,7 @@ export function Pavio() {
     (finalWords: string[], lastSyllable: string) => {
       setStatus("over");
       setTimeLeft(0);
-      setExamples(exampleWords(dictionaryRef.current?.list ?? [], lastSyllable));
+      setExamples(exampleWords(dictionaryRef.current?.common ?? [], lastSyllable));
       const beat = finalWords.length > record;
       setNewRecord(beat);
       if (beat) {
@@ -175,7 +176,7 @@ export function Pavio() {
     const dictionary = dictionaryRef.current;
     if (status !== "playing" || !dictionary || !input.trim()) return;
 
-    const result = checkWord(input, syllable, usedRef.current, dictionary.set);
+    const result = checkWord(input, syllable, usedRef.current, dictionary.words);
     if ("reason" in result) {
       setFeedback({ kind: "error", text: REJECTION_MESSAGES[result.reason], key: Date.now() });
       return;

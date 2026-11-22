@@ -18,17 +18,33 @@ export function normalizeWord(value: string): string {
   return value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
 }
 
-let dictionaryPromise: Promise<string[]> | null = null;
+export interface PavioDictionary {
+  // Todas as palavras aceitas.
+  words: Set<string>;
+  // Palavras conhecidas, da mais usada para a menos (para os exemplos).
+  common: string[];
+}
 
-// ~265 mil palavras (2,7 MB; o servidor manda compactado). Baixa uma vez só.
-export function loadDictionary(): Promise<string[]> {
-  dictionaryPromise ??= fetch("/pavio/portuguese.txt")
+let dictionaryPromise: Promise<PavioDictionary> | null = null;
+
+function fetchLines(path: string): Promise<string[]> {
+  return fetch(path)
     .then((response) => {
       if (!response.ok) throw new Error("Dicionário indisponível.");
       return response.text();
     })
     // \r?\n: o Git no Windows pode trocar as quebras de linha por CRLF.
-    .then((text) => text.split(/\r?\n/).filter(Boolean))
+    .then((text) => text.split(/\r?\n/).filter(Boolean));
+}
+
+// ~570 mil palavras (~6 MB; o servidor manda compactado). Baixa uma vez só.
+// Gerados por scripts/build-pavio.mjs.
+export function loadDictionary(): Promise<PavioDictionary> {
+  dictionaryPromise ??= Promise.all([
+    fetchLines("/pavio/portuguese.txt"),
+    fetchLines("/pavio/common.txt"),
+  ])
+    .then(([words, common]) => ({ words: new Set(words), common }))
     .catch((error: unknown) => {
       dictionaryPromise = null;
       throw error;
@@ -66,16 +82,38 @@ export function checkWord(
   return { word };
 }
 
-// Algumas palavras que resolviam a sílaba, de começos diferentes.
-export function exampleWords(list: readonly string[], syllable: string, amount = 3): string[] {
-  if (list.length === 0) return [];
-  const start = Math.floor(Math.random() * list.length);
+// Palavras que resolviam a sílaba (mostradas quando a bomba explode).
+// Mesma regra de backend/src/pavio/pavioWords.ts: sorteia entre as palavras
+// mais usadas que têm a sílaba, de começos diferentes.
+const EXAMPLE_POOL = 25;
+
+export function exampleWords(common: readonly string[], syllable: string, amount = 3): string[] {
+  const pool: string[] = [];
+  const short: string[] = [];
+  for (const word of common) {
+    if (word === syllable || !word.includes(syllable)) continue;
+    if (word.length >= 4 && word.length <= 10) pool.push(word);
+    else short.push(word);
+    if (pool.length >= EXAMPLE_POOL) break;
+  }
+
+  const shuffled = shuffle(pool);
+  // Primeiro, começos diferentes; se não der, completa com o que tiver.
   const found: string[] = [];
-  for (let i = 0; i < list.length && found.length < amount; i += 1) {
-    const word = list[(start + i) % list.length];
-    if (word.length <= 9 && word.includes(syllable) && !found.some((w) => w[0] === word[0])) {
-      found.push(word);
-    }
+  for (const word of shuffled) {
+    if (found.length < amount && !found.some((other) => other[0] === word[0])) found.push(word);
+  }
+  for (const word of [...shuffled, ...short]) {
+    if (found.length < amount && !found.includes(word)) found.push(word);
   }
   return found;
+}
+
+function shuffle<T>(list: readonly T[]): T[] {
+  const copy = [...list];
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
 }
