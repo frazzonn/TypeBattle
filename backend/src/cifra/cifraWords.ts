@@ -1,7 +1,6 @@
 import { createHmac } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+
+import { normalizeWord, readDataLines } from "../lib/dataFiles.js";
 
 // Palavras da Cifra: respostas (backend/data/cifra/answers.txt, geradas por
 // scripts/build-cifra.mjs) e palpites aceitos (as palavras de 5 letras do
@@ -11,22 +10,6 @@ export const WORD_LENGTH = 5;
 
 export type Mark = "correct" | "present" | "absent";
 
-function findDataFile(path: string): string {
-  const here = fileURLToPath(new URL(".", import.meta.url));
-  const candidates = [
-    resolve(process.cwd(), "data", path),
-    resolve(here, "../../data", path),
-    resolve(here, "../../../data", path),
-  ];
-  const found = candidates.find((file) => existsSync(file));
-  if (!found) throw new Error(`Arquivo da Cifra não encontrado: ${path}`);
-  return found;
-}
-
-function readLines(path: string): string[] {
-  return readFileSync(findDataFile(path), "utf8").split(/\r?\n/).filter(Boolean);
-}
-
 let answers: string[] | null = null;
 let spelling: Map<string, string> | null = null;
 let valid: Set<string> | null = null;
@@ -35,7 +18,7 @@ function loadAnswers() {
   if (answers && spelling) return { answers, spelling };
   const list: string[] = [];
   const map = new Map<string, string>();
-  for (const line of readLines("cifra/answers.txt")) {
+  for (const line of readDataLines("cifra/answers.txt")) {
     const [word, written] = line.split(" ");
     list.push(word);
     map.set(word, written ?? word);
@@ -47,18 +30,14 @@ function loadAnswers() {
 
 function getValid(): Set<string> {
   if (!valid) {
-    valid = new Set(readLines("pavio/portuguese.txt").filter((word) => word.length === WORD_LENGTH));
+    valid = new Set(readDataLines("pavio/portuguese.txt").filter((word) => word.length === WORD_LENGTH));
     for (const word of loadAnswers().answers) valid.add(word);
   }
   return valid;
 }
 
 // "Cabeça" -> "cabeca".
-export function normalizeGuess(value: unknown): string {
-  return typeof value === "string"
-    ? value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim()
-    : "";
-}
+export const normalizeGuess = normalizeWord;
 
 export function isValidGuess(word: string): boolean {
   return word.length === WORD_LENGTH && /^[a-z]+$/.test(word) && getValid().has(word);

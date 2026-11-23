@@ -97,7 +97,7 @@ export interface RankingResponse {
   ranking: RankingEntry[];
 }
 
-export type ArcadeGame = "pavio" | "orbita" | "chase" | "cifra";
+export type ArcadeGame = "pavio" | "orbita" | "chase" | "cifra" | "conjuga";
 
 export interface ArcadeRankingEntry {
   position: number;
@@ -106,7 +106,7 @@ export interface ArcadeRankingEntry {
   avatarUrl?: string | null;
   tags?: Tag[];
   // pavio: palavras · orbita: pontos · chase: milissegundos aguentados ·
-  // cifra: palavras acertadas contra o relógio
+  // cifra: palavras acertadas contra o relógio · conjuga: formas preenchidas
   score: number;
   details: Record<string, number | string>;
 }
@@ -234,7 +234,7 @@ export async function registerUser(data: RegisterData): Promise<RegisterResponse
   return handleResponse<RegisterResponse>(response);
 }
 
-function postJson(path: string, body: unknown, token?: string) {
+function postJson(path: string, body: unknown = {}, token?: string | null) {
   return fetch(`${API_URL}${path}`, {
     method: "POST",
     headers: {
@@ -751,4 +751,87 @@ export async function resetAdminCifra(
   token: string,
 ): Promise<AdminCifraMode & { date: string }> {
   return handleResponse(await adminRequest(`/cifra/${date}/${boards}`, token, { method: "DELETE" }));
+}
+
+// ---------------------------------------------------------------- Conjuga
+
+export interface ConjugaState {
+  id: string;
+  verb: string;
+  irregular: boolean;
+  // Casas preenchidas: "presente:0" (eu) ... "subjuntivo:4" (eles), "gerundio", "participio".
+  filled: Record<string, string>;
+  // Quantas letras tem cada forma do verbo atual.
+  lengths: Record<string, number>;
+  totalCells: number;
+  score: number;
+  verbsDone: number;
+  endsAt: number;
+  serverNow: number;
+  finished: boolean;
+  // Verbo anterior com todas as formas (para ver o que faltou).
+  previous: { verb: string; cells: Record<string, string>; filled: string[] } | null;
+  // No fim: a tabela inteira do verbo atual.
+  solution: Record<string, string> | null;
+}
+
+export interface ConjugaGuess extends ConjugaState {
+  result: "ok" | "wrong" | "repeated" | "finished";
+  word?: string;
+  cells?: string[];
+  written?: string;
+  completedTenses?: string[];
+  bonusMs?: number;
+  completedVerb?: string | null;
+}
+
+export async function startConjuga(token?: string | null): Promise<ConjugaState> {
+  return handleResponse(await postJson("/conjuga/run", {}, token));
+}
+
+export async function guessConjuga(id: string, word: string): Promise<ConjugaGuess> {
+  return handleResponse(await postJson(`/conjuga/run/${id}/guess`, { word }));
+}
+
+export async function skipConjuga(id: string): Promise<ConjugaState> {
+  return handleResponse(await postJson(`/conjuga/run/${id}/skip`));
+}
+
+export async function finishConjuga(id: string): Promise<ConjugaState> {
+  return handleResponse(await postJson(`/conjuga/run/${id}/finish`));
+}
+
+// ---------------------------------------------------------------- Embaralha
+
+export interface EmbaralhaDaily {
+  date: string;
+  letters: string[];
+  // Quantas palavras de cada tamanho.
+  lengths: Record<string, number>;
+  // Tamanho de cada palavra, na ordem da grade.
+  slots: number[];
+  total: number;
+  serverNow: number;
+  nextAt: number;
+}
+
+export interface EmbaralhaGuess {
+  result: "found" | "extra" | "invalid" | "letters" | "short";
+  word: string;
+  written?: string;
+  // Posição na grade (só quando conta).
+  index?: number;
+  full?: boolean;
+}
+
+export async function getEmbaralha(): Promise<EmbaralhaDaily> {
+  return handleResponse(await fetch(`${API_URL}/embaralha/daily`));
+}
+
+export async function guessEmbaralha(word: string, date: string): Promise<EmbaralhaGuess> {
+  return handleResponse(await postJson("/embaralha/daily/guess", { word, date }));
+}
+
+export async function revealEmbaralha(date: string): Promise<{ date: string; answers: { word: string; written: string }[] }> {
+  return handleResponse(await postJson("/embaralha/daily/reveal", { date }));
 }

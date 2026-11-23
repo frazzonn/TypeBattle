@@ -62,7 +62,7 @@ export function RecordsCard({ userId, token, isOther = false }: RecordsCardProps
     );
   }
 
-  const { pavio, orbita, chase, cifra } = records.arcade;
+  const { pavio, orbita, chase, cifra, conjuga } = records.arcade;
   const empty = isOther ? "Ainda não jogou" : "Você ainda não jogou";
 
   return (
@@ -107,6 +107,12 @@ export function RecordsCard({ userId, token, isOther = false }: RecordsCardProps
                 : empty
             }
             accent="#d9a227"
+          />
+          <StatCard
+            label="Conjuga · mais formas"
+            value={conjuga?.best ? conjuga.best.score : "—"}
+            description={conjuga?.best ? `${playedLabel(conjuga.played)} · ${conjuga.best.details.verbs ?? 0} verbos completos` : empty}
+            accent="#67e8f9"
           />
         </Box>
       </Box>

@@ -10,9 +10,10 @@ import { ALLOWED_WORD_COUNTS } from "./TypingResultController.js";
 
 // Jogos do Arcade com ranking. O score de cada um:
 //   orbita: pontos · pavio: palavras · chase: milissegundos aguentados ·
-//   cifra: palavras acertadas contra o relógio (gravado só pelo servidor, em
-//   CifraController; validateArcade não aceita resultados dela).
-export const ARCADE_GAMES = ["orbita", "pavio", "chase", "cifra"] as const;
+//   cifra: palavras acertadas contra o relógio · conjuga: formas preenchidas.
+//   Cifra e Conjuga são gravados só pelo servidor (CifraController e
+//   ConjugaController); validateArcade não aceita resultados deles.
+export const ARCADE_GAMES = ["orbita", "pavio", "chase", "cifra", "conjuga"] as const;
 type ArcadeGame = (typeof ARCADE_GAMES)[number];
 
 const RANKING_LIMIT = 100;

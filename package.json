@@ -10,7 +10,9 @@
     "preview": "vite preview",
     "build:languages": "node scripts/build-languages.mjs",
     "build:pavio": "node scripts/build-pavio.mjs",
-    "build:cifra": "node scripts/build-cifra.mjs"
+    "build:cifra": "node scripts/build-cifra.mjs",
+    "build:embaralha": "node scripts/build-embaralha.mjs",
+    "build:conjuga": "node scripts/build-conjuga.mjs"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

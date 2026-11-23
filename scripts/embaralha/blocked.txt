@@ -1,0 +1,3 @@
+# Palavras que não contam nem viram desafio no Embaralha (uma por linha).
+# Depois de editar: npm run build:embaralha
+rom

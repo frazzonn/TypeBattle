@@ -16,6 +16,7 @@ import {
 import DirectionsRunRoundedIcon from "@mui/icons-material/DirectionsRunRounded";
 import EmojiEventsRoundedIcon from "@mui/icons-material/EmojiEventsRounded";
 import GridViewRoundedIcon from "@mui/icons-material/GridViewRounded";
+import TableChartRoundedIcon from "@mui/icons-material/TableChartRounded";
 import MilitaryTechRoundedIcon from "@mui/icons-material/MilitaryTechRounded";
 import NotesRoundedIcon from "@mui/icons-material/NotesRounded";
 import PublicRoundedIcon from "@mui/icons-material/PublicRounded";
@@ -30,7 +31,7 @@ import { getArcadeRanking, getRanking, type Tag } from "../../services/api";
 import { DEFAULT_LANGUAGE, LANGUAGE_OPTIONS } from "../../utils/textGenerator";
 
 // Qual ranking está na tela. Os do Arcade também vêm pelo link (?tipo=pavio).
-type Board = "time" | "words" | "pavio" | "orbita" | "chase" | "cifra";
+type Board = "time" | "words" | "pavio" | "orbita" | "chase" | "cifra" | "conjuga";
 
 const BOARDS: { value: Board; label: string; group: "Digitar" | "Arcade"; icon: ReactNode }[] = [
   { value: "time", label: "Tempo", group: "Digitar", icon: <TimerOutlinedIcon sx={{ fontSize: 18 }} /> },
@@ -39,6 +40,7 @@ const BOARDS: { value: Board; label: string; group: "Digitar" | "Arcade"; icon: 
   { value: "orbita", label: "Órbita", group: "Arcade", icon: <PublicRoundedIcon sx={{ fontSize: 18 }} /> },
   { value: "chase", label: "Perseguição", group: "Arcade", icon: <DirectionsRunRoundedIcon sx={{ fontSize: 18 }} /> },
   { value: "cifra", label: "Cifra", group: "Arcade", icon: <GridViewRoundedIcon sx={{ fontSize: 18 }} /> },
+  { value: "conjuga", label: "Conjuga", group: "Arcade", icon: <TableChartRoundedIcon sx={{ fontSize: 18 }} /> },
 ];
 
 function isBoard(value: string | null): value is Board {
@@ -72,6 +74,7 @@ const VALUE_LABEL: Record<Board, { long: string; short: string }> = {
   orbita: { long: "PONTOS", short: "PONTOS" },
   chase: { long: "AGUENTOU", short: "AGUENTOU" },
   cifra: { long: "PALAVRAS CONTRA O RELÓGIO", short: "PALAVRAS" },
+  conjuga: { long: "FORMAS CONJUGADAS", short: "FORMAS" },
 };
 
 const toggleSx = {
@@ -146,6 +149,8 @@ export function Ranking() {
           detail = d.longest ? `Mais longa: ${d.longest}` : "";
         } else if (board === "cifra") {
           detail = d.last ? `Última: ${d.last}` : "";
+        } else if (board === "conjuga") {
+          detail = `${d.verbs ?? 0} ${d.verbs === 1 ? "verbo completo" : "verbos completos"}`;
         } else if (board === "orbita") {
           value = player.score.toLocaleString("pt-BR");
           detail = `Onda ${d.wave ?? "?"} · combo ${d.bestCombo ?? 0}`;
@@ -187,6 +192,9 @@ export function Ranking() {
   } else if (board === "pavio") {
     description = "Mais palavras antes da bomba explodir, no modo solo.";
     emptyHint = "Jogue o Pavio no Arcade para começar a classificação.";
+  } else if (board === "conjuga") {
+    description = "Mais formas verbais preenchidas em 90 segundos (com os bônus de tempo).";
+    emptyHint = "Jogue o Conjuga no Arcade para começar a classificação.";
   } else if (board === "cifra") {
     description = "Mais palavras descobertas na Cifra contra o relógio.";
     emptyHint = "Jogue a Cifra contra o relógio no Arcade para começar a classificação.";

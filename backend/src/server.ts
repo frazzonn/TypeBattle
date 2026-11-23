@@ -7,6 +7,8 @@ import { arcadeRoutes } from "./routes/arcadeRoutes.js";
 import { authRoutes } from "./routes/authRoutes.js";
 import { battleResultRoutes } from "./routes/battleResultRoutes.js";
 import { cifraRoutes } from "./routes/cifraRoutes.js";
+import { conjugaRoutes } from "./routes/conjugaRoutes.js";
+import { embaralhaRoutes } from "./routes/embaralhaRoutes.js";
 import { typingResultRoutes } from "./routes/typingResultRoutes.js";
 import { userRoutes } from "./routes/userRoutes.js";
 import { registerBattleSocket } from "./socket/battleSocket.js";
@@ -73,6 +75,8 @@ app.use("/api/battle-results", battleResultRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/arcade-results", arcadeRoutes);
 app.use("/api/cifra", cifraRoutes);
+app.use("/api/conjuga", conjugaRoutes);
+app.use("/api/embaralha", embaralhaRoutes);
 
 registerBattleSocket(io);
 

@@ -150,6 +150,70 @@ function CifraPreview() {
   );
 }
 
+// Miniatura do Embaralha: as letras do dia e palavras achadas.
+function EmbaralhaPreview() {
+  return (
+    <Stack sx={{ height: "100%", alignItems: "center", justifyContent: "center", gap: 2 }}>
+      <Stack direction="row" spacing={0.75}>
+        {[..."ntraeco"].map((letter, i) => (
+          <Box
+            key={i}
+            sx={{
+              width: 34, height: 34, display: "grid", placeItems: "center", borderRadius: "8px",
+              bgcolor: "#7c4dff", color: "#fff",
+              fontFamily: MONO_FONT, fontWeight: 800, fontSize: 17, textTransform: "uppercase",
+            }}
+          >
+            {letter}
+          </Box>
+        ))}
+      </Stack>
+      <Stack direction="row" spacing={0.75}>
+        {["cante", "canto", "·····"].map((word, i) => (
+          <Box
+            key={i}
+            sx={{
+              px: 1, py: 0.25, borderRadius: "6px", fontFamily: MONO_FONT, fontSize: 13, fontWeight: 700,
+              textTransform: "uppercase", border: "1px solid",
+              borderColor: i < 2 ? "rgba(124,77,255,.45)" : "#2e3240",
+              bgcolor: i < 2 ? "rgba(124,77,255,.18)" : "transparent", color: i < 2 ? "#e4dcff" : "#4a4f5e",
+            }}
+          >
+            {word}
+          </Box>
+        ))}
+      </Stack>
+    </Stack>
+  );
+}
+
+// Miniatura do Conjuga: o verbo e um pedaço da tabela.
+function ConjugaPreview() {
+  const rows: [string, string | null][] = [["eu", "corro"], ["tu", "corres"], ["ele", null], ["nós", "corremos"]];
+  return (
+    <Stack sx={{ height: "100%", alignItems: "center", justifyContent: "center", gap: 1.25 }}>
+      <Typography sx={{ fontFamily: MONO_FONT, fontWeight: 800, fontSize: 24, letterSpacing: ".06em" }}>CORRER</Typography>
+      <Stack spacing={0.5} sx={{ width: 190 }}>
+        {rows.map(([person, form]) => (
+          <Stack key={person} direction="row" spacing={1} sx={{ alignItems: "center" }}>
+            <Typography sx={{ width: 34, fontSize: 12, color: MUTED, textAlign: "right" }}>{person}</Typography>
+            <Box
+              sx={{
+                flex: 1, px: 1, py: 0.25, borderRadius: "6px", fontFamily: MONO_FONT, fontSize: 13, fontWeight: 700,
+                border: "1px solid", borderStyle: form ? "solid" : "dashed",
+                borderColor: form ? "rgba(124,77,255,.55)" : "#2e3240",
+                bgcolor: form ? "rgba(124,77,255,.18)" : "transparent", color: "#eee7ff", minHeight: 22,
+              }}
+            >
+              {form ?? ""}
+            </Box>
+          </Stack>
+        ))}
+      </Stack>
+    </Stack>
+  );
+}
+
 interface GameCardProps {
   to: string;
   title: string;
@@ -231,7 +295,7 @@ export function Arcade() {
           </Typography>
         </Stack>
 
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" }, gap: 3 }}>
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))", lg: "repeat(3, minmax(0, 1fr))" }, gap: 3 }}>
           <GameCard
             to="/arcade/cifra"
             title="Cifra"
@@ -243,6 +307,30 @@ export function Arcade() {
               "Ranking do dia e ranking do Arcade",
             ]}
             preview={<CifraPreview />}
+          />
+          <GameCard
+            to="/arcade/embaralha"
+            title="Embaralha"
+            badge="Diário"
+            description="Sete letras embaralhadas por dia. Forme o máximo de palavras com elas."
+            details={[
+              "Palavras de 3 letras ou mais, cada letra uma vez",
+              "Uma das palavras usa todas as letras",
+              "Desafio novo todo dia, igual para todo mundo",
+            ]}
+            preview={<EmbaralhaPreview />}
+          />
+          <GameCard
+            to="/arcade/conjuga"
+            title="Conjuga"
+            badge="Novo"
+            description="Aparece um verbo: digite as conjugações dele antes do tempo acabar."
+            details={[
+              "Presente, pretéritos, futuros, subjuntivo, gerúndio e particípio",
+              "Completar um tempo ou o verbo inteiro soma tempo",
+              "Verbos regulares e irregulares",
+            ]}
+            preview={<ConjugaPreview />}
           />
           <GameCard
             to="/arcade/pavio"

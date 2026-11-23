@@ -65,6 +65,16 @@ const Cifra = lazy(() =>
     default: module.Cifra,
   })),
 );
+const Conjuga = lazy(() =>
+  import("../pages/Arcade/conjuga/Conjuga").then((module) => ({
+    default: module.Conjuga,
+  })),
+);
+const Embaralha = lazy(() =>
+  import("../pages/Arcade/embaralha/Embaralha").then((module) => ({
+    default: module.Embaralha,
+  })),
+);
 const AdminCifra = lazy(() =>
   import("../pages/Admin/AdminCifra").then((module) => ({
     default: module.AdminCifra,
@@ -114,6 +124,8 @@ export function AppRoutes() {
         <Route path="/arcade/perseguicao" element={<Chase />} />
         <Route path="/arcade/pavio" element={<Pavio />} />
         <Route path="/arcade/cifra" element={<Cifra />} />
+        <Route path="/arcade/conjuga" element={<Conjuga />} />
+        <Route path="/arcade/embaralha" element={<Embaralha />} />
         <Route path="/verificar" element={<VerifyEmail />} />
         <Route path="/recuperar-senha" element={<ResetPassword />} />
         <Route path="/jogador/:userId" element={<PublicProfile />} />
