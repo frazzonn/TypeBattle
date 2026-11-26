@@ -29,13 +29,15 @@ import {
   stopPavio,
   type PavioHooks,
   type PavioState,
+  isPavioFuse,
 } from "./pavioBattle.js";
 
 // Aceita clientes antigos sem playerLimit, language ou modo e usa os padrões.
 type RoomSettingsInput = Omit<
   RoomSettings,
-  "playerLimit" | "language" | "mode" | "wordCount"
+  "playerLimit" | "language" | "mode" | "wordCount" | "pavioFuse"
 > & {
+  pavioFuse?: unknown;
   playerLimit?: unknown;
   language?: string;
   mode?: unknown;
@@ -149,6 +151,7 @@ function isValidSettings(value: unknown): value is RoomSettingsInput {
       (BATTLE_MODES as readonly string[]).includes(String(settings.mode))) &&
     (settings.wordCount === undefined ||
       WORD_COUNTS.includes(Number(settings.wordCount) as WordCount)) &&
+    (settings.pavioFuse === undefined || isPavioFuse(settings.pavioFuse)) &&
     ["single", "best-of-3", "best-of-5"].includes(String(settings.format)) &&
     (settings.playerLimit === undefined ||
       [2, 3, 4, 5, 6, 7, 8].includes(Number(settings.playerLimit)))
@@ -180,6 +183,7 @@ function normalizeRoomSettings(settings: RoomSettingsInput): RoomSettings {
     mode,
     duration: settings.duration,
     wordCount: WORD_COUNTS.includes(wordCount) ? wordCount : 25,
+    pavioFuse: isPavioFuse(settings.pavioFuse) ? settings.pavioFuse : "normal",
     format: settings.format,
     playerLimit: limit as RoomSettings["playerLimit"],
   };

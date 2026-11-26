@@ -15,7 +15,7 @@ import { UserTags } from "../../../components/UserTags";
 import { DEFAULT_LANGUAGE, languageHasDifficulty } from "../../../utils/textGenerator";
 import { getFormatLabel, getPlayerColor } from "../battleUtils";
 import { cardSx, colors, ghostButtonSx, labelSx, monoFont, primaryButtonSx } from "../styles";
-import type { BattleMode, BattleRoom, RoomSettings } from "../types";
+import { PAVIO_FUSES, type BattleMode, type BattleRoom, type PavioFuse, type RoomSettings } from "../types";
 import { PlayerAvatar } from "./PlayerAvatar";
 
 interface BattleLobbyProps {
@@ -59,7 +59,9 @@ const MODES: { value: BattleMode; label: string; description: string; icon: Reac
 
 function modeSummary(settings: RoomSettings): string {
   const format = getFormatLabel(settings.format).toLowerCase();
-  if (settings.mode === "pavio") return `Pavio · 2 vidas · ${format}`;
+  if (settings.mode === "pavio") {
+    return `Pavio · tempo ${PAVIO_FUSES[settings.pavioFuse ?? "normal"].label.toLowerCase()} · ${format}`;
+  }
   if (settings.mode === "chase") return `Perseguição · ${format}`;
   if (settings.mode === "words") return `Palavras · ${settings.wordCount} · ${format}`;
   return `Tempo · ${settings.duration} s · ${format}`;
@@ -387,6 +389,15 @@ export function BattleLobby({
             <SettingRow label="Duração">
               <Pills label="Duração" value={settings.duration} disabled={!canEdit} onChange={(value) => change("duration", value)}
                 options={[{ value: 15, label: "15 s" }, { value: 30, label: "30 s" }, { value: 60, label: "60 s" }]} />
+            </SettingRow>
+          )}
+          {isPavio && (
+            <SettingRow label="Bomba">
+              <Pills label="Tempo da bomba" value={settings.pavioFuse ?? "normal"} disabled={!canEdit} onChange={(value) => change("pavioFuse", value)}
+                options={(Object.keys(PAVIO_FUSES) as PavioFuse[]).map((fuse) => ({
+                  value: fuse,
+                  label: PAVIO_FUSES[fuse].label,
+                }))} />
             </SettingRow>
           )}
           {settings.mode === "words" && (

@@ -1,3 +1,4 @@
+import type { PavioFuse } from "../battle/types.js";
 import { checkWord, exampleWords, pickSyllable, type WordRejection } from "../pavio/pavioWords.js";
 
 // Pavio na battle: a bomba passa de mão em mão. Quem está com ela digita uma
@@ -6,8 +7,16 @@ import { checkWord, exampleWords, pickSyllable, type WordRejection } from "../pa
 
 export const PAVIO_LIVES = 2;
 // O pavio queima um tempo sorteado e escondido; ninguém sabe quando explode.
-const FUSE_MIN_MS = 20_000;
-const FUSE_MAX_MS = 35_000;
+// O anfitrião escolhe a faixa (mesmos valores de PAVIO_FUSES no front).
+const FUSE_RANGES: Record<PavioFuse, { minMs: number; maxMs: number }> = {
+  short: { minMs: 15_000, maxMs: 25_000 },
+  normal: { minMs: 25_000, maxMs: 40_000 },
+  long: { minMs: 40_000, maxMs: 60_000 },
+};
+
+export function isPavioFuse(value: unknown): value is PavioFuse {
+  return typeof value === "string" && Object.hasOwn(FUSE_RANGES, value);
+}
 // Quem recebe a bomba quase no fim ganha um tempo mínimo para tentar, mas
 // cada bomba só pode ganhar até MAX_EXTRA_MS no total (senão, com respostas
 // rápidas, ela nunca explodiria).
@@ -38,6 +47,7 @@ export interface PavioRoom {
   code: string;
   status: string;
   players: PavioPlayer[];
+  settings: { pavioFuse?: PavioFuse };
   pavio: PavioState | null;
 }
 
@@ -105,7 +115,8 @@ function lightFuse(room: PavioRoom, hooks: PavioHooks, holder: string) {
   pavio.bombStartedAt = Date.now();
   pavio.explosion = null;
 
-  const fuse = FUSE_MIN_MS + Math.random() * (FUSE_MAX_MS - FUSE_MIN_MS);
+  const range = FUSE_RANGES[room.settings.pavioFuse ?? "normal"];
+  const fuse = range.minMs + Math.random() * (range.maxMs - range.minMs);
   state.extraMs = 0;
   scheduleExplosion(room, hooks, Date.now() + fuse);
 }

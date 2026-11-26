@@ -9,6 +9,8 @@ export type PlayerLimit = 2 | 3 | 4 | 5 | 6 | 7 | 8;
 // Pavio: a bomba passa de mão em mão; cada um digita uma palavra com a sílaba.
 export type BattleMode = "time" | "words" | "chase" | "pavio";
 export type WordCount = 10 | 25 | 50 | 100;
+// Pavio: quanto tempo a bomba queima (sorteado dentro da faixa, escondido).
+export type PavioFuse = "short" | "normal" | "long";
 export type RoomStatus = "waiting" | "countdown" | "playing" | "finished";
 export interface RoomSettings {
   difficulty: Difficulty;
@@ -19,6 +21,7 @@ export interface RoomSettings {
   mode: BattleMode;
   duration: Duration;
   wordCount: WordCount;
+  pavioFuse: PavioFuse;
   format: MatchFormat;
   playerLimit: PlayerLimit;
 }

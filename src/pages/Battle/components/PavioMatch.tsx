@@ -9,14 +9,13 @@ import { Bomb } from "../../Arcade/pavio/Bomb";
 import { normalizeWord, REJECTION_MESSAGES } from "../../Arcade/pavio/pavioRules";
 import { getMaximumRounds, getPlayerColor, getPlayerName } from "../battleUtils";
 import { cardSx, colors, labelSx, monoFont } from "../styles";
-import type { BattleRoom, PavioRejection } from "../types";
+import { PAVIO_FUSES, type BattleRoom, type PavioRejection } from "../types";
 import type { PavioFeedback, PavioLogEntry, PavioTyping } from "../useBattleRoom";
 import { PlayerAvatar } from "./PlayerAvatar";
 
 // Mesmo valor de PAVIO_LIVES no servidor (backend/src/socket/pavioBattle.ts).
 const LIVES = 2;
-// O pavio queima entre 20 e 35 s; a bomba treme mais conforme o tempo passa.
-const FUSE_MAX_MS = 35_000;
+// A bomba treme mais conforme o tempo passa, até o máximo da faixa escolhida.
 const HOLDER = "#fdba74";
 const DANGER = "#ff5c7a";
 
@@ -127,7 +126,7 @@ export function PavioMatch({ room, myId, now, typing, feedback, log, onType, onS
     : 0;
   const explosion = pavio?.explosion ?? null;
   const tension = pavio?.bombStartedAt && !explosion
-    ? Math.min(1, Math.max(0, now - bombSeenAt) / FUSE_MAX_MS)
+    ? Math.min(1, Math.max(0, now - bombSeenAt) / PAVIO_FUSES[room.settings.pavioFuse ?? "normal"].maxMs)
     : 0;
   const isSeries = room.settings.format !== "single";
   const syllable = explosion ? explosion.syllable : (pavio?.syllable ?? null);

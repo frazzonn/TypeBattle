@@ -31,6 +31,16 @@ export interface PavioState {
 
 export type WordCount = 10 | 25 | 50 | 100;
 
+// Pavio: quanto tempo a bomba queima (sorteado dentro da faixa, escondido).
+export type PavioFuse = "short" | "normal" | "long";
+
+// Mesmas faixas de FUSE_RANGES no servidor (backend/src/socket/pavioBattle.ts).
+export const PAVIO_FUSES: Record<PavioFuse, { label: string; minMs: number; maxMs: number }> = {
+  short: { label: "Rápido", minMs: 15_000, maxMs: 25_000 },
+  normal: { label: "Equilibrado", minMs: 25_000, maxMs: 40_000 },
+  long: { label: "Demorado", minMs: 40_000, maxMs: 60_000 },
+};
+
 export type RoomStatus = "waiting" | "countdown" | "playing" | "finished";
 
 export interface RoomSettings {
@@ -42,6 +52,7 @@ export interface RoomSettings {
   mode: BattleMode;
   duration: Duration;
   wordCount: WordCount;
+  pavioFuse: PavioFuse;
   format: MatchFormat;
   playerLimit: PlayerLimit;
 }
@@ -106,6 +117,7 @@ export const DEFAULT_SETTINGS: RoomSettings = {
   mode: "time",
   duration: 30,
   wordCount: 25,
+  pavioFuse: "normal",
   format: "single",
   playerLimit: 2,
 };

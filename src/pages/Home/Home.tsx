@@ -9,12 +9,17 @@ import {
 } from "@mui/material";
 import { Link } from "react-router-dom";
 
+import { useAuth } from "../../contexts/useAuth";
+
 import SpeedRoundedIcon from "@mui/icons-material/SpeedRounded";
 import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
 import EmojiEventsRoundedIcon from "@mui/icons-material/EmojiEventsRounded";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import KeyboardRoundedIcon from "@mui/icons-material/KeyboardRounded";
 import TrackChangesRoundedIcon from "@mui/icons-material/TrackChangesRounded";
+import SportsEsportsRoundedIcon from "@mui/icons-material/SportsEsportsRounded";
+
+import { HomeExtras } from "./HomeExtras";
 
 const features = [
   {
@@ -38,6 +43,16 @@ const features = [
     action: "Ir para batalhas",
   },
   {
+    icon: <SportsEsportsRoundedIcon />,
+    title: "Jogue no Arcade",
+    description:
+      "Seis jogos de palavras e digitação, com desafios novos todo dia.",
+    color: "#fdba74",
+    background: "rgba(253, 186, 116, 0.10)",
+    to: "/arcade",
+    action: "Abrir o Arcade",
+  },
+  {
     icon: <EmojiEventsRoundedIcon />,
     title: "Suba no ranking",
     description:
@@ -50,6 +65,7 @@ const features = [
 ];
 
 export function Home() {
+  const { user } = useAuth();
   return (
     <Box
       sx={{
@@ -153,8 +169,8 @@ export function Home() {
               lineHeight: 1.8,
             }}
           >
-            Teste sua velocidade, aperfeiçoe sua precisão e enfrente outros
-            jogadores em desafios de digitação.
+            Teste sua velocidade, aperfeiçoe sua precisão, enfrente outros
+            jogadores e jogue os desafios de palavras do Arcade.
           </Typography>
 
           <Stack
@@ -228,7 +244,7 @@ export function Home() {
           >
             <TrackChangesRoundedIcon sx={{ fontSize: 17, color: "#a78bfa" }} />
             <Typography variant="caption" sx={{ letterSpacing: 0.3 }}>
-              Velocidade • Precisão • Competição
+              Velocidade • Precisão • Competição • Palavras
             </Typography>
           </Box>
         </Box>
@@ -267,7 +283,8 @@ export function Home() {
               display: "grid",
               gridTemplateColumns: {
                 xs: "1fr",
-                md: "repeat(3, minmax(0, 1fr))",
+                sm: "repeat(2, minmax(0, 1fr))",
+                md: "repeat(4, minmax(0, 1fr))",
               },
               gap: 2,
             }}
@@ -365,6 +382,8 @@ export function Home() {
           </Box>
         </Box>
 
+        <HomeExtras />
+
         {/* Chamada final */}
         <Box
           sx={{
@@ -395,13 +414,15 @@ export function Home() {
             </Typography>
 
             <Typography sx={{ mt: 0.75, color: "#9296a5", lineHeight: 1.7 }}>
-              Entre no teste e descubra do que você é capaz.
+              {user
+                ? "Entre no teste e descubra do que você é capaz."
+                : "Crie sua conta para guardar seus recordes e aparecer no ranking."}
             </Typography>
           </Box>
 
           <Button
             component={Link}
-            to="/typing"
+            to={user ? "/typing" : "/register"}
             variant="contained"
             endIcon={<ArrowForwardRoundedIcon />}
             sx={{
@@ -418,7 +439,7 @@ export function Home() {
               },
             }}
           >
-            Fazer meu teste
+            {user ? "Fazer meu teste" : "Criar conta"}
           </Button>
         </Box>
       </Container>
